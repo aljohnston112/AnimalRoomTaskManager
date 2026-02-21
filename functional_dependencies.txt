@@ -1,0 +1,96 @@
+User(Uid, UGid, UN)
+Uid
+	UGid, UN
+UN
+	Uid, UGid
+
+UserGroup(UGid, UGN)
+UGid
+	UGN
+UGN
+	UGid
+
+TaskList(TLid, TLN, TLF, TLA, Rid)
+TLid
+	TLN, TLF, TLA
+TLN
+	TLid, TLF, TLA
+
+Task(Tid, TN, TA, TLid)
+Tid
+	TN, TA
+TN
+	Tid, TA
+
+QuantitativeTask(Tid, QTmin, QTmax, QTU)
+Tid
+	QTmin, QTmax, QTU
+
+Room(Rid, RN, Cid, Lid, Fid, ELid)
+Rid
+	RN, Cid, Lid, Fid, ELid
+RN
+	Rid, Cid, Lid, Fid, ELid
+
+Facility(Fid, FN, FA)
+Fid
+	FN, FA
+FN
+	Fid, FA
+
+Lab(Lid, LN, LC, LA)
+Lid
+	LN, LC, LA
+LN
+	Lid, LC, LA
+
+TaskRecord(TRid, TRV, TRC, TRD, TLid, Tid, Uid, Rid)
+TRid
+	TRV, TRD, TRC, TLid, Tid, Uid, Rid
+TRD, TLid, Tid, Rid
+	TRid, TRV, TRC, Uid
+
+Census(Cid, CD, Rid)
+Cid
+	CD, Rid
+
+CensusRecord(CRid, CRN, Cid, Aid)
+CRid
+	CRN, Cid, Aid
+
+Animal(Aid, AN)
+Aid
+	AN
+AN
+	Aid
+
+EnrichmentList(ELid, ELN, ELA, Rid, ELRD)
+ELid
+	ELN, ELA
+ELN
+	ELid, ELA
+Rid, ELRD
+	ELid, ELN, ELA
+
+EnrichmentItem(Eid, EW, ELid, ETid)
+Eid
+	EW, ELid, ETid
+
+EnrichmentType(ETid, ETT, ETA)
+ETid
+	ETT, ETA
+ETT
+	ETid, ETA
+
+RoomCheck(RCid, RCD, RCP, RCS, TLid, Rid, Uid)
+RCid
+	RCD, RCP, RCS, TLid, Rid, Uid
+Rid, RCD, TLid
+	RCid, RCP, RCS, Uid
+
+
+ManagerWalkthrough(Mid, MD, MS, MC, Rid)
+Mid
+	MD, MS, MC, Rid
+MD, Rid
+	Mid, MS, MC

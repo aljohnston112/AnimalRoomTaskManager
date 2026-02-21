@@ -1,0 +1,67 @@
+Domain Variables,Description
+Uid,User ID
+UN,User name
+,
+UGid,User group id
+UGN,User group name
+,
+TLid,Task list ID
+TLN,Task list name
+TLF,Task list frequency
+TLA,Whether task list is available
+,
+Tid,Task ID
+TN,Task name
+TA,Whether task is available for use
+,
+QTU,Quantitative unit
+QTmin,Minimum value of a quantitative variable
+QTmax,Maximum value of a quantitative variable
+,
+Rid,Room ID
+RN,Room name
+,
+Fid,Facility id
+FN,Facility name
+FA,Whether the facility is available for use
+,
+Lid,Lab ID
+LC,Lab color
+LN,Lab name
+LA,Lab available
+,
+TRid,Task record ID
+TRV,Task record value
+TRD,Task record date
+TRC,Task record comment
+,
+Cid,Census ID
+CD,Census datetime
+,
+CRid,Census record id
+CRN,Number of animals
+,
+Aid,Animal type id
+AN,Animal type name
+,
+ELid,Enrichment list id
+ELN,Enrichment list name
+ELA,Whether enrichment list is available
+ELRD,The date an enrichment list was assigned to a room
+,
+Eid,Enrichment item id
+EW,Week day assignment of an enrichment item
+,
+ETid,Enrichment type id
+ETT,Enrichment type text
+ETA,Enrichment type available
+,
+RCid,Room check id
+RCD,Room check date
+RCP,Room check progress through task list
+RCS,"Room check state; not started, started, done"
+,
+Mid,Manager walkthrough id
+MD,Manager walkthrough date
+MS,Whether the walkthrough was done
+MC,Managaer walkthrough comments
