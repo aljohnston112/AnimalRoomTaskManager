@@ -47,6 +47,8 @@ AN,Animal type name
 ELid,Enrichment list id
 ELN,Enrichment list name
 ELA,Whether enrichment list is available
+
+ELRDid, Id of the enrichment list assignment event
 ELRD,The date an enrichment list was assigned to a room
 ,
 Eid,Enrichment item id
@@ -58,7 +60,6 @@ ETA,Enrichment type available
 ,
 RCid,Room check id
 RCD,Room check date
-RCP,Room check progress through task list
 RCS,"Room check state; not started, started, done"
 ,
 Mid,Manager walkthrough id
