@@ -1,7 +1,5 @@
-import 'dart:collection';
-
-import 'package:animal_room_task_manager/user_list_model.dart';
-import 'package:animal_room_task_manager/user_repository.dart';
+import 'package:animal_room_task_manager/user_management/user_list_model.dart';
+import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
 
 import 'add_user_page.dart';
@@ -21,7 +19,7 @@ class UserManagementScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             AdminRow(userListModel: userListModel),
-            UserList(userListModel: userListModel),
+            UserListWidget(userListModel: userListModel),
             _buildAddNewUserButton(context),
           ],
         );
@@ -45,8 +43,7 @@ class UserManagementScreen extends StatelessWidget {
   }
 }
 
-class AdminRow extends StatelessWidget{
-
+class AdminRow extends StatelessWidget {
   final UserListModel userListModel;
 
   const AdminRow({super.key, required this.userListModel});
@@ -78,14 +75,12 @@ class AdminRow extends StatelessWidget{
       child: Text("Change Admin"),
     );
   }
-
 }
 
-class UserList extends StatelessWidget{
-
+class UserListWidget extends StatelessWidget {
   final UserListModel userListModel;
 
-  const UserList({super.key, required this.userListModel});
+  const UserListWidget({super.key, required this.userListModel});
 
   @override
   Widget build(BuildContext context) {
@@ -149,9 +144,9 @@ class UserList extends StatelessWidget{
   }
 
   AlertDialog buildDeleteUserConfirmationDialog(
-      User user,
-      BuildContext context,
-      ) {
+    User user,
+    BuildContext context,
+  ) {
     return AlertDialog(
       title: Text('Confirm User Deletion'),
       content: Text('Are you sure you want to delete $user?'),
@@ -167,5 +162,4 @@ class UserList extends StatelessWidget{
       ],
     );
   }
-
 }
