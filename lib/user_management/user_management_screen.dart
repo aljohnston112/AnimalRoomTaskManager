@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:animal_room_task_manager/user_management/user_list_model.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
@@ -12,23 +13,26 @@ class UserManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: userListModel,
-      builder: (context, _) {
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            AdminRow(userListModel: userListModel),
-            UserListWidget(userListModel: userListModel),
-            _buildAddNewUserButton(context),
-          ],
-        );
-      },
+    return buildScaffold(
+      title: "Manage Users",
+      child: ListenableBuilder(
+        listenable: userListModel,
+        builder: (context, _) {
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              AdminRow(userListModel: userListModel),
+              UserListWidget(userListModel: userListModel),
+              _buildAddNewUserButton(context),
+            ],
+          );
+        },
+      ),
     );
   }
 
-  ElevatedButton _buildAddNewUserButton(BuildContext context) {
-    return ElevatedButton(
+  Widget _buildAddNewUserButton(BuildContext context) {
+    return FilledButton(
       onPressed: () async {
         final AddUserResult? result = await Navigator.push(
           context,
@@ -59,8 +63,9 @@ class AdminRow extends StatelessWidget {
     );
   }
 
-  ElevatedButton _buildAdminTransferButton(BuildContext context) {
-    return ElevatedButton(
+  Widget _buildAdminTransferButton(BuildContext context) {
+    return FilledButton(
+      child: Text("Change Admin"),
       onPressed: () async {
         final User? result = await Navigator.push(
           context,
@@ -72,7 +77,6 @@ class AdminRow extends StatelessWidget {
           userListModel.changeAdmin(result);
         }
       },
-      child: Text("Change Admin"),
     );
   }
 }
@@ -130,10 +134,10 @@ class UserListWidget extends StatelessWidget {
     return IconButton(
       icon: Icon(Icons.delete),
       onPressed: () async {
-        showDialog<bool>(
+        await showDialog<bool>(
           context: context,
           builder: (context) =>
-              buildDeleteUserConfirmationDialog(user, context),
+              _buildDeleteUserConfirmationDialog(user, context),
         ).then((result) {
           if (result == true) {
             userListModel.removeUser(user);
@@ -143,7 +147,7 @@ class UserListWidget extends StatelessWidget {
     );
   }
 
-  AlertDialog buildDeleteUserConfirmationDialog(
+  AlertDialog _buildDeleteUserConfirmationDialog(
     User user,
     BuildContext context,
   ) {

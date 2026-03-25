@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 class Task {
   final String description;
 
@@ -27,201 +29,221 @@ enum TaskFrequency { daily, weekly, monthly }
 class TaskList {
   final String name;
   final TaskFrequency frequency;
-  final List<Task> tasks;
+  final UnmodifiableListView<Task> tasks;
 
   TaskList({required this.name, required this.frequency, required this.tasks});
 }
 
 class TaskListRepository {
-
   static final tempTask = QuantitativeTask(
     description: "Room Temperature",
-    range: QuantitativeRange(min: 20, max: 24, units: "Fahrenheit"),
+    range: QuantitativeRange(min: 68, max: 79, units: "Fahrenheit"),
   );
 
   static final hibernaculumTempTask = QuantitativeTask(
     description: "Room Temperature",
-    range: QuantitativeRange(min: 2, max: 8, units: "Fahrenheit"),
+    range: QuantitativeRange(min: 32, max: 42, units: "Fahrenheit"),
   );
 
   static final humidityTask = QuantitativeTask(
     description: "Room Humidity",
-    range: QuantitativeRange(min: 30, max: 60, units: "RH"),
+    range: QuantitativeRange(min: 30, max: 70, units: "RH"),
   );
 
   static final hibernaculumHumidityTask = QuantitativeTask(
     description: "Room Humidity",
-    range: QuantitativeRange(min: 70, max: 95, units: "RH"),
+    range: QuantitativeRange(min: 30, max: 70, units: "RH"),
   );
 
+  static final quantitativeTasks = UnmodifiableListView([
+    tempTask,
+    humidityTask,
+  ]);
+
+  static final wipeCounterAndSweep = Task(description: "Wipe Counters & Sweep");
+  static final checkVerminTrap = Task(description: "Check Vermin Trap");
+
+  static final basicDailyTasks = UnmodifiableListView([
+    ...quantitativeTasks,
+    wipeCounterAndSweep,
+    checkVerminTrap,
+  ]);
+
+  static final List<TaskList> dailyTasks = [
+    TaskList(
+      name: "Empty/Idle Room Daily Tasks",
+      frequency: TaskFrequency.daily,
+      tasks: quantitativeTasks,
+    ),
+    TaskList(
+      name: "Surgery Room Daily Tasks",
+      frequency: TaskFrequency.daily,
+      tasks: basicDailyTasks,
+    ),
+    TaskList(
+      name: "Storage Room Daily Tasks",
+      frequency: TaskFrequency.daily,
+      tasks: basicDailyTasks,
+    ),
+    TaskList(
+      name: "Cagewash Room Daily Tasks",
+      frequency: TaskFrequency.daily,
+      tasks: UnmodifiableListView([
+        ...quantitativeTasks,
+        checkVerminTrap,
+        Task(description: "Sweep"),
+      ]),
+    ),
+    TaskList(
+      name: "Animal Room Daily Tasks",
+      frequency: TaskFrequency.daily,
+      tasks: UnmodifiableListView([
+        ...basicDailyTasks,
+        Task(description: "View Each Animal"),
+        Task(description: "Give/Check Food & Water"),
+        Task(description: "Double Check Water"),
+      ]),
+    ),
+    TaskList(
+      name: "Hibernaculum Daily Tasks",
+      frequency: TaskFrequency.daily,
+      tasks: UnmodifiableListView([
+        hibernaculumTempTask,
+        hibernaculumHumidityTask,
+        wipeCounterAndSweep,
+        checkVerminTrap,
+        Task(description: "View Each Animal"),
+        Task(description: "Give/Check Food & Water"),
+        Task(description: "Double Check Water"),
+      ]),
+    ),
+  ];
+
+  static final mopFloor = Task(description: "Mop Floor");
   static final managerWalkThroughTask = Task(
     description: "Manager Walkthrough",
   );
 
-  final List<TaskList> dailyTasks = [
-    TaskList(
-      name: "CACF Surgery Room Daily Tasks",
-      frequency: TaskFrequency.daily,
-      tasks: [
-        tempTask,
-        humidityTask,
-        Task(description: "Wipe Counters & Sweep"),
-        Task(description: "Check Vermin Trap"),
-      ],
-    ),
-    TaskList(
-      name: "CACF Empty/Idle Room Daily Tasks",
-      frequency: TaskFrequency.daily,
-      tasks: [tempTask, humidityTask],
-    ),
-    TaskList(
-      name: "CACF Storage Room Daily Tasks",
-      frequency: TaskFrequency.daily,
-      tasks: [
-        tempTask,
-        humidityTask,
-        Task(description: "Wipe Counters & Sweep"),
-        Task(description: "Check Vermin Trap"),
-      ],
-    ),
-    TaskList(
-      name: "HACF Animal Room Daily Tasks",
-      frequency: TaskFrequency.daily,
-      tasks: [
-        tempTask,
-        humidityTask,
-        Task(description: "View Each Animal"),
-        Task(description: "Give/Check Food & Water"),
-        Task(description: "Wipe Counters & Sweep"),
-        Task(description: "Check Vermin Trap"),
-        Task(description: "Double Check Water")
-      ],
-    ),
-    TaskList(
-      name: "CACF Cagewash Room Daily Tasks",
-      frequency: TaskFrequency.daily,
-      tasks: [
-        tempTask,
-        humidityTask,
-        Task(description: "Sweep"),
-        Task(description: "Check Vermin Trap"),
-      ],
-    ),
-  ];
+  static final basicWeeklyTasks = UnmodifiableListView([
+    mopFloor,
+    managerWalkThroughTask,
+  ]);
 
-  final List<TaskList> weeklyTasks = [
+  static final List<TaskList> weeklyTasks = [
     TaskList(
-      name: "CACF Surgery Room Weekly Tasks",
+      name: "Empty/Idle Room Weekly Tasks",
       frequency: TaskFrequency.weekly,
-      tasks: [
-        Task(description: "Mop Floor"),
-        managerWalkThroughTask,
+      tasks: UnmodifiableListView([managerWalkThroughTask]),
+    ),
+    TaskList(
+      name: "Storage Room Weekly Tasks",
+      frequency: TaskFrequency.weekly,
+      tasks: basicWeeklyTasks,
+    ),
+    TaskList(
+      name: "Surgery Room Weekly Tasks",
+      frequency: TaskFrequency.weekly,
+      tasks: UnmodifiableListView([
+        ...basicWeeklyTasks,
         Task(description: "Manager Check Expiration Dates on Drugs/Supplies"),
-      ],
+      ]),
     ),
     TaskList(
-      name: "CACF Empty/Idle Room Weekly Tasks",
+      name: "Storage Room Weekly Tasks",
       frequency: TaskFrequency.weekly,
-      tasks: [managerWalkThroughTask],
+      tasks: UnmodifiableListView([
+        Task(description: "Perform Cage Wash Temp Strip Test"),
+        ...basicWeeklyTasks,
+      ]),
     ),
     TaskList(
-      name: "CACF Storage Room Weekly Tasks",
+      name: "Storage Room Weekly Tasks",
       frequency: TaskFrequency.weekly,
-      tasks: [
-        Task(description: "Mop Floor"),
-        managerWalkThroughTask,
-      ],
-    ),
-    TaskList(
-      name: "HACF Storage Room Weekly Tasks",
-      frequency: TaskFrequency.weekly,
-      tasks: [
+      tasks: UnmodifiableListView([
         Task(description: "Change Cage/Bedding"),
         Task(description: "Change Water Bottle"),
         Task(description: "Sanitize Enrichment"),
         Task(description: "Check Light Timer"),
-        Task(description: "Mop Floor"),
-        managerWalkThroughTask,
-      ],
-    ),
-    TaskList(
-      name: "CACF Storage Room Weekly Tasks",
-      frequency: TaskFrequency.weekly,
-      tasks: [
-        Task(description: "Perform Cage Wash Temp Strip Test"),
-        Task(description: "Mop Floor"),
-        managerWalkThroughTask,
-      ],
+        ...basicWeeklyTasks,
+      ]),
     ),
   ];
 
-  final List<TaskList> monthlyTasks = [
+  static final mopWallAndCeiling = Task(description: "Mop Walls and Ceiling");
+  static final sanitizeShelvesRacksCarts = Task(
+    description: "Sanitize Shelves/Racks/Carts",
+  );
+  static final sanitizeGarbageCan = Task(description: "Sanitize Garbage Can");
+  static final sanitizeMopSupplies = Task(
+    description: "Sanitize Mop Buckets & Cloth Mop Heads",
+  );
+  static final sanitizeDustPans = Task(description: "Sanitize Dust Pans");
+  static final replaceDisinfectant = Task(description: "Replace Disinfectant");
+
+  static final basicMonthlyTasks = UnmodifiableListView([
+    mopWallAndCeiling,
+    sanitizeShelvesRacksCarts,
+    sanitizeGarbageCan,
+    sanitizeMopSupplies,
+    sanitizeDustPans,
+    replaceDisinfectant,
+  ]);
+
+  static final List<TaskList> monthlyTasks = [
     TaskList(
-      name: "CACF Surgery Room Monthly Tasks",
+      name: "Animal Room Monthly Tasks",
       frequency: TaskFrequency.monthly,
-      tasks: [
-        Task(description: "Mop Walls and Ceiling"),
-        Task(description: "Sanitize Shelves/Racks/Carts"),
-        Task(description: "Clean Sink With Comet"),
-        Task(description: "Clean Paper Towel & Soap Dispensers"),
-        Task(description: "Sanitize Garbage Can"),
-        Task(description: "Sanitize Mop Buckets & Cloth Mop Heads"),
-        Task(description: "Sanitize Storage Barrels & Scoops"),
-        Task(description: "Sanitize Small Containers, If Present"),
-        Task(description: "Sanitize Dust Pans"),
-        Task(description: "Replace Disinfectant"),
-        Task(description: "Refill Bins With Bedding, If Present"),
-        Task(description: "Clean Refrigerator"),
-        Task(description: "Check Euthanasia Equipment"),
-        Task(description: "Check Anaesthesia Equipment"),
-      ],
-    ),
-    TaskList(
-      name: "CACF Storage Room Monthly Tasks",
-      frequency: TaskFrequency.monthly,
-      tasks: [
-        Task(description: "Mop Walls and Ceiling"),
-        Task(description: "Sanitize Shelves/Racks/Carts"),
-        Task(description: "Sanitize Garbage Can"),
-        Task(description: "Sanitize Mop Buckets & Cloth Mop Heads"),
-        Task(description: "Sanitize Storage Barrels & Scoops"),
-        Task(description: "Sanitize Small Containers, If Present"),
-        Task(description: "Sanitize Dust Pans"),
-        Task(description: "Replace Disinfectant"),
-        Task(description: "Refill Bins With Bedding, If Present"),
-      ],
-    ),
-    TaskList(
-      name: "HACF Animal Room Monthly Tasks",
-      frequency: TaskFrequency.monthly,
-      tasks: [
-        Task(description: "Mop Walls and Ceiling"),
-        Task(description: "Sanitize Shelves/Racks/Carts"),
-        Task(description: "Sanitize Garbage Can"),
-        Task(description: "Sanitize Mop Buckets & Cloth Mop Heads"),
-        Task(description: "Sanitize Dust Pans"),
-        Task(description: "Replace Disinfectant"),
+      tasks: UnmodifiableListView([
+        ...basicMonthlyTasks,
         Task(
           description: "Check Function of Heaters or Dehumidifiers, If Present",
         ),
-      ],
+      ]),
     ),
+
     TaskList(
-      name: "CACF Cagewasher Room Monthly Tasks",
+      name: "Storage Room Monthly Tasks",
       frequency: TaskFrequency.monthly,
-      tasks: [
-        Task(description: "Mop Walls and Ceiling"),
+      tasks: UnmodifiableListView([
+        ...basicMonthlyTasks,
+        Task(description: "Sanitize Storage Barrels & Scoops"),
+        Task(description: "Sanitize Small Containers, If Present"),
+        Task(description: "Refill Bins With Bedding, If Present"),
+      ]),
+    ),
+
+    TaskList(
+      name: "Cagewasher Room Monthly Tasks",
+      frequency: TaskFrequency.monthly,
+      tasks: UnmodifiableListView([
+        mopWallAndCeiling,
         Task(description: "Sanitize bedding disposal station"),
         Task(description: "Clean Sink With Comet, Then Spray With WD-40"),
         Task(description: "Wipe Cage Washer Exterior With WD-40"),
         Task(description: "Sanitize Water Bottle Filler"),
         Task(description: "Clean Paper Towel & Soap Dispensers"),
         Task(description: "Sanitize Garbage Cans, Including Any In Hallway"),
-        Task(description: "Sanitize Mop Buckets & Cloth Mop Heads"),
-        Task(description: "Sanitize Dust Pans"),
-        Task(description: "Replace Disinfectant"),
-        Task(description: "Disinfect Drain Per Sign Taped to the Wall")
-      ],
+        sanitizeMopSupplies,
+        sanitizeDustPans,
+        replaceDisinfectant,
+        Task(description: "Disinfect Drain Per Sign Taped to the Wall"),
+      ]),
+    ),
+
+    TaskList(
+      name: "Surgery Room Monthly Tasks",
+      frequency: TaskFrequency.monthly,
+      tasks: UnmodifiableListView([
+        ...basicMonthlyTasks,
+        Task(description: "Clean Sink With Comet"),
+        Task(description: "Clean Paper Towel & Soap Dispensers"),
+        Task(description: "Sanitize Storage Barrels & Scoops"),
+        Task(description: "Sanitize Small Containers, If Present"),
+        Task(description: "Refill Bins With Bedding, If Present"),
+        Task(description: "Clean Refrigerator"),
+        Task(description: "Check Euthanasia Equipment"),
+        Task(description: "Check Anaesthesia Equipment"),
+      ]),
     ),
   ];
 }

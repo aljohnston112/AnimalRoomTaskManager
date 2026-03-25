@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
 import 'user_repository.dart';
@@ -18,9 +19,9 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Admin Transfer")),
-      body: Column(
+    return buildScaffold(
+      title: "Admin Transfer",
+      child: Column(
         children: [_buildDropdownForUserList(), _buildConfirmButton(context)],
       ),
     );
@@ -49,10 +50,10 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
     return null;
   }
 
-  ElevatedButton _buildConfirmButton(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () => Navigator.pop(context, selectedUser),
+  Widget _buildConfirmButton(BuildContext context) {
+    return FilledButton(
       child: const Text("Confirm"),
+      onPressed: () => Navigator.pop(context, selectedUser),
     );
   }
 }

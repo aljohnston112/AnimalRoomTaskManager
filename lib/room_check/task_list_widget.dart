@@ -1,0 +1,191 @@
+import 'package:animal_room_task_manager/room_check/room_check_model.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../task_lists_management/task_list_repository.dart';
+import '../theme_data.dart';
+
+/// A list of tasks for the room check screen
+class TaskListWidget extends StatelessWidget {
+  final RoomCheckModel roomCheckModel;
+
+  const TaskListWidget({super.key, required this.roomCheckModel});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        // To prevent the list from taking up the full width of a wide screen
+        constraints: const BoxConstraints(maxWidth: widePhoneWidth),
+        child: ListView(
+          shrinkWrap: true,
+          // A card per task entry
+          children: roomCheckModel.taskEntries.map((record) {
+            return _buildTaskCard(context, record);
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Card _buildTaskCard(BuildContext context, TaskEntry taskEntry) {
+    return Card(
+      child: Padding(
+        padding: insets8,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            mediumTitleText(context, taskEntry.task.description),
+            ..._buildTaskEntryForm(context, taskEntry),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildTaskEntryForm(BuildContext context, TaskEntry entry) {
+    var task = entry.task;
+    return [
+      // The number field or checkbox
+      if (task is QuantitativeTask) ...[
+        // To keep the input box from being super wide
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
+          child: _buildNumberEntryField(entry, task),
+        ),
+      ] else ...[
+        _buildTaskCompleteWidget(entry, context),
+      ],
+      
+      // The add comment button or comment field
+      if (roomCheckModel.doesTaskHaveComment(task)) ...[
+        // Only show the field if there is a comment or
+        // the task has already been recorded
+        if (roomCheckModel.getCommentController(task).text.isNotEmpty ||
+            !roomCheckModel.isTaskRecorded(task)) ...[
+          padding8,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
+            child: _buildCommentInput(entry),
+          ),
+          padding8,
+        ],
+      ] else ...[
+        padding8,
+        FilledButton(
+          child: Text("Add Comment"),
+          onPressed: () {
+            roomCheckModel.onAddCommentClicked(task);
+          },
+        ),
+      ],
+    ];
+  }
+
+  Widget _buildNumberEntryField(
+    TaskEntry entry,
+    QuantitativeTask<dynamic> task,
+  ) {
+    return NumberEntryField(
+      controller: roomCheckModel.getValueController(task),
+      entry: entry,
+      task: task,
+    );
+  }
+
+  Row _buildTaskCompleteWidget(TaskEntry entry, BuildContext context) {
+    return Row(
+      children: [
+        _buildTaskCompleteCheckBox(entry),
+        smallTitleText(context, "Task Completed"),
+      ],
+    );
+  }
+
+  Checkbox _buildTaskCompleteCheckBox(TaskEntry entry) {
+    var task = entry.task;
+    var taskRecorded = entry.record != null;
+    return Checkbox(
+      value: roomCheckModel.isTaskCompleted(task),
+      onChanged: taskRecorded
+          ? null // Cannot unmark a completed task
+          : (val) => roomCheckModel.toggleTaskCompletion(task, val),
+    );
+  }
+
+  TextField _buildCommentInput(TaskEntry entry) {
+    var taskUnrecorded = entry.record == null;
+    return TextField(
+      // Can't overwrite submitted comments
+      enabled: taskUnrecorded,
+      keyboardType: TextInputType.multiline,
+      controller: roomCheckModel.getCommentController(entry.task),
+      // No limit
+      maxLines: null,
+      decoration: buildInputDecoration("Comment"),
+    );
+  }
+}
+
+class NumberEntryField extends StatefulWidget {
+  final TextEditingController controller;
+  final TaskEntry entry;
+  final QuantitativeTask<dynamic> task;
+
+  const NumberEntryField({
+    required this.controller,
+    required this.entry,
+    required this.task,
+    super.key,
+  });
+
+  @override
+  State<NumberEntryField> createState() => _NumberEntryFieldState();
+}
+
+class _NumberEntryFieldState extends State<NumberEntryField> {
+  String? _errorText;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_validate);
+  }
+
+  void _validate() {
+    final value = double.tryParse(widget.controller.text);
+    if (value == null) {
+      setState(() {
+        _errorText = null;
+      });
+    } else if (value < widget.task.range.min || value > widget.task.range.max) {
+      setState(() {
+        _errorText =
+            'Value out of range (${widget.task.range.min} to ${widget.task.range.max})';
+      });
+    } else {
+      setState(() {
+        _errorText = null;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var taskUnrecorded = widget.entry.record == null;
+    return TextField(
+      enabled: taskUnrecorded,
+      controller: widget.controller,
+      keyboardType: const TextInputType.numberWithOptions(
+        signed: false,
+        decimal: true,
+      ),
+      inputFormatters: [
+        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+      ],
+      decoration: buildInputDecoration(
+        widget.task.range.units,
+      ).copyWith(errorText: _errorText),
+    );
+  }
+}

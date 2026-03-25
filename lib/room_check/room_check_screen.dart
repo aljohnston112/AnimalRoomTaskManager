@@ -1,7 +1,7 @@
+import 'package:animal_room_task_manager/main.dart';
 import 'package:animal_room_task_manager/room_check/room_check_model.dart';
-import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
+import 'package:animal_room_task_manager/room_check/task_list_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme_data.dart';
 
@@ -16,34 +16,29 @@ class RoomCheckScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: roomCheckModel,
-      builder: (context, _) {
-        return Column(
-          children: [padding8, ..._buildRoomCheckScreen(context), padding8],
-        );
-      },
+    return buildScaffold(
+      title: roomCheckModel.taskList.name,
+      child: ListenableBuilder(
+        listenable: roomCheckModel,
+        builder: (context, _) {
+          return Column(
+            children: [
+              _buildTaskList(),
+              _buildCancelSubmitButtons(context),
+              padding8,
+            ],
+          );
+        },
+      ),
     );
   }
 
-  List<Widget> _buildRoomCheckScreen(BuildContext context) {
-    return [
-      _buildTaskListTitle(context),
-      _buildTaskList(),
-      _buildSubmitButton(),
-    ];
-  }
-
-  Text _buildTaskListTitle(BuildContext context) {
-    return Text(roomCheckModel.taskList.name, style: largeTileTheme(context));
-  }
-
   Widget _buildTaskList() {
+    // Expanded needed since this is nested in a Column
     return Expanded(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          padding8,
           // To stop the task list from having an unbounded height
           Expanded(child: TaskListWidget(roomCheckModel: roomCheckModel)),
           padding8,
@@ -52,139 +47,83 @@ class RoomCheckScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSubmitButton() {
-    return FilledButton(
-      onPressed: () {
-        roomCheckModel.submit();
-      },
-      child: Text("Submit"),
-    );
-  }
-}
-
-class TaskListWidget extends StatelessWidget {
-  final RoomCheckModel roomCheckModel;
-
-  const TaskListWidget({super.key, required this.roomCheckModel});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        // To prevent the list from taking up the full width of a wide screen
-        constraints: const BoxConstraints(maxWidth: widePhoneWidth),
-        child: ListView(
-          shrinkWrap: true,
-          // A card per task
-          children: [
-            ...roomCheckModel.getTaskRecord.map((record) {
-              return _buildTaskCard(record, context);
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Card _buildTaskCard(TaskEntry record, BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: insets8,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTaskDescription(record, context),
-            ..._buildTaskEntryForm(record, context),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Text _buildTaskDescription(TaskEntry record, BuildContext context) {
-    return Text(record.task.description, style: mediumTileTheme(context));
-  }
-
-  List<Widget> _buildTaskEntryForm(TaskEntry entry, BuildContext context) {
-    var task = entry.task;
-    return [
-      if (task is QuantitativeTask) ...[
-        // To keep the input box from being super wide
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
-          child: _buildNumberEntryField(entry, task),
-        ),
-      ] else ...[
-        _buildTaskCompleteWidget(entry, context),
-      ],
-      if (roomCheckModel.hasComment(task)) ...[
-        padding8,
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
-          child: _buildCommentInput(entry),
-        ),
-        padding8
-      ] else ...[
-        padding8,
+  Widget _buildCancelSubmitButtons(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
         FilledButton(
-          child: Text("Add Comment"),
-          onPressed: () {
-            roomCheckModel.addCommentField(task);
+          child: Text("Cancel"),
+          onPressed: () async {
+            // Go back only after user has confirmed they want to cancel
+            await showDialog<bool>(
+              context: context,
+              builder: (context) => buildCancelConfirmationDialog(context),
+            ).then((result) {
+              if (result == true) {
+                navigatorKey.currentState?.pop();
+              }
+            });
+          },
+        ),
+        padding16,
+        FilledButton(
+          child: Text("Submit"),
+          onPressed: () async {
+            roomCheckModel.submit();
+            if (roomCheckModel.hasUnsavedComments()) {
+              // If there are comments on uncompleted tasks,
+              // they will not be saved,
+              // so the user has to confirm their deletion
+              await showDialog<bool>(
+                context: context,
+                builder: (context) => buildUnsavedCommentsDialog(context),
+              ).then((result) {
+                if (result == true) {
+                  navigatorKey.currentState?.pop();
+                }
+              });
+            } else {
+              Navigator.of(context).pop();
+            }
           },
         ),
       ],
-    ];
+    );
   }
 
-  TextField _buildNumberEntryField(
-    TaskEntry entry,
-    QuantitativeTask<dynamic> task,
-  ) {
-    return TextField(
-      // Can't overwrite submitted numbers
-      enabled: entry.record == null,
-      controller: roomCheckModel.getValueController(task),
-      keyboardType: TextInputType.numberWithOptions(
-        signed: false,
-        decimal: true,
+  AlertDialog buildCancelConfirmationDialog(BuildContext context) {
+    return AlertDialog(
+      title: Text('Confirm Cancellation'),
+      content: Text('Are you sure you want to lose your progress?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('No'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text('Yes'),
+        ),
+      ],
+    );
+  }
+
+  AlertDialog buildUnsavedCommentsDialog(BuildContext context) {
+    return AlertDialog(
+      title: Text('Confirm Losing Progress'),
+      content: Text(
+        'Are you sure you want to lose your comments on uncompleted tasks?',
       ),
-      // To enforce only decimal numbers
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-      ],
-      decoration: buildInputDecoration(task.range.units)
-    );
-  }
-
-  Row _buildTaskCompleteWidget(TaskEntry entry, BuildContext context) {
-    return Row(
-      children: [
-        _buildTaskCompleteCheckBox(entry),
-        Text("Task Completed", style: smallTileTheme(context)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: Text('No'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text('Yes'),
+        ),
       ],
     );
   }
-
-  Checkbox _buildTaskCompleteCheckBox(TaskEntry entry) {
-    var task = entry.task;
-    return Checkbox(
-      value: roomCheckModel.isTaskCompleted(task),
-      onChanged: entry.record != null
-          ? null // Cannot unmark a completed task
-          : (val) => roomCheckModel.toggleTask(task, val),
-    );
-  }
-
-  TextField _buildCommentInput(TaskEntry entry) {
-    return TextField(
-      // Can't overwrite submitted comments
-      enabled: entry.record == null,
-      keyboardType: TextInputType.multiline,
-      controller: roomCheckModel.getCommentController(entry.task),
-      // No limit
-      maxLines: null,
-      decoration: buildInputDecoration("Comment"),
-    );
-  }
-  
 }

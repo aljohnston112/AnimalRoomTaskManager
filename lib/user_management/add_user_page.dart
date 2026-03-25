@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
 import 'user_repository.dart';
@@ -34,8 +35,9 @@ class _AddNewUserState extends State<AddNewUserPage> {
   Widget build(BuildContext context) {
     return Form(
       key: _formKey,
-      child: Scaffold(
-        body: Column(
+      child: buildScaffold(
+        title: "Add User",
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _buildEmailTextFormField(),
@@ -68,11 +70,11 @@ class _AddNewUserState extends State<AddNewUserPage> {
       decoration: const InputDecoration(hintText: "User Group"),
       items: UserGroup.values
           .where((group) {
-        return group != UserGroup.admin;
-      })
+            return group != UserGroup.admin;
+          })
           .map((group) {
-        return DropdownMenuItem(value: group, child: Text(group.name));
-      })
+            return DropdownMenuItem(value: group, child: Text(group.name));
+          })
           .toList(),
       initialValue: selectedGroup,
       onChanged: (value) {
@@ -87,8 +89,9 @@ class _AddNewUserState extends State<AddNewUserPage> {
     );
   }
 
-  ElevatedButton _buildAddUserButton(BuildContext context) {
-    return ElevatedButton(
+  Widget _buildAddUserButton(BuildContext context) {
+    return FilledButton(
+      child: Text("Add User"),
       onPressed: () async {
         if (_formKey.currentState!.validate()) {
           Navigator.pop(
@@ -97,7 +100,6 @@ class _AddNewUserState extends State<AddNewUserPage> {
           );
         }
       },
-      child: Text("Add User"),
     );
   }
 }
