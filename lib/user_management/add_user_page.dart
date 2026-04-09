@@ -1,6 +1,7 @@
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
+import '../user_use_case.dart';
 import 'user_repository.dart';
 
 class AddNewUserPage extends StatefulWidget {
@@ -40,7 +41,7 @@ class _AddNewUserState extends State<AddNewUserPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildEmailTextFormField(),
+            buildEmailTextFormField(_emailController),
             _buildUserGroupDropdown(),
             _buildAddUserButton(context),
           ],
@@ -49,21 +50,6 @@ class _AddNewUserState extends State<AddNewUserPage> {
     );
   }
 
-  Widget _buildEmailTextFormField() {
-    if (widget.user != null) {}
-    return TextFormField(
-      controller: _emailController,
-      decoration: const InputDecoration(hintText: "Email"),
-      validator: _validateEmail,
-    );
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || !RegExp(r'^.+@uwosh\.edu$').hasMatch(value)) {
-      return 'Email must include @uwosh.edu';
-    }
-    return null;
-  }
 
   DropdownButtonFormField<UserGroup> _buildUserGroupDropdown() {
     return DropdownButtonFormField<UserGroup>(

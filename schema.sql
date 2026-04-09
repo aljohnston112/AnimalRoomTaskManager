@@ -1,18 +1,22 @@
-CREATE TABLE facilities
+CREATE TABLE IF NOT EXISTS facilities
 (
     f_id    serial PRIMARY KEY,
     name    bpchar  NOT NULL,
     deleted boolean NOT NULL
 );
-
 INSERT INTO facilities (f_id, name, deleted)
-VALUES (0, "Surgery", FALSE),
-       (1, "Storage", FALSE),
-       (2, "Cage Wash", FALSE),
-       (3, "Housing", FALSE),
-       (4, "Hibernaculum", FALSE);
+VALUES (0, 'Surgery', FALSE),
+       (1, 'Storage', FALSE),
+       (2, 'Cage Wash', FALSE),
+       (3, 'Housing', FALSE),
+       (4, 'Hibernaculum', FALSE);
 
-CREATE TABLE labs
+SELECT setval(
+               pg_get_serial_sequence('facilities', 'f_id'),
+               COALESCE((SELECT max(f_id) FROM facilities), 0)
+       );
+
+CREATE TABLE IF NOT EXISTS labs
 (
     l_id    serial PRIMARY KEY,
     color   integer NOT NULL,
@@ -21,34 +25,75 @@ CREATE TABLE labs
 );
 
 INSERT INTO labs (l_id, color, name, deleted)
-VALUES (0, FF81637083, "Merriman", false),
-       (1, FF88330166, "Fauna", false),
-       (2, FF79975068, "Boonpattrawong", false);
-<--TODO figure out lab colors -->
+VALUES (0, 16777215, 'Merriman', false),
+       (1, 16776960, 'Fauna', false),
+       (2, 16711935, 'Boonpattrawong', false),
+       (3, 65535, 'Kurtz', false);
 
-CREATE TABLE enrichment_lists
+SELECT setval(
+               pg_get_serial_sequence('labs', 'l_id'),
+               COALESCE((SELECT max(l_id) FROM labs), 0)
+       );
+
+CREATE TABLE IF NOT EXISTS enrichment_lists
 (
     el_id   serial PRIMARY KEY,
     name    bpchar  NOT NULL,
     deleted boolean NOT NULL
 );
 
-CREATE TABLE rooms
+CREATE TABLE IF NOT EXISTS rooms
 (
     r_id  serial PRIMARY KEY,
     name  bpchar                               NOT NULL,
     f_id  integer REFERENCES facilities (f_id) NOT NULL,
-    l_id  integer REFERENCES labs (l_id)       NOT NULL,
+    l_id  integer REFERENCES labs (l_id),
     el_id integer REFERENCES enrichment_lists (el_id)
 );
 
-CREATE TABLE user_groups
+INSERT INTO rooms(r_id, name, f_id, l_id, el_id)
+VALUES (0, 'CACF 36B', 3, 0, NULL),
+       (1, 'CACF 36C', 3, 0, NULL),
+       (2, 'CACF 36D', 3, 0, NULL),
+       (3, 'CACF 36E', 3, 0, NULL),
+       (4, 'CACF 36F', 3, 0, NULL),
+       (5, 'CACF 36G', 1, 0, NULL),
+       (6, 'CACF 36H', 3, 0, NULL),
+       (7, 'CACF 36J', 0, 0, NULL),
+       (8, 'CACF 36K', 0, 0, NULL),
+       (9, 'CACF 36L', 2, 0, NULL),
+       (10, 'HACF 17', 1, 3, NULL),
+       (11, 'HACF 19A', 3, 3, NULL),
+       (12, 'HACF 19B', 3, 0, NULL),
+       (13, 'HACF 19C', 3, 3, NULL),
+       (14, 'HACF 19D', 4, 0, NULL),
+       (15, 'HACF 19E/F', 2, 3, NULL),
+       (16, 'HACF 19G', 0, 3, NULL),
+       (17, 'HACF 19H', 3, 3, NULL),
+       (18, 'HACF 19J', 3, 3, NULL),
+       (19, 'HACF 56A', 4, NULL, NULL);
+SELECT setval(
+               pg_get_serial_sequence('rooms', 'r_id'),
+               COALESCE((SELECT max(r_id) FROM rooms), 0)
+       );
+
+CREATE TABLE IF NOT EXISTS user_groups
 (
     ug_id serial PRIMARY KEY,
     name  bpchar NOT NULL
 );
 
-CREATE TABLE users
+
+INSERT INTO user_groups (ug_id, name)
+VALUES (0, 'Admin'),
+       (1, 'PI and Chief of Staff'),
+       (2, 'Students and Staff');
+SELECT setval(
+               pg_get_serial_sequence('user_groups', 'ug_id'),
+               COALESCE((SELECT max(ug_id) FROM user_groups), 0)
+       );
+
+CREATE TABLE IF NOT EXISTS users
 (
     u_id    serial PRIMARY KEY,
     name    bpchar                                 NOT NULL,
@@ -56,8 +101,15 @@ CREATE TABLE users
     deleted boolean                                NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS lab_group_memberships
+(
+    l_id integer REFERENCES labs (l_id)  NOT NULL,
+    u_id integer REFERENCES users (u_id) NOT NULL,
+    PRIMARY KEY (l_id, u_id)
+);
 
-CREATE TABLE censuses
+
+CREATE TABLE IF NOT EXISTS censuses
 (
     c_id      serial PRIMARY KEY,
     date_time timestamptz                     NOT NULL,
@@ -65,13 +117,13 @@ CREATE TABLE censuses
     u_id      integer REFERENCES users (u_id) NOT NULL
 );
 
-CREATE TABLE animals
+CREATE TABLE IF NOT EXISTS animals
 (
     a_id serial PRIMARY KEY,
     name bpchar NOT NULL
 );
 
-CREATE TABLE census_records
+CREATE TABLE IF NOT EXISTS census_records
 (
     c_id              integer REFERENCES censuses (c_id) NOT NULL,
     a_id              integer REFERENCES animals (a_id)  NOT NULL,
@@ -87,89 +139,377 @@ CREATE TYPE week_day AS ENUM (
     'Thursday',
     'Friday',
     'Saturday'
-);
+    );
 
-CREATE TABLE enrichment_types
+CREATE TABLE IF NOT EXISTS enrichment_types
 (
     et_id       serial PRIMARY KEY,
     description bpchar  NOT NULL,
     deleted     boolean NOT NULL
 );
 
-CREATE TABLE enrichments
+CREATE TABLE IF NOT EXISTS enrichments
 (
     e_id        serial PRIMARY KEY,
     day_of_week week_day                                    NOT NULL,
     et_id       integer REFERENCES enrichment_types (et_id) NOT NULL
 );
 
-CREATE TABLE enrichment_list_memberships
+CREATE TABLE IF NOT EXISTS enrichment_list_memberships
 (
     el_id integer REFERENCES enrichment_lists (el_id) NOT NULL,
     e_id  integer REFERENCES enrichments (e_id)       NOT NULL,
     PRIMARY KEY (el_id, e_id)
 );
 
-CREATE TABLE tasks
-(
-    t_id    serial PRIMARY KEY,
-    name    bpchar  NOT NULL,
-    deleted boolean NOT NULL
-);
-
-CREATE TABLE quantitative_ranges
-(
-    qr_id   serial PRIMARY KEY,
-    unit    bpchar  NOT NULL,
-    maximum numeric NOT NULL,
-    minimum numeric NOT NULL,
-    CHECK ( minimum < maximum )
-);
-
-CREATE TABLE quantitative_tasks
-(
-    t_id  integer PRIMARY KEY REFERENCES tasks (t_id)    NOT NULL,
-    qr_id integer REFERENCES quantitative_ranges (qr_id) NOT NULL
-);
-
 CREATE TYPE task_frequency AS ENUM (
     'Daily',
     'Weekly',
     'Monthly'
-);
+    );
 
-CREATE TABLE task_lists
+CREATE TABLE IF NOT EXISTS task_lists
 (
     tl_id     serial PRIMARY KEY,
     name      bpchar         NOT NULL,
     frequency task_frequency NOT NULL,
     deleted   boolean        NOT NULL
 );
+INSERT INTO task_lists (tl_id, name, frequency, deleted)
+VALUES (0, 'Empty/Idle Room Daily Tasks', 'Daily', false),
+       (1, 'Surgery Room Daily Tasks', 'Daily', false),
+       (2, 'Storage Room Daily Tasks', 'Daily', false),
+       (3, 'Cagewash Room Daily Tasks', 'Daily', false),
+       (4, 'Housing Daily Tasks', 'Daily', false),
+       (5, 'Hibernaculum Daily Tasks', 'Daily', false),
 
-CREATE TABLE task_list_task_memberships
+       (6, 'Empty/Idle Room Weekly Tasks', 'Weekly', false),
+       (7, 'Surgery Room Weekly Tasks', 'Weekly', false),
+       (8, 'Storage Room Weekly Tasks', 'Weekly', false),
+       (9, 'Cagewash Room Weekly Tasks', 'Weekly', false),
+       (10, 'Housing Weekly Tasks', 'Weekly', false),
+       (11, 'Hibernaculum Weekly Tasks', 'Weekly', false),
+
+       (12, 'Surgery Room Monthly Tasks', 'Monthly', false),
+       (13, 'Storage Room Monthly Tasks', 'Monthly', false),
+       (14, 'Cagewash Room Monthly Tasks', 'Monthly', false),
+       (15, 'Housing Monthly Tasks', 'Monthly', false),
+       (16, 'Hibernaculum Monthly Tasks', 'Monthly', false);
+SELECT setval(
+               pg_get_serial_sequence('task_lists', 'tl_id'),
+               COALESCE((SELECT max(tl_id) FROM task_lists), 0)
+       );
+
+
+CREATE TABLE IF NOT EXISTS tasks
+(
+    t_id    serial PRIMARY KEY,
+    name    bpchar  NOT NULL,
+    deleted boolean NOT NULL
+);
+INSERT INTO tasks (t_id, name, deleted)
+VALUES (0, 'Room Temperature', false),
+       (1, 'Hibernaculum Temperature', false),
+       (2, 'Room Humidity', false),
+       (3, 'Hibernaculum Humidity', false),
+       (4, 'Wipe Counters & Sweep', false),
+       (5, 'Check Vermin Trap', false),
+       (6, 'Sweep', false),
+       (7, 'View Each Animal', false),
+       (8, 'Give/Check Food & Water', false),
+       (9, 'Double Check Water', false),
+       (10, 'Mop Floor', false),
+       (11, 'Manager Walkthrough', false),
+       (12, 'Manager Check Expiration Dates on Drugs/Supplies',
+        false),
+       (13, 'Perform Cage Wash Temp Strip Test', false),
+       (14, 'Change Cage/Bedding', false),
+       (15, 'Change Water Bottle', false),
+       (16, 'Sanitize Enrichment', false),
+       (17, 'Check Light Timer', false),
+       (18, 'Mop Walls and Ceiling', false),
+       (19, 'Sanitize Garbage Can', false),
+       (20, 'Sanitize Mop Buckets & Cloth Mop Heads', false),
+       (21, 'Sanitize Dust Pans', false),
+       (22, 'Replace Disinfectant', false),
+       (23, 'Check Function of Heaters or Dehumidifiers, If Present',
+        false),
+       (24, 'Sanitize Storage Barrels & Scoops', false),
+       (25, 'Sanitize Small Containers, If Present', false),
+       (26, 'Refill Bins With Bedding, If Present', false),
+       (27, 'Sanitize bedding disposal station', false),
+       (28, 'Clean Sink With Comet, Then Spray With WD-40', false),
+       (29, 'Wipe Cage Washer Exterior With WD-40', false),
+       (30, 'Sanitize Water Bottle Filler', false),
+       (31, 'Clean Paper Towel & Soap Dispensers', false),
+       (32, 'Sanitize All Garbage Cans, Including Any In Hallway',
+        false),
+       (33, 'Disinfect Drain Per Sign Taped to the Wall', false),
+       (34, 'Clean Sink With Comet', false),
+       (35, 'Clean Refrigerator', false),
+       (36, 'Check Euthanasia Equipment', false),
+       (37, 'Check Anaesthesia Equipment', false),
+       (38,
+        'Lab Animal Manager Checks Expiration Dates and Replaces as Needed',
+        false),
+       (39, 'Sanitize Shelves/Racks/Carts', false);
+SELECT setval(
+               pg_get_serial_sequence('tasks', 't_id'),
+               COALESCE((SELECT max(t_id) FROM tasks), 0)
+       );
+
+CREATE TABLE IF NOT EXISTS quantitative_ranges
+(
+    qr_id    serial PRIMARY KEY,
+    unit     bpchar  NOT NULL,
+    required boolean NOT NULL,
+    maximum  numeric NOT NULL,
+    minimum  numeric NOT NULL,
+    CHECK ( minimum < maximum )
+);
+
+INSERT INTO quantitative_ranges (qr_id, unit, required, maximum, minimum)
+VALUES (0, 'Fahrenheit', false, 79, 32),
+       (1, 'Fahrenheit', false, 42, 32),
+       (2, 'RH', true, 99.9, 0),
+       (3, 'RH', false, 70, 30),
+       (4, 'RH', false, 40, 30);
+SELECT setval(
+               pg_get_serial_sequence('quantitative_ranges', 'qr_id'),
+               COALESCE((SELECT max(qr_id) FROM quantitative_ranges),
+                        0)
+       );
+
+CREATE TABLE IF NOT EXISTS quantitative_tasks
+(
+    t_id  integer REFERENCES tasks (t_id)                NOT NULL,
+    qr_id integer REFERENCES quantitative_ranges (qr_id) NOT NULL,
+    PRIMARY KEY (t_id, qr_id)
+);
+
+INSERT INTO quantitative_tasks (t_id, qr_id)
+VALUES (0, 0),
+       (1, 1),
+       (2, 2),
+       (3, 2),
+       (2, 3),
+       (3, 4);
+
+CREATE TABLE IF NOT EXISTS task_list_task_memberships
 (
     tl_id integer REFERENCES task_lists (tl_id) NOT NULL,
     t_id  integer REFERENCES tasks (t_id)       NOT NULL,
     PRIMARY KEY (tl_id, t_id)
 );
 
-CREATE TABLE task_list_room_memberships
+INSERT INTO task_list_task_memberships (tl_id, t_id)
+VALUES (0, 0),
+       (0, 2),
+
+       (1, 0),
+       (1, 2),
+       (1, 4),
+       (1, 5),
+
+       (2, 0),
+       (2, 2),
+       (2, 4),
+       (2, 5),
+
+       (3, 0),
+       (3, 2),
+       (3, 6),
+       (3, 5),
+
+       (4, 0),
+       (4, 2),
+       (4, 7),
+       (4, 8),
+       (4, 4),
+       (4, 5),
+       (4, 9),
+
+       (5, 1),
+       (5, 3),
+       (5, 7),
+       (5, 8),
+       (5, 4),
+       (5, 5),
+       (5, 9),
+
+       (6, 11),
+
+       (7, 10),
+       (7, 11),
+       (7, 12),
+
+       (8, 10),
+       (8, 11),
+
+       (9, 13),
+       (9, 10),
+       (9, 11),
+
+       (10, 14),
+       (10, 15),
+       (10, 16),
+       (10, 17),
+       (10, 10),
+       (10, 11),
+
+       (11, 14),
+       (11, 15),
+       (11, 16),
+       (11, 17),
+       (11, 10),
+       (11, 11),
+
+       (12, 18),
+       (12, 39),
+       (12, 34),
+       (12, 31),
+       (12, 19),
+       (12, 20),
+       (12, 24),
+       (12, 25),
+       (12, 21),
+       (12, 22),
+       (12, 26),
+       (12, 35),
+       (12, 36),
+       (12, 37),
+
+       (13, 18),
+       (13, 39),
+       (13, 19),
+       (13, 20),
+       (13, 24),
+       (13, 25),
+       (13, 21),
+       (13, 22),
+       (13, 26),
+
+       (14, 18),
+       (14, 27),
+       (14, 28),
+       (14, 29),
+       (14, 30),
+       (14, 31),
+       (14, 32),
+       (14, 20),
+       (14, 21),
+       (14, 22),
+       (14, 33),
+
+       (15, 18),
+       (15, 39),
+       (15, 19),
+       (15, 20),
+       (15, 21),
+       (15, 22),
+       (15, 26);
+
+
+CREATE TABLE IF NOT EXISTS task_list_room_memberships
 (
     tl_id integer REFERENCES task_lists (tl_id) NOT NULL,
     r_id  integer REFERENCES rooms (r_id)       NOT NULL,
     PRIMARY KEY (tl_id, r_id)
 );
 
-CREATE TABLE room_check_slots
+INSERT INTO task_list_room_memberships (tl_id, r_id)
+VALUES (4, 0),
+       (10, 0),
+       (15, 0),
+
+       (4, 1),
+       (10, 1),
+       (15, 1),
+
+       (4, 2),
+       (10, 2),
+       (15, 2),
+
+       (4, 3),
+       (10, 3),
+       (15, 3),
+
+       (4, 4),
+       (10, 4),
+       (15, 4),
+
+       (2, 5),
+       (8, 5),
+       (13, 5),
+
+       (4, 6),
+       (10, 6),
+       (15, 6),
+
+       (1, 7),
+       (7, 7),
+       (12, 7),
+
+       (1, 8),
+       (7, 8),
+       (12, 8),
+
+       (3, 9),
+       (9, 9),
+       (14, 9),
+
+       (2, 10),
+       (8, 10),
+       (13, 10),
+
+       (4, 11),
+       (10, 11),
+       (15, 11),
+
+       (4, 12),
+       (10, 12),
+       (15, 12),
+
+       (4, 13),
+       (10, 13),
+       (15, 13),
+
+       (5, 14),
+       (11, 14),
+       (16, 14),
+
+       (3, 15),
+       (9, 15),
+       (14, 15),
+
+       (1, 16),
+       (7, 16),
+       (12, 16),
+
+       (4, 17),
+       (10, 17),
+       (15, 17),
+
+       (4, 18),
+       (10, 18),
+       (15, 18),
+
+       (5, 19),
+       (11, 19),
+       (16, 19);
+
+CREATE TYPE room_check_state AS ENUM ('not_started', 'started', 'done');
+
+CREATE TABLE IF NOT EXISTS room_check_slots
 (
     rc_id     serial PRIMARY KEY,
     date_time timestamptz                     NOT NULL,
     r_id      integer REFERENCES rooms (r_id) NOT NULL,
-    done      boolean                         NOT NULL,
-    u_id      integer REFERENCES users (u_id) NOT NULL
+    state     room_check_state                NOT NULL,
+    u_id      integer REFERENCES users (u_id)
 );
 
-CREATE TABLE task_records
+CREATE TABLE IF NOT EXISTS task_records
 (
     tr_id     serial PRIMARY KEY,
     t_id      integer REFERENCES tasks (t_id)             NOT NULL,
@@ -178,20 +518,20 @@ CREATE TABLE task_records
     comment   bpchar                                      NOT NULL
 );
 
-CREATE TABLE quantitative_task_records
+CREATE TABLE IF NOT EXISTS quantitative_task_records
 (
     tr_id integer PRIMARY KEY REFERENCES task_records (tr_id),
     value numeric NOT NULL
 );
 
-CREATE TABLE task_record_users
+CREATE TABLE IF NOT EXISTS task_record_users
 (
     tr_id integer REFERENCES task_records (tr_id) NOT NULL,
     u_id  integer REFERENCES users (u_id)         NOT NULL,
     PRIMARY KEY (tr_id, u_id)
 );
 
-CREATE TABLE enrichment_list_assignment_dates
+CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
 (
     ela_id    serial PRIMARY KEY,
     date_time timestamptz                                 NOT NULL,

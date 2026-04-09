@@ -18,17 +18,12 @@ class RoomCheckScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: roomCheckModel.taskList.name,
-      child: ListenableBuilder(
-        listenable: roomCheckModel,
-        builder: (context, _) {
-          return Column(
-            children: [
-              _buildTaskList(),
-              _buildCancelSubmitButtons(context),
-              padding8,
-            ],
-          );
-        },
+      child: Column(
+        children: [
+          _buildTaskList(),
+          _buildCancelSubmitButtons(context),
+          padding8,
+        ],
       ),
     );
   }

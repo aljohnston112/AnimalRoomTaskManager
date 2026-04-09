@@ -1,38 +1,56 @@
+import 'package:animal_room_task_manager/facility_repository.dart';
+import 'package:animal_room_task_manager/login_screen/login_screen.dart';
+import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
-import 'package:animal_room_task_manager/scheduler/room_check_list.dart';
+import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_screen.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
-  // Database database = await Database.create();
+  Database database = await Database.create();
   runApp(
-    MyApp(
-      userRepository: UserRepository(),
-      taskListRepository: TaskListRepository(),
-      recordRepository: RecordRepository(),
+    MultiProvider(
+      providers: [
+        Provider.value(value: database),
+        ChangeNotifierProvider(
+          create: (context) => FacilityRepository(database: database),
+        ),
+        ChangeNotifierProvider(
+          create: (context) => UserRepository(database: database),
+        ),
+        ChangeNotifierProxyProvider<UserRepository, LoginUseCase>(
+          create: (context) =>
+              LoginUseCase(userRepository: context.read<UserRepository>()),
+          update: (context, userRepository, previousLoginUseCase) {
+            return previousLoginUseCase ??
+                LoginUseCase(userRepository: userRepository);
+          },
+        ),
+        ChangeNotifierProvider(create: (context) => RecordRepository()),
+        ChangeNotifierProvider(
+          create: (context) => RoomCheckRepository(database),
+        ),
+        ChangeNotifierProvider(create: (context) => TaskListRepository()),
+      ],
+      child: MyApp(),
     ),
   );
 }
 
 class MyApp extends StatelessWidget {
-  final UserRepository userRepository;
-  final TaskListRepository taskListRepository;
-  final RecordRepository recordRepository;
-
-  const MyApp({
-    super.key,
-    required this.userRepository,
-    required this.taskListRepository,
-    required this.recordRepository,
-  });
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final String appName = 'ACF Chex';
+    final loginUseCase = context.watch<LoginUseCase>();
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: '$appName Demo',
@@ -48,18 +66,19 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       home:
           // UserManagementScreen(
-          //   userListModel: UserListModel(userRepository: userRepository),
-          // )
-          // RoomCheckScreen(
-          //   roomCheckModel: RoomCheckModel(
-          //     taskList: TaskListRepository.dailyTasks[3],
-          //     recordRepository: recordRepository,
-          //   ),
+          //   userListModel: UserListModel(
+          //       userRepository: context.read<UserRepository>()),
           // ),
-          RoomCheckListScreen(recordRepository: recordRepository),
+          loginUseCase.loggedInUser == null
+          ? LoginScreen(loginModel: loginUseCase)
+          : SchedulingScreen(
+              schedulingModel: SchedulingModel(
+                roomCheckRepository: context.read<RoomCheckRepository>(),
+              ),
+            ),
     );
   }
 }

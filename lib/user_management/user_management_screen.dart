@@ -7,31 +7,30 @@ import 'add_user_page.dart';
 import 'admin_transfer_page.dart';
 
 class UserManagementScreen extends StatelessWidget {
-  final UserListModel userListModel;
+  final UserListModel _userListModel;
 
-  const UserManagementScreen({super.key, required this.userListModel});
+  const UserManagementScreen({super.key, required UserListModel userListModel})
+    : _userListModel = userListModel;
 
   @override
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Manage Users",
-      child: ListenableBuilder(
-        listenable: userListModel,
-        builder: (context, _) {
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              AdminRow(userListModel: userListModel),
-              UserListWidget(userListModel: userListModel),
-              _buildAddNewUserButton(context),
-            ],
-          );
-        },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          AdminRow(userListModel: _userListModel),
+          UserListWidget(userListModel: _userListModel),
+          _buildAddNewUserButton(context, _userListModel),
+        ],
       ),
     );
   }
 
-  Widget _buildAddNewUserButton(BuildContext context) {
+  Widget _buildAddNewUserButton(
+    BuildContext context,
+    UserListModel userListModel,
+  ) {
     return FilledButton(
       onPressed: () async {
         final AddUserResult? result = await Navigator.push(
@@ -57,7 +56,12 @@ class AdminRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        Text("Admin: ${userListModel.admin}"),
+        ListenableBuilder(
+          listenable: userListModel,
+          builder: (context, _) {
+            return Text("Admin: ${userListModel.admin}");
+          },
+        ),
         _buildAdminTransferButton(context),
       ],
     );
@@ -89,11 +93,16 @@ class UserListWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: ListView(
-        children: userListModel.users
-            .where((user) => user.group != UserGroup.admin)
-            .map((user) => _buildUserListTile(context, user))
-            .toList(),
+      child: ListenableBuilder(
+        listenable: userListModel,
+        builder: (context, _) {
+          return ListView(
+            children: userListModel.users
+                .where((user) => user.group != UserGroup.admin)
+                .map((user) => _buildUserListTile(context, user))
+                .toList(),
+          );
+        },
       ),
     );
   }

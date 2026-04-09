@@ -1,5 +1,7 @@
 import 'dart:collection';
 
+import 'package:flutter/material.dart';
+
 class Task {
   final String description;
 
@@ -34,7 +36,7 @@ class TaskList {
   TaskList({required this.name, required this.frequency, required this.tasks});
 }
 
-class TaskListRepository {
+class TaskListRepository extends ChangeNotifier {
   static final tempTask = QuantitativeTask(
     description: "Room Temperature",
     range: QuantitativeRange(min: 68, max: 79, units: "Fahrenheit"),
@@ -110,11 +112,7 @@ class TaskListRepository {
       tasks: UnmodifiableListView([
         hibernaculumTempTask,
         hibernaculumHumidityTask,
-        wipeCounterAndSweep,
         checkVerminTrap,
-        Task(description: "View Each Animal"),
-        Task(description: "Give/Check Food & Water"),
-        Task(description: "Double Check Water"),
       ]),
     ),
   ];
@@ -149,7 +147,7 @@ class TaskListRepository {
       ]),
     ),
     TaskList(
-      name: "Storage Room Weekly Tasks",
+      name: "Cagewash Room Weekly Tasks",
       frequency: TaskFrequency.weekly,
       tasks: UnmodifiableListView([
         Task(description: "Perform Cage Wash Temp Strip Test"),
@@ -157,7 +155,7 @@ class TaskListRepository {
       ]),
     ),
     TaskList(
-      name: "Storage Room Weekly Tasks",
+      name: "Housing Weekly Tasks",
       frequency: TaskFrequency.weekly,
       tasks: UnmodifiableListView([
         Task(description: "Change Cage/Bedding"),
@@ -191,7 +189,7 @@ class TaskListRepository {
 
   static final List<TaskList> monthlyTasks = [
     TaskList(
-      name: "Animal Room Monthly Tasks",
+      name: "Housing Monthly Tasks",
       frequency: TaskFrequency.monthly,
       tasks: UnmodifiableListView([
         ...basicMonthlyTasks,
@@ -213,7 +211,7 @@ class TaskListRepository {
     ),
 
     TaskList(
-      name: "Cagewasher Room Monthly Tasks",
+      name: "Cagewash Room Monthly Tasks",
       frequency: TaskFrequency.monthly,
       tasks: UnmodifiableListView([
         mopWallAndCeiling,
@@ -246,4 +244,92 @@ class TaskListRepository {
       ]),
     ),
   ];
+
+  static final surgeryRoomDailies = TaskListRepository.dailyTasks[1];
+  static final storageDailies = TaskListRepository.dailyTasks[2];
+  static final cageRoomDailies = TaskListRepository.dailyTasks[3];
+  static final housingRoomDailies = TaskListRepository.dailyTasks[4];
+  static final hibernaculumDailies = TaskListRepository.dailyTasks[5];
+  
+  static final Map<String, TaskList> roomToDailyTaskLists = {
+    "CACF 36B": housingRoomDailies, // 0
+    "CACF 36C": housingRoomDailies, // 1
+    "CACF 36D": housingRoomDailies, // 2
+    "CACF 36E": housingRoomDailies, // 3
+    "CACF 36F": housingRoomDailies, // 4
+    "CACF 36G": storageDailies, // 5
+    "CACF 36H": housingRoomDailies, // 6
+    "CACF 36J": surgeryRoomDailies, // 7
+    "CACF 36K": surgeryRoomDailies, // 8
+    "CACF 36L": cageRoomDailies, // 9
+    "HACF 17": storageDailies, // 10
+    "HACF 19A": housingRoomDailies, // 11
+    "HACF 19B": housingRoomDailies, // 12
+    "HACF 19C": housingRoomDailies, // 13
+    "HACF 19D": hibernaculumDailies, // 14
+    "HACF 19E/F": cageRoomDailies, // 15
+    "HACF 19G": surgeryRoomDailies, // 16
+    "HACF 19H": housingRoomDailies, // 17
+    "HACF 19J": housingRoomDailies, // 18
+    "HACF 56A": hibernaculumDailies, // 19
+  };
+
+  static final surgeryRoomWeeklies = TaskListRepository.weeklyTasks[2];
+  static final storageWeeklies = TaskListRepository.weeklyTasks[1];
+  static final cageRoomWeeklies = TaskListRepository.weeklyTasks[3];
+  static final housingRoomWeeklies = TaskListRepository.weeklyTasks[4];
+  static final hibernaculumWeeklies = TaskListRepository.weeklyTasks[4];
+  
+  static final Map<String, TaskList> roomToWeeklyTaskLists = {
+    "CACF 36B": housingRoomWeeklies,
+    "CACF 36C": housingRoomWeeklies,
+    "CACF 36D": housingRoomWeeklies,
+    "CACF 36E": housingRoomWeeklies,
+    "CACF 36F": housingRoomWeeklies,
+    "CACF 36G": storageWeeklies,
+    "CACF 36H": housingRoomWeeklies,
+    "CACF 36J": surgeryRoomWeeklies,
+    "CACF 36K": surgeryRoomWeeklies,
+    "CACF 36L": cageRoomWeeklies,
+    "HACF 17": storageWeeklies,
+    "HACF 19A": housingRoomWeeklies,
+    "HACF 19B": housingRoomWeeklies,
+    "HACF 19C": housingRoomWeeklies,
+    "HACF 19D": hibernaculumWeeklies,
+    "HACF 19E/F": cageRoomWeeklies,
+    "HACF 19G": surgeryRoomWeeklies,
+    "HACF 19H": housingRoomWeeklies,
+    "HACF 19J": housingRoomWeeklies,
+    "HACF 56A": hibernaculumWeeklies,
+  };
+
+  static final surgeryRoomMonthlies = TaskListRepository.monthlyTasks[3];
+  static final storageMonthlies = TaskListRepository.monthlyTasks[1];
+  static final cageRoomMonthlies = TaskListRepository.monthlyTasks[3];
+  static final housingRoomMonthlies = TaskListRepository.monthlyTasks[0];
+  static final hibernaculumMonthlies = TaskListRepository.monthlyTasks[0];
+
+  static final Map<String, TaskList> roomToMonthlyTaskLists = {
+    "CACF 36B": housingRoomMonthlies,
+    "CACF 36C": housingRoomMonthlies,
+    "CACF 36D": housingRoomMonthlies,
+    "CACF 36E": housingRoomMonthlies,
+    "CACF 36F": housingRoomMonthlies,
+    "CACF 36G": storageMonthlies,
+    "CACF 36H": housingRoomMonthlies,
+    "CACF 36J": surgeryRoomMonthlies,
+    "CACF 36K": surgeryRoomMonthlies,
+    "CACF 36L": cageRoomMonthlies,
+    "HACF 17": storageMonthlies,
+    "HACF 19A": housingRoomMonthlies,
+    "HACF 19B": housingRoomMonthlies,
+    "HACF 19C": housingRoomMonthlies,
+    "HACF 19D": hibernaculumMonthlies,
+    "HACF 19E/F": cageRoomMonthlies,
+    "HACF 19G": surgeryRoomMonthlies,
+    "HACF 19H": housingRoomMonthlies,
+    "HACF 19J": housingRoomMonthlies,
+    "HACF 56A": hibernaculumMonthlies,
+  };
+
 }

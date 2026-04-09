@@ -1,79 +1,109 @@
+import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
+import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/cupertino.dart';
 
-class TaskEntry {
+import '../user_management/user_repository.dart';
+
+/// User task entry model
+/// The task record is final and complete when the record is not null
+class TaskEntryModel {
   final Task task;
   final TaskRecord? record;
+  final RoomCheckDate date;
 
-  TaskEntry({required this.task, required this.record});
+  TaskEntryModel({
+    required this.task,
+    required this.record,
+    required this.date,
+  });
 
   bool get isCompleted => record != null;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TaskEntry && task == other.task && record == other.record;
+      other is TaskEntryModel && task == other.task && record == other.record;
 
   @override
   int get hashCode => task.hashCode ^ record.hashCode;
 }
 
+enum RoomCheckStatus { notStarted, started, done }
+
 class RoomCheckModel extends ChangeNotifier {
   final String roomName;
   final TaskList taskList;
   final RecordRepository _recordRepository;
+  final LoginUseCase loginUseCase;
+  final RoomCheckDate date;
 
   final Map<Task, TextEditingController> _commentControllers = {};
-  final Map<Task, TextEditingController> _valueControllers = {};
-  final Set<Task> _tasksWithACommentField = {};
+  final Map<Task, TextEditingController> _quantitativeValueControllers = {};
+
+  final Set<Task> _tasksThatShouldHaveADisplayedCommentField = {};
   final Set<Task> _completedTasks = {};
 
   RoomCheckModel({
     required this.roomName,
     required this.taskList,
     required RecordRepository recordRepository,
+    required this.loginUseCase,
+    required this.date,
   }) : _recordRepository = recordRepository {
-    {
-      for (var task in taskList.tasks) {
-        _commentControllers[task] = TextEditingController();
-        if(task is QuantitativeTask) {
-          _valueControllers[task] = TextEditingController();
-        }
+    // Initialize input controllers
+    for (var task in taskList.tasks) {
+      _commentControllers[task] = TextEditingController();
+      if (task is QuantitativeTask) {
+        _quantitativeValueControllers[task] = TextEditingController();
       }
-      recordRepository.getRecordsForRoom(roomName).forEach((task, record) {
-          _tasksWithACommentField.add(task);
-          if (record.comment != null) {
-            _commentControllers[task]?.text = record.comment!;
-          }
-          if (record is QuantitativeRecord) {
-            _valueControllers[task]?.text = record.recordedValue.toString();
-          }
-          _completedTasks.add(task);
-      });
     }
+
+    // Add recorded tasks
+    recordRepository.getRecordsForRoom(roomName, date).forEach((task, record) {
+      _tasksThatShouldHaveADisplayedCommentField.add(task);
+      if (record.comment case String comment) {
+        _commentControllers[task]?.text = comment;
+      }
+      if (record is QuantitativeRecord) {
+        _quantitativeValueControllers[task]?.text = record.recordedValue
+            .toString();
+      }
+      _completedTasks.add(task);
+    });
   }
 
-  List<TaskEntry> get taskEntries => taskList.tasks
-      .map(
-        (task) => TaskEntry(
-          task: task,
-          record: _recordRepository.getRecordsForRoom(roomName)[task],
-        ),
-      )
-      .toList();
+  /// Gets the tasks for the room check this model represents including
+  /// any that have already been completed
+  List<TaskEntryModel> getTaskEntries() {
+    var records = _recordRepository.getRecordsForRoom(roomName, date);
+    return taskList.tasks
+        .map(
+          (task) =>
+              TaskEntryModel(task: task, record: records[task], date: date),
+        )
+        .toList();
+  }
 
   TextEditingController getCommentController(Task task) =>
       _commentControllers[task]!;
 
-  TextEditingController getValueController(Task task) =>
-      _valueControllers[task]!;
+  TextEditingController getQuantitativeValueController(Task task) =>
+      _quantitativeValueControllers[task]!;
 
-  bool doesTaskHaveComment(Task task) => _tasksWithACommentField.contains(task);
+  bool shouldCommentBeDisplayedForTask(Task task) =>
+      _tasksThatShouldHaveADisplayedCommentField.contains(task);
 
   bool isTaskCompleted(Task task) => _completedTasks.contains(task);
 
+  /// This toggles the completion status before submission.
+  ///
   void toggleTaskCompletion(Task task, bool? completed) {
+    var records = _recordRepository.getRecordsForRoom(roomName, date);
+    if (records[task] != null) {
+      throw Exception("Submitted tasks can not have their completion toggled");
+    }
     if (completed == true) {
       _completedTasks.add(task);
     } else {
@@ -83,7 +113,56 @@ class RoomCheckModel extends ChangeNotifier {
   }
 
   void onAddCommentClicked(Task task) {
-    _tasksWithACommentField.add(task);
+    _tasksThatShouldHaveADisplayedCommentField.add(task);
+    notifyListeners();
+  }
+
+  bool hasUnsavedComments() {
+    var records = _recordRepository.getRecordsForRoom(roomName, date);
+    for (var task in _tasksThatShouldHaveADisplayedCommentField) {
+      if (!records.containsKey(task)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool isTaskRecorded(Task task) {
+    return _recordRepository
+        .getRecordsForRoom(roomName, date)
+        .containsKey(task);
+  }
+
+  void submit() {
+    for (var task in taskList.tasks) {
+      String? comment = _commentControllers[task]?.text;
+      String? valueText = _quantitativeValueControllers[task]?.text;
+      User? loggedInUser = loginUseCase.loggedInUser;
+      if (loggedInUser != null) {
+        if (valueText?.isNotEmpty == true) {
+          _recordRepository.addRecord(
+            QuantitativeRecord(
+              roomName: roomName,
+              task: task,
+              comment: comment,
+              dateTime: DateTime.now(),
+              recordedValue: double.parse(valueText!),
+              doneBy: loggedInUser,
+            ),
+          );
+        } else if (_completedTasks.contains(task)) {
+          _recordRepository.addRecord(
+            TaskRecord(
+              roomName: roomName,
+              task: task,
+              comment: comment,
+              dateTime: DateTime.now(),
+              doneBy: loggedInUser,
+            ),
+          );
+        }
+      }
+    }
     notifyListeners();
   }
 
@@ -92,51 +171,9 @@ class RoomCheckModel extends ChangeNotifier {
     for (var controller in _commentControllers.values) {
       controller.dispose();
     }
-    for (var controller in _valueControllers.values) {
+    for (var controller in _quantitativeValueControllers.values) {
       controller.dispose();
     }
     super.dispose();
   }
-
-  void submit() {
-    for (var task in taskList.tasks) {
-      String? comment = _commentControllers[task]?.text;
-      String? valueText = _valueControllers[task]?.text;
-      if (valueText?.isNotEmpty == true) {
-        _recordRepository.addRecord(
-          QuantitativeRecord(
-            roomName: roomName,
-            task: task,
-            comment: comment,
-            dateTime: DateTime.now(),
-            recordedValue: double.parse(valueText!),
-          ),
-        );
-      } else if (_completedTasks.contains(task)) {
-        _recordRepository.addRecord(
-          TaskRecord(
-            roomName: roomName,
-            task: task,
-            comment: comment,
-            dateTime: DateTime.now(),
-          ),
-        );
-      }
-    }
-    notifyListeners();
-  }
-
-  bool hasUnsavedComments() {
-    for(var task in _tasksWithACommentField) {
-      if (!_recordRepository.getRecordsForRoom(roomName).containsKey(task)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool isTaskRecorded(Task task) {
-    return _recordRepository.getRecordsForRoom(roomName).containsKey(task);
-  }
-
 }

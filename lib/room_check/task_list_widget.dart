@@ -17,18 +17,27 @@ class TaskListWidget extends StatelessWidget {
       child: ConstrainedBox(
         // To prevent the list from taking up the full width of a wide screen
         constraints: const BoxConstraints(maxWidth: widePhoneWidth),
-        child: ListView(
-          shrinkWrap: true,
-          // A card per task entry
-          children: roomCheckModel.taskEntries.map((record) {
-            return _buildTaskCard(context, record);
-          }).toList(),
+        child: ListenableBuilder(
+          listenable: roomCheckModel,
+          builder: (context, _) {
+            return ListView(
+              shrinkWrap: true,
+              // A card per task record
+              children: roomCheckModel.getTaskEntries().map((record) {
+                return _buildTaskCard(context, roomCheckModel, record);
+              }).toList(),
+            );
+          },
         ),
       ),
     );
   }
 
-  Card _buildTaskCard(BuildContext context, TaskEntry taskEntry) {
+  Card _buildTaskCard(
+    BuildContext context,
+    RoomCheckModel roomCheckModel,
+    TaskEntryModel taskEntry,
+  ) {
     return Card(
       child: Padding(
         padding: insets8,
@@ -36,14 +45,18 @@ class TaskListWidget extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             mediumTitleText(context, taskEntry.task.description),
-            ..._buildTaskEntryForm(context, taskEntry),
+            ..._buildTaskCardEntryForm(context, roomCheckModel, taskEntry),
           ],
         ),
       ),
     );
   }
 
-  List<Widget> _buildTaskEntryForm(BuildContext context, TaskEntry entry) {
+  List<Widget> _buildTaskCardEntryForm(
+    BuildContext context,
+    RoomCheckModel roomCheckModel,
+    TaskEntryModel entry,
+  ) {
     var task = entry.task;
     return [
       // The number field or checkbox
@@ -56,9 +69,9 @@ class TaskListWidget extends StatelessWidget {
       ] else ...[
         _buildTaskCompleteWidget(entry, context),
       ],
-      
+
       // The add comment button or comment field
-      if (roomCheckModel.doesTaskHaveComment(task)) ...[
+      if (roomCheckModel.shouldCommentBeDisplayedForTask(task)) ...[
         // Only show the field if there is a comment or
         // the task has already been recorded
         if (roomCheckModel.getCommentController(task).text.isNotEmpty ||
@@ -83,17 +96,17 @@ class TaskListWidget extends StatelessWidget {
   }
 
   Widget _buildNumberEntryField(
-    TaskEntry entry,
+    TaskEntryModel entry,
     QuantitativeTask<dynamic> task,
   ) {
     return NumberEntryField(
-      controller: roomCheckModel.getValueController(task),
+      controller: roomCheckModel.getQuantitativeValueController(task),
       entry: entry,
       task: task,
     );
   }
 
-  Row _buildTaskCompleteWidget(TaskEntry entry, BuildContext context) {
+  Row _buildTaskCompleteWidget(TaskEntryModel entry, BuildContext context) {
     return Row(
       children: [
         _buildTaskCompleteCheckBox(entry),
@@ -102,7 +115,7 @@ class TaskListWidget extends StatelessWidget {
     );
   }
 
-  Checkbox _buildTaskCompleteCheckBox(TaskEntry entry) {
+  Checkbox _buildTaskCompleteCheckBox(TaskEntryModel entry) {
     var task = entry.task;
     var taskRecorded = entry.record != null;
     return Checkbox(
@@ -113,7 +126,7 @@ class TaskListWidget extends StatelessWidget {
     );
   }
 
-  TextField _buildCommentInput(TaskEntry entry) {
+  TextField _buildCommentInput(TaskEntryModel entry) {
     var taskUnrecorded = entry.record == null;
     return TextField(
       // Can't overwrite submitted comments
@@ -129,7 +142,7 @@ class TaskListWidget extends StatelessWidget {
 
 class NumberEntryField extends StatefulWidget {
   final TextEditingController controller;
-  final TaskEntry entry;
+  final TaskEntryModel entry;
   final QuantitativeTask<dynamic> task;
 
   const NumberEntryField({
@@ -161,7 +174,8 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
     } else if (value < widget.task.range.min || value > widget.task.range.max) {
       setState(() {
         _errorText =
-            'Value out of range (${widget.task.range.min} to ${widget.task.range.max})';
+            'Value out of range '
+                '(${widget.task.range.min} to ${widget.task.range.max})';
       });
     } else {
       setState(() {
