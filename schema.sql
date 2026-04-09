@@ -1,3 +1,61 @@
+SET search_path TO public, auth;
+GRANT USAGE ON SCHEMA public TO authenticated;
+
+-- User Groups -------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_groups
+(
+    ug_id serial PRIMARY KEY,
+    name  bpchar NOT NULL
+);
+INSERT INTO user_groups (ug_id, name)
+VALUES (0, 'Admin'),
+       (1, 'PI and Chief of Staff'),
+       (2, 'Students and Staff');
+SELECT setval(
+               pg_get_serial_sequence('user_groups', 'ug_id'),
+               COALESCE((SELECT max(ug_id) FROM user_groups), 0)
+       );
+ALTER TABLE "public"."user_groups"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.user_groups TO authenticated;
+
+-- Users -------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users
+(
+    u_id    serial PRIMARY KEY,
+    name    bpchar                                 NOT NULL,
+    ug_id   integer REFERENCES user_groups (ug_id) NOT NULL,
+    auth_id uuid REFERENCES auth.users             NOT NULL UNIQUE,
+    deleted boolean                                NOT NULL
+);
+ALTER TABLE "public"."users"
+    ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON TABLE public.users TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE users_u_id_seq TO authenticated;
+create policy "UsersSelectAuth"
+    on "public"."users"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (
+    auth.uid() = auth_id OR
+    (SELECT ug_id
+     FROM public.users
+     WHERE auth_id = auth.uid()) = 0
+    );
+create policy "UsersInsertAuth"
+    on "public"."users"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    EXISTS (SELECT 1
+            FROM public.users
+            WHERE auth_id = auth.uid()
+              AND ug_id = 0)
+    );
+
+-- Facilities --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS facilities
 (
     f_id    serial PRIMARY KEY,
@@ -10,12 +68,32 @@ VALUES (0, 'Surgery', FALSE),
        (2, 'Cage Wash', FALSE),
        (3, 'Housing', FALSE),
        (4, 'Hibernaculum', FALSE);
-
 SELECT setval(
                pg_get_serial_sequence('facilities', 'f_id'),
                COALESCE((SELECT max(f_id) FROM facilities), 0)
        );
+ALTER TABLE "public"."facilities"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.facilities TO authenticated;
+create policy "FacilitiesSelectAuth"
+    on "public"."facilities"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "FacilitiesInsertAuth"
+    on "public"."facilities"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    EXISTS (SELECT 1
+            FROM public.users
+            WHERE auth_id = auth.uid()
+              AND ug_id = 0)
+    );
 
+-- Labs --------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS labs
 (
     l_id    serial PRIMARY KEY,
@@ -23,25 +101,31 @@ CREATE TABLE IF NOT EXISTS labs
     name    bpchar  NOT NULL,
     deleted boolean NOT NULL
 );
-
 INSERT INTO labs (l_id, color, name, deleted)
 VALUES (0, 16777215, 'Merriman', false),
        (1, 16776960, 'Fauna', false),
        (2, 16711935, 'Boonpattrawong', false),
        (3, 65535, 'Kurtz', false);
-
 SELECT setval(
                pg_get_serial_sequence('labs', 'l_id'),
                COALESCE((SELECT max(l_id) FROM labs), 0)
        );
+ALTER TABLE "public"."labs"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.labs TO authenticated;
 
+-- Enrichment Lists --------------------------------------------------
 CREATE TABLE IF NOT EXISTS enrichment_lists
 (
     el_id   serial PRIMARY KEY,
     name    bpchar  NOT NULL,
     deleted boolean NOT NULL
 );
+ALTER TABLE "public"."enrichment_lists"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.enrichment_lists TO authenticated;
 
+-- Rooms -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS rooms
 (
     r_id  serial PRIMARY KEY,
@@ -50,7 +134,6 @@ CREATE TABLE IF NOT EXISTS rooms
     l_id  integer REFERENCES labs (l_id),
     el_id integer REFERENCES enrichment_lists (el_id)
 );
-
 INSERT INTO rooms(r_id, name, f_id, l_id, el_id)
 VALUES (0, 'CACF 36B', 3, 0, NULL),
        (1, 'CACF 36C', 3, 0, NULL),
@@ -76,39 +159,22 @@ SELECT setval(
                pg_get_serial_sequence('rooms', 'r_id'),
                COALESCE((SELECT max(r_id) FROM rooms), 0)
        );
+ALTER TABLE "public"."rooms"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.rooms TO authenticated;
 
-CREATE TABLE IF NOT EXISTS user_groups
-(
-    ug_id serial PRIMARY KEY,
-    name  bpchar NOT NULL
-);
-
-
-INSERT INTO user_groups (ug_id, name)
-VALUES (0, 'Admin'),
-       (1, 'PI and Chief of Staff'),
-       (2, 'Students and Staff');
-SELECT setval(
-               pg_get_serial_sequence('user_groups', 'ug_id'),
-               COALESCE((SELECT max(ug_id) FROM user_groups), 0)
-       );
-
-CREATE TABLE IF NOT EXISTS users
-(
-    u_id    serial PRIMARY KEY,
-    name    bpchar                                 NOT NULL,
-    ug_id   integer REFERENCES user_groups (ug_id) NOT NULL,
-    deleted boolean                                NOT NULL
-);
-
+-- Lab Group Memberships ---------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_group_memberships
 (
     l_id integer REFERENCES labs (l_id)  NOT NULL,
     u_id integer REFERENCES users (u_id) NOT NULL,
     PRIMARY KEY (l_id, u_id)
 );
+ALTER TABLE "public"."lab_group_memberships"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.lab_group_memberships TO authenticated;
 
-
+-- Censuses ----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS censuses
 (
     c_id      serial PRIMARY KEY,
@@ -116,13 +182,21 @@ CREATE TABLE IF NOT EXISTS censuses
     r_id      integer REFERENCES rooms (r_id) NOT NULL,
     u_id      integer REFERENCES users (u_id) NOT NULL
 );
+ALTER TABLE "public"."censuses"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.censuses TO authenticated;
 
+-- Animals -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS animals
 (
     a_id serial PRIMARY KEY,
     name bpchar NOT NULL
 );
+ALTER TABLE "public"."animals"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.animals TO authenticated;
 
+-- Census Records ----------------------------------------------------
 CREATE TABLE IF NOT EXISTS census_records
 (
     c_id              integer REFERENCES censuses (c_id) NOT NULL,
@@ -130,7 +204,11 @@ CREATE TABLE IF NOT EXISTS census_records
     number_of_animals smallint                           NOT NULL,
     PRIMARY KEY (c_id, a_id)
 );
+ALTER TABLE "public"."census_records"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.census_records TO authenticated;
 
+-- Week Day ----------------------------------------------------------
 CREATE TYPE week_day AS ENUM (
     'Sunday',
     'Monday',
@@ -141,33 +219,47 @@ CREATE TYPE week_day AS ENUM (
     'Saturday'
     );
 
+-- Enrichment Types --------------------------------------------------
 CREATE TABLE IF NOT EXISTS enrichment_types
 (
     et_id       serial PRIMARY KEY,
     description bpchar  NOT NULL,
     deleted     boolean NOT NULL
 );
+ALTER TABLE "public"."enrichment_types"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.enrichment_types TO authenticated;
 
+-- Enrichments -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS enrichments
 (
     e_id        serial PRIMARY KEY,
     day_of_week week_day                                    NOT NULL,
     et_id       integer REFERENCES enrichment_types (et_id) NOT NULL
 );
+ALTER TABLE "public"."enrichments"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.enrichments TO authenticated;
 
+-- Enrichment List Memberships
 CREATE TABLE IF NOT EXISTS enrichment_list_memberships
 (
     el_id integer REFERENCES enrichment_lists (el_id) NOT NULL,
     e_id  integer REFERENCES enrichments (e_id)       NOT NULL,
     PRIMARY KEY (el_id, e_id)
 );
+ALTER TABLE "public"."enrichment_list_memberships"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.enrichment_list_memberships TO authenticated;
 
+-- Task Frequency ----------------------------------------------------
 CREATE TYPE task_frequency AS ENUM (
     'Daily',
     'Weekly',
     'Monthly'
     );
 
+-- Task Lists --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_lists
 (
     tl_id     serial PRIMARY KEY,
@@ -199,8 +291,11 @@ SELECT setval(
                pg_get_serial_sequence('task_lists', 'tl_id'),
                COALESCE((SELECT max(tl_id) FROM task_lists), 0)
        );
+ALTER TABLE "public"."task_lists"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.task_lists TO authenticated;
 
-
+-- Tasks -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tasks
 (
     t_id    serial PRIMARY KEY,
@@ -257,7 +352,11 @@ SELECT setval(
                pg_get_serial_sequence('tasks', 't_id'),
                COALESCE((SELECT max(t_id) FROM tasks), 0)
        );
+ALTER TABLE "public"."tasks"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.tasks TO authenticated;
 
+-- Quantitative Ranges -----------------------------------------------
 CREATE TABLE IF NOT EXISTS quantitative_ranges
 (
     qr_id    serial PRIMARY KEY,
@@ -267,7 +366,6 @@ CREATE TABLE IF NOT EXISTS quantitative_ranges
     minimum  numeric NOT NULL,
     CHECK ( minimum < maximum )
 );
-
 INSERT INTO quantitative_ranges (qr_id, unit, required, maximum, minimum)
 VALUES (0, 'Fahrenheit', false, 79, 32),
        (1, 'Fahrenheit', false, 42, 32),
@@ -279,14 +377,17 @@ SELECT setval(
                COALESCE((SELECT max(qr_id) FROM quantitative_ranges),
                         0)
        );
+ALTER TABLE "public"."quantitative_ranges"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.quantitative_ranges TO authenticated;
 
+-- Quantitative Tasks ------------------------------------------------
 CREATE TABLE IF NOT EXISTS quantitative_tasks
 (
     t_id  integer REFERENCES tasks (t_id)                NOT NULL,
     qr_id integer REFERENCES quantitative_ranges (qr_id) NOT NULL,
     PRIMARY KEY (t_id, qr_id)
 );
-
 INSERT INTO quantitative_tasks (t_id, qr_id)
 VALUES (0, 0),
        (1, 1),
@@ -294,14 +395,17 @@ VALUES (0, 0),
        (3, 2),
        (2, 3),
        (3, 4);
+ALTER TABLE "public"."quantitative_tasks"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.quantitative_tasks TO authenticated;
 
+-- Task List Task Memberships ---------------------------------------------
 CREATE TABLE IF NOT EXISTS task_list_task_memberships
 (
     tl_id integer REFERENCES task_lists (tl_id) NOT NULL,
     t_id  integer REFERENCES tasks (t_id)       NOT NULL,
     PRIMARY KEY (tl_id, t_id)
 );
-
 INSERT INTO task_list_task_memberships (tl_id, t_id)
 VALUES (0, 0),
        (0, 2),
@@ -408,15 +512,17 @@ VALUES (0, 0),
        (15, 21),
        (15, 22),
        (15, 26);
+ALTER TABLE "public"."task_list_task_memberships"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.task_list_task_memberships TO authenticated;
 
-
+-- Task List Room Memberships ----------------------------------------
 CREATE TABLE IF NOT EXISTS task_list_room_memberships
 (
     tl_id integer REFERENCES task_lists (tl_id) NOT NULL,
     r_id  integer REFERENCES rooms (r_id)       NOT NULL,
     PRIMARY KEY (tl_id, r_id)
 );
-
 INSERT INTO task_list_room_memberships (tl_id, r_id)
 VALUES (4, 0),
        (10, 0),
@@ -497,40 +603,61 @@ VALUES (4, 0),
        (5, 19),
        (11, 19),
        (16, 19);
+ALTER TABLE "public"."task_list_room_memberships"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.task_list_room_memberships TO authenticated;
 
+-- Room Check State --------------------------------------------------
 CREATE TYPE room_check_state AS ENUM ('not_started', 'started', 'done');
 
+-- Room Check Slots --------------------------------------------------
 CREATE TABLE IF NOT EXISTS room_check_slots
 (
     rc_id     serial PRIMARY KEY,
     date_time timestamptz                     NOT NULL,
     r_id      integer REFERENCES rooms (r_id) NOT NULL,
     state     room_check_state                NOT NULL,
+    comment   bpchar,
     u_id      integer REFERENCES users (u_id)
 );
+ALTER TABLE "public"."room_check_slots"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.room_check_slots TO authenticated;
 
+-- Task Records ------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_records
 (
     tr_id     serial PRIMARY KEY,
     t_id      integer REFERENCES tasks (t_id)             NOT NULL,
     rc_id     integer REFERENCES room_check_slots (rc_id) NOT NULL,
-    date_time timestamptz                                 NOT NULL,
-    comment   bpchar                                      NOT NULL
+    date_time timestamptz                                 NOT NULL
 );
+ALTER TABLE "public"."task_records"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.task_records TO authenticated;
 
+-- Quantitative Task Records -----------------------------------------
 CREATE TABLE IF NOT EXISTS quantitative_task_records
 (
     tr_id integer PRIMARY KEY REFERENCES task_records (tr_id),
     value numeric NOT NULL
 );
+ALTER TABLE "public"."quantitative_task_records"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.quantitative_task_records TO authenticated;
 
+-- Task Record Users -------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_record_users
 (
     tr_id integer REFERENCES task_records (tr_id) NOT NULL,
     u_id  integer REFERENCES users (u_id)         NOT NULL,
     PRIMARY KEY (tr_id, u_id)
 );
+ALTER TABLE "public"."task_record_users"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.task_record_users TO authenticated;
 
+-- Enrichment List Assignment Dates ----------------------------------
 CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
 (
     ela_id    serial PRIMARY KEY,
@@ -538,16 +665,6 @@ CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
     el_id     integer REFERENCES enrichment_lists (el_id) NOT NULL,
     r_id      integer REFERENCES rooms (r_id)             NOT NULL
 );
-
-DO $$
-DECLARE
-r RECORD;
-BEGIN
-FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
-    LOOP
-        EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' ENABLE ROW LEVEL SECURITY;';
-END LOOP;
-END $$;
-GRANT USAGE ON SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+ALTER TABLE "public"."enrichment_list_assignment_dates"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.enrichment_list_assignment_dates TO authenticated;
