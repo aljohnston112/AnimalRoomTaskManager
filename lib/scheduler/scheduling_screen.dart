@@ -252,7 +252,10 @@ class SchedulingScreenCards extends StatelessWidget {
           bool done = roomTaskList.tasks.every(
             (t) => recordMap.keys.contains(t),
           );
-          User doneBy = recordMap.values.first.doneBy;
+          User? doneBy;
+          if (recordMap.isNotEmpty) {
+            doneBy = recordMap.values.first.doneBy;
+          }
           return (done, doneBy);
         },
         builder: (context, data, c) {
@@ -265,30 +268,35 @@ class SchedulingScreenCards extends StatelessWidget {
                 padding: insets8,
                 child: Column(
                   children: [
-                    mediumTitleText(context, roomName),
-                    if (!done) ...[
-                      padding8,
-                      mediumTitleText(
-                        context,
-                        _getAssignedUserString(
-                          schedulingModel.geUserAssignedToRoom(
-                            date,
-                            roomName,
-                            frequency,
-                          ),
-                        ),
-                      ),
-                    ],
-                    padding8,
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        if (done) ...[
+                        mediumTitleText(context, roomName),
+                        if (!done) ...[
+                          padding8,
+                          mediumTitleText(
+                            context,
+                            _getAssignedUserString(
+                              schedulingModel.geUserAssignedToRoom(
+                                date,
+                                roomName,
+                                frequency,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    padding8,
+                    Column(
+                      children: [
+                        if (done && doneBy != null) ...[
                           mediumTitleText(context, _getDoneByString(doneBy)),
                         ] else ...[
                           _buildAssignmentButton(context, date, roomName),
                         ],
                         if (isCurrentPeriod && !done) ...[
+                          padding8,
                           FilledButton(
                             onPressed: () {
                               Navigator.push(
@@ -330,7 +338,8 @@ class SchedulingScreenCards extends StatelessWidget {
     String roomName,
   ) {
     final loginUseCase = context.watch<LoginUseCase>();
-    return Column(
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         FilledButton(
           onPressed: () {

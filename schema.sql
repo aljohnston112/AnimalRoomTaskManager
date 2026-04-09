@@ -538,3 +538,16 @@ CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
     el_id     integer REFERENCES enrichment_lists (el_id) NOT NULL,
     r_id      integer REFERENCES rooms (r_id)             NOT NULL
 );
+
+DO $$
+DECLARE
+r RECORD;
+BEGIN
+FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public')
+    LOOP
+        EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' ENABLE ROW LEVEL SECURITY;';
+END LOOP;
+END $$;
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;

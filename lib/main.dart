@@ -15,6 +15,9 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   Database database = await Database.create();
+  final roomCheckRepository = RoomCheckRepository(database: database);
+  await roomCheckRepository.loadRoomChecks();
+
   runApp(
     MultiProvider(
       providers: [
@@ -34,9 +37,7 @@ Future<void> main() async {
           },
         ),
         ChangeNotifierProvider(create: (context) => RecordRepository()),
-        ChangeNotifierProvider(
-          create: (context) => RoomCheckRepository(database),
-        ),
+        ChangeNotifierProvider.value(value: roomCheckRepository),
         ChangeNotifierProvider(create: (context) => TaskListRepository()),
       ],
       child: MyApp(),

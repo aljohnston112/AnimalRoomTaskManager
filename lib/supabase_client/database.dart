@@ -49,7 +49,21 @@ class Database {
   }
 
   Future<List<PostgrestMap>> getRoomCheckSlots() async {
-    final data = await _supabase.client.from('room_check_slots').select();
+    final today = DateTime.now();
+    final startOfToday = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).toIso8601String();
+    final data = await _supabase.client
+        .from('room_check_slots')
+        .select('''
+    *,
+    rooms (
+      name
+    )
+  ''')
+        .gte('date_time', startOfToday);
     return data.toList();
   }
 }

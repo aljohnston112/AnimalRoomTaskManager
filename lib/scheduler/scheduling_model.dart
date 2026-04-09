@@ -64,6 +64,7 @@ class SchedulingModel extends ChangeNotifier {
     TaskFrequency frequency,
   ) {
     var roomCheckSlot = RoomCheckSlot(
+      rcid: null,
       date: date,
       roomName: roomName,
       frequency: frequency,

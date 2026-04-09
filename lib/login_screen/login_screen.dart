@@ -41,7 +41,7 @@ class LoginScreen extends StatelessWidget {
           _loginUseCase.login(_emailController.text);
         }
       },
-      child: mediumTitleText(context, "Log in"),
+      child: Text("Log in"),
     );
   }
 }

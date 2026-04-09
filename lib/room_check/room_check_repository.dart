@@ -10,12 +10,14 @@ import '../user_management/user_repository.dart';
 typedef RoomCheckDate = ({int year, int month, int day});
 
 class RoomCheckSlot {
+  final int? rcid;
   final RoomCheckDate date;
   final String roomName;
   final TaskFrequency frequency;
   User? assigned;
 
   RoomCheckSlot({
+    required this.rcid,
     required this.date,
     required this.roomName,
     required this.frequency,
@@ -35,16 +37,25 @@ class RoomCheckSlot {
 }
 
 class RoomCheckRepository extends ChangeNotifier {
+  final Database _database;
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _roomChecks = {};
   final _stateController =
   StreamController<
       Map<RoomCheckDate, Map<String, RoomCheckSlot>>
   >.broadcast();
 
-  RoomCheckRepository(Database database) {
+  RoomCheckRepository({required Database database}) : _database = database {
     database.subscribeToRoomChecks((PostgresChangePayload p) {
       var p1 = p;
     });
+  }
+
+  Future<void> loadRoomChecks() async {
+    final roomChecks = await _database.getRoomCheckSlots();
+    print(roomChecks);
+    for(var map in roomChecks){
+
+    }
   }
 
   void assignListenerToRoomCheck(RoomCheckSlot roomCheckSlot) {
