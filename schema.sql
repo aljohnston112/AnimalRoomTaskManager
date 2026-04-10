@@ -1,28 +1,8 @@
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
 SET search_path TO public, auth;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
-
-CREATE OR REPLACE FUNCTION public.check_is_admin()
-    RETURNS boolean AS
-$$
-SELECT EXISTS (SELECT 1
-               FROM public.users
-               WHERE auth_id = auth.uid()
-                 AND ug_id = 0
-                 AND NOT deleted);
-$$ LANGUAGE sql STABLE
-                SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION get_my_u_id()
-    RETURNS integer AS
-$$
-SELECT u_id
-FROM public.users
-WHERE auth_id = auth.uid();
-$$ LANGUAGE sql STABLE
-                SECURITY DEFINER;
-
-SET search_path TO public, auth, pg_temp;
 
 -- User Groups -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_groups
@@ -42,14 +22,6 @@ ALTER TABLE "public"."user_groups"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.user_groups TO authenticated;
 GRANT SELECT ON TABLE public.user_groups TO authenticated;
-create policy "UserGroupsSelectAuth"
-    on "public"."user_groups"
-    as PERMISSIVE
-    for SELECT
-    to authenticated
-    using (
-    check_is_admin()
-    );
 
 -- Users -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users
@@ -75,6 +47,25 @@ create policy "UsersSelectAuth"
     using (
     NOT deleted
     );
+CREATE OR REPLACE FUNCTION public.check_is_admin()
+    RETURNS boolean AS
+$$
+SELECT EXISTS (SELECT 1
+               FROM public.users
+               WHERE auth_id = auth.uid()
+                 AND ug_id = 0
+                 AND NOT deleted);
+$$ LANGUAGE sql STABLE
+                SECURITY DEFINER;
+SET search_path TO public, auth, pg_temp;
+create policy "UserGroupsSelectAuth"
+    on "public"."user_groups"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (
+    check_is_admin()
+    );
 create policy "UsersInsertAuth"
     on "public"."users"
     as PERMISSIVE
@@ -90,6 +81,91 @@ create policy "UsersUpdateAuth"
     check_is_admin()
     )
     WITH CHECK (check_is_admin());
+
+CREATE OR REPLACE FUNCTION get_my_u_id()
+    RETURNS integer AS
+$$
+SELECT u_id
+FROM public.users
+WHERE auth_id = auth.uid();
+$$ LANGUAGE sql STABLE
+                SECURITY DEFINER;
+SET search_path TO public, auth, pg_temp;
+
+CREATE TABLE IF NOT EXISTS email_whitelist
+(
+    email bpchar PRIMARY KEY,
+    ug_id integer REFERENCES user_groups (ug_id) NOT NULL
+);
+ALTER TABLE "public"."email_whitelist"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.email_whitelist TO authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.email_whitelist TO authenticated;
+create policy "EmailWhitelistSelectAuth"
+    on "public"."email_whitelist"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (check_is_admin());
+create policy "EmailWhitelistInsertAuth"
+    on "public"."email_whitelist"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (check_is_admin());
+create policy "EmailWhitelistDeleteAuth"
+    on "public"."email_whitelist"
+    as PERMISSIVE
+    for DELETE
+    to authenticated
+    USING (check_is_admin());
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+    RETURNS trigger AS
+$$
+DECLARE
+    _ug_id integer;
+BEGIN
+    SELECT ug_id
+    INTO _ug_id
+    FROM public.email_whitelist
+    WHERE email = NEW.email;
+    IF _ug_id IS NOT NULL THEN
+        INSERT INTO public.users (name, ug_id, auth_id, deleted)
+        VALUES (NEW.email, _ug_id, NEW.id, false);
+        RETURN NEW;
+    ELSE
+        RAISE EXCEPTION 'This email is not authorized to register.';
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+SET search_path TO public, auth, pg_temp;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT
+    ON auth.users
+    FOR EACH ROW
+EXECUTE PROCEDURE public.handle_new_user();
+
+CREATE OR REPLACE FUNCTION public.on_user_deleted_purge()
+    RETURNS trigger AS
+$$
+BEGIN
+    IF (NEW.deleted = true AND OLD.deleted = false) THEN
+        DELETE
+        FROM public.email_whitelist
+        WHERE email =
+              (SELECT email FROM auth.users WHERE id = NEW.auth_id);
+        DELETE FROM auth.users WHERE id = NEW.auth_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+SET search_path TO public, auth, pg_temp;
+
+CREATE TRIGGER trigger_purge_user
+    AFTER UPDATE OF deleted
+    ON public.users
+    FOR EACH ROW
+EXECUTE PROCEDURE public.on_user_deleted_purge();
 
 -- Facilities --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS facilities
@@ -1133,7 +1209,7 @@ ALTER TABLE "public"."task_record_users"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.task_record_users TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.task_record_users TO authenticated;
-create policy "Task_Record_UsersSelectAuth"
+create policy "TaskRecordUsersSelectAuth"
     on "public"."task_record_users"
     as PERMISSIVE
     for SELECT
