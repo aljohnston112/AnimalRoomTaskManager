@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase_client/database.dart';
 
@@ -131,5 +132,12 @@ class UserRepository extends ChangeNotifier {
       return whereUserEmailMatches.first;
     }
     return null;
+  }
+
+  Future<User?> trySignIn(String email, String password) async {
+    final User res = await database.signUp(
+      email: email,
+      password: password,
+    );
   }
 }

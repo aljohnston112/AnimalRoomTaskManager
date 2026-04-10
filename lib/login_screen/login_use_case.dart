@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../user_management/user_repository.dart';
 
@@ -27,5 +28,9 @@ class LoginUseCase extends ChangeNotifier {
       _loggedInUser = newUser;
     }
     notifyListeners();
+  }
+
+  Future<void> signup(String email, String password) async {
+    User? user = await _userRepository.trySignIn(email, password);
   }
 }
