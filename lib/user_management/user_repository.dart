@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb show User;
 
 import '../supabase_client/database.dart';
 
@@ -73,6 +75,29 @@ class UserRepository extends ChangeNotifier {
 
   UserRepository({required this.database});
 
+  void subscribeToAuthEvents(void Function(User?) onAuthChange) {
+    database.subscribeToAuth((data) async {
+      switch (data.event) {
+        case AuthChangeEvent.signedIn:
+          var email = data.session?.user.email;
+          var id = data.session?.user.id;
+          if (email != null) {
+            onAuthChange(
+              User(email: email, group: await database.getUserGroup(email)),
+            );
+          } else {
+            onAuthChange(null);
+          }
+          break;
+        case AuthChangeEvent.signedOut:
+          onAuthChange(null);
+          break;
+        default:
+          // The other events are not relevant
+      }
+    });
+  }
+
   List<User> getUsers() {
     return _users;
   }
@@ -113,31 +138,15 @@ class UserRepository extends ChangeNotifier {
   }
 
   /// Returns the user if they are authenticated, else null
-  Future<User?> tryLogIn(String email) async {
-    // TODO other users / sign up
+  Future<void> tryLogIn(String email, String password) async {
+    // TODO for dev only
     // await dotenv.load(fileName: ".env");
-    // final result = await database.login(
-    //   email: dotenv.get("DEV_EMAIL"),
-    //   password: dotenv.get("DEV_PASSWORD"),
-    // );
-    // final result = await database.login(
-    //   email: "fake",
-    //   password: "fake",
-    // );
-    // print(result);
-    // database.getRoomCheckSlots();
-
-    var whereUserEmailMatches = _users.where((user) => user.email == email);
-    if (whereUserEmailMatches.isNotEmpty) {
-      return whereUserEmailMatches.first;
-    }
-    return null;
+    // email = dotenv.get("DEV_EMAIL");
+    // password = dotenv.get("DEV_PASSWORD");
+    database.login(email: email, password: password);
   }
 
-  Future<User?> trySignIn(String email, String password) async {
-    final User res = await database.signUp(
-      email: email,
-      password: password,
-    );
+  Future<void> trySignUp(String email, String password) async {
+    database.signUp(email: email, password: password);
   }
 }

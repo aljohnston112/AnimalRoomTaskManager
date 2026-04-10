@@ -12,7 +12,7 @@ class LoginScreen extends StatelessWidget {
 
   final LoginUseCase _loginUseCase;
 
-  LoginScreen({super.key, required loginModel}) : _loginUseCase = loginModel {
+  LoginScreen({super.key, required loginUseCase}) : _loginUseCase = loginUseCase {
     _emailController.text = "test@uwosh.edu";
   }
 
@@ -23,22 +23,26 @@ class LoginScreen extends StatelessWidget {
       child: buildScaffold(
         title: 'Login',
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              buildEmailTextFormField(_emailController),
-              padding8,
-              _buildPasswordFormField(_passwordController),
-              padding8,
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildSignUpButton(context),
-                  padding8,
-                  _buildLoginButton(context),
-                ],
-              ),
-            ],
+          child: ConstrainedBox(
+            // To prevent the list from taking up the full width of a wide screen
+            constraints: const BoxConstraints(maxWidth: widePhoneWidth),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                buildEmailTextFormField(_emailController),
+                padding8,
+                _buildPasswordFormField(_passwordController),
+                padding8,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildSignUpButton(context),
+                    padding8,
+                    _buildLoginButton(context),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -49,7 +53,7 @@ class LoginScreen extends StatelessWidget {
     return FilledButton(
       onPressed: () {
         if (_formKey.currentState!.validate()) {
-          _loginUseCase.login(_emailController.text);
+          _loginUseCase.login(_emailController.text, _passwordController.text);
         }
       },
       child: Text("Log in"),
@@ -74,6 +78,7 @@ class LoginScreen extends StatelessWidget {
         controller: passwordController,
         decoration: const InputDecoration(hintText: "Password"),
         autovalidateMode: AutovalidateMode.onUnfocus,
+        obscureText: true,
         validator: validatePassword,
       ),
     );

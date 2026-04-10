@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../user_management/user_repository.dart';
 
 class SchedulingModel extends ChangeNotifier {
-  RoomCheckRepository _roomCheckRepository;
+  final RoomCheckRepository _roomCheckRepository;
 
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _dailyInternal = {};
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _weeklyInternal = {};

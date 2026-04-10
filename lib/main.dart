@@ -16,7 +16,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   Database database = await Database.create();
   final roomCheckRepository = RoomCheckRepository(database: database);
-  await roomCheckRepository.loadRoomChecks();
+  //await roomCheckRepository.loadRoomChecks();
 
   runApp(
     MultiProvider(
@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
           //       userRepository: context.read<UserRepository>()),
           // ),
           loginUseCase.loggedInUser == null
-          ? LoginScreen(loginModel: loginUseCase)
+          ? LoginScreen(loginUseCase: loginUseCase)
           : SchedulingScreen(
               schedulingModel: SchedulingModel(
                 roomCheckRepository: context.read<RoomCheckRepository>(),

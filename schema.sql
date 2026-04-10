@@ -106,7 +106,7 @@ create policy "EmailWhitelistSelectAuth"
     as PERMISSIVE
     for SELECT
     to authenticated
-    using (check_is_admin());
+    using (check_is_admin() or email = auth.email());
 create policy "EmailWhitelistInsertAuth"
     on "public"."email_whitelist"
     as PERMISSIVE
