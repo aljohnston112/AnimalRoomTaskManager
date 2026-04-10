@@ -1,5 +1,20 @@
 SET search_path TO public, auth;
 GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.check_is_admin()
+    RETURNS boolean AS
+$$
+BEGIN
+    RETURN EXISTS (SELECT 1
+                   FROM public.users
+                   WHERE auth_id = auth.uid()
+                     AND ug_id = 0
+                     AND NOT deleted);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+SET search_path TO public, auth, pg_temp;
 
 -- User Groups -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS user_groups
@@ -18,6 +33,15 @@ SELECT setval(
 ALTER TABLE "public"."user_groups"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.user_groups TO authenticated;
+GRANT SELECT ON TABLE public.user_groups TO authenticated;
+create policy "UserGroupsSelectAuth"
+    on "public"."user_groups"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (
+    check_is_admin()
+    );
 
 -- Users -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users
@@ -30,7 +54,10 @@ CREATE TABLE IF NOT EXISTS users
 );
 ALTER TABLE "public"."users"
     ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.users TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.users TO authenticated;
+REVOKE UPDATE ON public.users FROM authenticated;
+GRANT UPDATE (deleted) ON public.users TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE users_u_id_seq TO authenticated;
 create policy "UsersSelectAuth"
     on "public"."users"
@@ -38,10 +65,7 @@ create policy "UsersSelectAuth"
     for SELECT
     to authenticated
     using (
-    auth.uid() = auth_id OR
-    (SELECT ug_id
-     FROM public.users
-     WHERE auth_id = auth.uid()) = 0
+    NOT deleted
     );
 create policy "UsersInsertAuth"
     on "public"."users"
@@ -49,10 +73,18 @@ create policy "UsersInsertAuth"
     for INSERT
     to authenticated
     WITH CHECK (
-    EXISTS (SELECT 1
-            FROM public.users
-            WHERE auth_id = auth.uid()
-              AND ug_id = 0)
+    check_is_admin()
+    );
+create policy "UsersUpdateAuth"
+    on "public"."users"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
     );
 
 -- Facilities --------------------------------------------------------
@@ -75,6 +107,10 @@ SELECT setval(
 ALTER TABLE "public"."facilities"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.facilities TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.facilities TO authenticated;
+REVOKE UPDATE ON public.facilities FROM authenticated;
+GRANT UPDATE (deleted) ON public.facilities TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE facilities_f_id_seq TO authenticated;
 create policy "FacilitiesSelectAuth"
     on "public"."facilities"
     as PERMISSIVE
@@ -87,10 +123,18 @@ create policy "FacilitiesInsertAuth"
     for INSERT
     to authenticated
     WITH CHECK (
-    EXISTS (SELECT 1
-            FROM public.users
-            WHERE auth_id = auth.uid()
-              AND ug_id = 0)
+    check_is_admin()
+    );
+create policy "FacilitiesUpdateAuth"
+    on "public"."facilities"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
     );
 
 -- Labs --------------------------------------------------------------
@@ -113,6 +157,36 @@ SELECT setval(
 ALTER TABLE "public"."labs"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.labs TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.labs TO authenticated;
+REVOKE UPDATE ON public.labs FROM authenticated;
+GRANT UPDATE (color, deleted) ON public.labs TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE labs_l_id_seq TO authenticated;
+create policy "LabsSelectAuth"
+    on "public"."labs"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "LabsInsertAuth"
+    on "public"."labs"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "LabsUpdateAuth"
+    on "public"."labs"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
+
 
 -- Enrichment Lists --------------------------------------------------
 CREATE TABLE IF NOT EXISTS enrichment_lists
@@ -124,6 +198,35 @@ CREATE TABLE IF NOT EXISTS enrichment_lists
 ALTER TABLE "public"."enrichment_lists"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.enrichment_lists TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.enrichment_lists TO authenticated;
+REVOKE UPDATE ON public.enrichment_lists FROM authenticated;
+GRANT UPDATE (deleted) ON public.enrichment_lists TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE enrichment_lists_el_id_seq TO authenticated;
+create policy "EnrichmentListsSelectAuth"
+    on "public"."enrichment_lists"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "EnrichmentListsInsertAuth"
+    on "public"."enrichment_lists"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "EnrichmentListsUpdateAuth"
+    on "public"."enrichment_lists"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
 
 -- Rooms -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS rooms
@@ -132,29 +235,30 @@ CREATE TABLE IF NOT EXISTS rooms
     name  bpchar                               NOT NULL,
     f_id  integer REFERENCES facilities (f_id) NOT NULL,
     l_id  integer REFERENCES labs (l_id),
-    el_id integer REFERENCES enrichment_lists (el_id)
+    el_id integer REFERENCES enrichment_lists (el_id),
+    deleted boolean NOT NULL
 );
-INSERT INTO rooms(r_id, name, f_id, l_id, el_id)
-VALUES (0, 'CACF 36B', 3, 0, NULL),
-       (1, 'CACF 36C', 3, 0, NULL),
-       (2, 'CACF 36D', 3, 0, NULL),
-       (3, 'CACF 36E', 3, 0, NULL),
-       (4, 'CACF 36F', 3, 0, NULL),
-       (5, 'CACF 36G', 1, 0, NULL),
-       (6, 'CACF 36H', 3, 0, NULL),
-       (7, 'CACF 36J', 0, 0, NULL),
-       (8, 'CACF 36K', 0, 0, NULL),
-       (9, 'CACF 36L', 2, 0, NULL),
-       (10, 'HACF 17', 1, 3, NULL),
-       (11, 'HACF 19A', 3, 3, NULL),
-       (12, 'HACF 19B', 3, 0, NULL),
-       (13, 'HACF 19C', 3, 3, NULL),
-       (14, 'HACF 19D', 4, 0, NULL),
-       (15, 'HACF 19E/F', 2, 3, NULL),
-       (16, 'HACF 19G', 0, 3, NULL),
-       (17, 'HACF 19H', 3, 3, NULL),
-       (18, 'HACF 19J', 3, 3, NULL),
-       (19, 'HACF 56A', 4, NULL, NULL);
+INSERT INTO rooms(r_id, name, f_id, l_id, el_id, deleted)
+VALUES (0, 'CACF 36B', 3, 0, NULL, false),
+       (1, 'CACF 36C', 3, 0, NULL, false),
+       (2, 'CACF 36D', 3, 0, NULL, false),
+       (3, 'CACF 36E', 3, 0, NULL, false),
+       (4, 'CACF 36F', 3, 0, NULL, false),
+       (5, 'CACF 36G', 1, 0, NULL, false),
+       (6, 'CACF 36H', 3, 0, NULL, false),
+       (7, 'CACF 36J', 0, 0, NULL, false),
+       (8, 'CACF 36K', 0, 0, NULL, false),
+       (9, 'CACF 36L', 2, 0, NULL, false),
+       (10, 'HACF 17', 1, 3, NULL, false),
+       (11, 'HACF 19A', 3, 3, NULL, false),
+       (12, 'HACF 19B', 3, 0, NULL, false),
+       (13, 'HACF 19C', 3, 3, NULL, false),
+       (14, 'HACF 19D', 4, 0, NULL, false),
+       (15, 'HACF 19E/F', 2, 3, NULL, false),
+       (16, 'HACF 19G', 0, 3, NULL, false),
+       (17, 'HACF 19H', 3, 3, NULL, false),
+       (18, 'HACF 19J', 3, 3, NULL, false),
+       (19, 'HACF 56A', 4, NULL, NULL, false);
 SELECT setval(
                pg_get_serial_sequence('rooms', 'r_id'),
                COALESCE((SELECT max(r_id) FROM rooms), 0)
@@ -162,6 +266,35 @@ SELECT setval(
 ALTER TABLE "public"."rooms"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.rooms TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.rooms TO authenticated;
+REVOKE UPDATE ON public.rooms FROM authenticated;
+GRANT UPDATE (deleted) ON public.rooms TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE rooms_r_id_seq TO authenticated;
+create policy "RoomsSelectAuth"
+    on "public"."rooms"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "RoomsInsertAuth"
+    on "public"."rooms"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "RoomsUpdateAuth"
+    on "public"."rooms"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
 
 -- Lab Group Memberships ---------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_group_memberships
@@ -173,6 +306,32 @@ CREATE TABLE IF NOT EXISTS lab_group_memberships
 ALTER TABLE "public"."lab_group_memberships"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.lab_group_memberships TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON TABLE public.lab_group_memberships TO authenticated;
+create policy "LabGroupMembershipsSelectAuth"
+    on "public"."lab_group_memberships"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "LabGroupMembershipsInsertAuth"
+    on "public"."lab_group_memberships"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "LabGroupMembershipsUpdateAuth"
+    on "public"."lab_group_memberships"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
 
 -- Censuses ----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS censuses
@@ -185,16 +344,62 @@ CREATE TABLE IF NOT EXISTS censuses
 ALTER TABLE "public"."censuses"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.censuses TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.censuses TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE censuses_c_id_seq TO authenticated;
+create policy "CensusesSelectAuth"
+    on "public"."censuses"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "CensusesInsertAuth"
+    on "public"."censuses"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+        true
+    );
 
 -- Animals -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS animals
 (
     a_id serial PRIMARY KEY,
-    name bpchar NOT NULL
+    name bpchar NOT NULL,
+    deleted boolean NOT NULL 
 );
 ALTER TABLE "public"."animals"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.animals TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.animals TO authenticated;
+REVOKE UPDATE ON public.animals FROM authenticated;
+GRANT UPDATE (deleted) ON public.animals TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE animals_a_id_seq TO authenticated;
+create policy "AnimalsSelectAuth"
+    on "public"."animals"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "AnimalsInsertAuth"
+    on "public"."animals"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "AnimalsUpdateAuth"
+    on "public"."animals"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
 
 -- Census Records ----------------------------------------------------
 CREATE TABLE IF NOT EXISTS census_records
@@ -207,6 +412,21 @@ CREATE TABLE IF NOT EXISTS census_records
 ALTER TABLE "public"."census_records"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.census_records TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.census_records TO authenticated;
+create policy "CensusRecordsSelectAuth"
+    on "public"."census_records"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "CensusRecordsInsertAuth"
+    on "public"."census_records"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    true
+    );
 
 -- Week Day ----------------------------------------------------------
 CREATE TYPE week_day AS ENUM (
@@ -229,19 +449,78 @@ CREATE TABLE IF NOT EXISTS enrichment_types
 ALTER TABLE "public"."enrichment_types"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.enrichment_types TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.enrichment_types TO authenticated;
+REVOKE UPDATE ON public.enrichment_types FROM authenticated;
+GRANT UPDATE (deleted) ON public.enrichment_types TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE enrichment_types_et_id_seq TO authenticated;
+create policy "EnrichmentTypesSelectAuth"
+    on "public"."enrichment_types"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "EnrichmentTypesInsertAuth"
+    on "public"."enrichment_types"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "EnrichmentTypesUpdateAuth"
+    on "public"."enrichment_types"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
 
 -- Enrichments -------------------------------------------------------
 CREATE TABLE IF NOT EXISTS enrichments
 (
     e_id        serial PRIMARY KEY,
     day_of_week week_day                                    NOT NULL,
-    et_id       integer REFERENCES enrichment_types (et_id) NOT NULL
+    et_id       integer REFERENCES enrichment_types (et_id) NOT NULL,
+    deleted boolean NOT NULL
 );
 ALTER TABLE "public"."enrichments"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.enrichments TO authenticated;
+GRANT SELECT, INSERT ON TABLE public.enrichments TO authenticated;
+REVOKE UPDATE ON public.enrichments FROM authenticated;
+GRANT UPDATE (deleted) ON public.enrichments TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE enrichments_e_id_seq TO authenticated;
+create policy "EnrichmentsSelectAuth"
+    on "public"."enrichments"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "EnrichmentsInsertAuth"
+    on "public"."enrichments"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "EnrichmentsUpdateAuth"
+    on "public"."enrichments"
+    as PERMISSIVE
+    for UPDATE
+    to authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (
+    check_is_admin()
+    );
 
--- Enrichment List Memberships
+-- Enrichment List Memberships ---------------------------------------
 CREATE TABLE IF NOT EXISTS enrichment_list_memberships
 (
     el_id integer REFERENCES enrichment_lists (el_id) NOT NULL,
@@ -251,6 +530,42 @@ CREATE TABLE IF NOT EXISTS enrichment_list_memberships
 ALTER TABLE "public"."enrichment_list_memberships"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.enrichment_list_memberships TO authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.enrichment_list_memberships TO authenticated;
+create policy "EnrichmentListMembershipsSelectAuth"
+    on "public"."enrichment_list_memberships"
+    as PERMISSIVE
+    for SELECT
+    to authenticated
+    using (true);
+create policy "EnrichmentListMembershipsInsertAuth"
+    on "public"."enrichment_list_memberships"
+    as PERMISSIVE
+    for INSERT
+    to authenticated
+    WITH CHECK (
+    check_is_admin()
+    );
+create policy "EnrichmentListMembershipsUpdateAuth"
+    on "public"."enrichment_list_memberships"
+    as PERMISSIVE
+    for DELETE
+    to authenticated
+    USING (
+    check_is_admin()
+    );
+
+-- TODO lists are not stable
+-- Enrichment List Assignment Dates ----------------------------------
+CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
+(
+    ela_id    serial PRIMARY KEY,
+    date_time timestamptz                                 NOT NULL,
+    el_id     integer REFERENCES enrichment_lists (el_id) NOT NULL,
+    r_id      integer REFERENCES rooms (r_id)             NOT NULL
+);
+ALTER TABLE "public"."enrichment_list_assignment_dates"
+    ENABLE ROW LEVEL SECURITY;
+GRANT USAGE ON TYPE public.enrichment_list_assignment_dates TO authenticated;
 
 -- Task Frequency ----------------------------------------------------
 CREATE TYPE task_frequency AS ENUM (
@@ -656,15 +971,3 @@ CREATE TABLE IF NOT EXISTS task_record_users
 ALTER TABLE "public"."task_record_users"
     ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON TYPE public.task_record_users TO authenticated;
-
--- Enrichment List Assignment Dates ----------------------------------
-CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
-(
-    ela_id    serial PRIMARY KEY,
-    date_time timestamptz                                 NOT NULL,
-    el_id     integer REFERENCES enrichment_lists (el_id) NOT NULL,
-    r_id      integer REFERENCES rooms (r_id)             NOT NULL
-);
-ALTER TABLE "public"."enrichment_list_assignment_dates"
-    ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.enrichment_list_assignment_dates TO authenticated;
