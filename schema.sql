@@ -684,56 +684,57 @@ create policy "TaskListsUpdateAuth"
 -- Tasks -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tasks
 (
-    t_id    serial PRIMARY KEY,
-    name    bpchar  NOT NULL,
-    deleted boolean NOT NULL
+    t_id         serial PRIMARY KEY,
+    name         bpchar  NOT NULL,
+    manager_only boolean NOT NULL,
+    deleted      boolean NOT NULL
 );
-INSERT INTO tasks (t_id, name, deleted)
-VALUES (0, 'Room Temperature', false),
-       (1, 'Hibernaculum Temperature', false),
-       (2, 'Room Humidity', false),
-       (3, 'Hibernaculum Humidity', false),
-       (4, 'Wipe Counters & Sweep', false),
-       (5, 'Check Vermin Trap', false),
-       (6, 'Sweep', false),
-       (7, 'View Each Animal', false),
-       (8, 'Give/Check Food & Water', false),
-       (9, 'Double Check Water', false),
-       (10, 'Mop Floor', false),
-       (11, 'Manager Walkthrough', false),
+INSERT INTO tasks (t_id, name, manager_only, deleted)
+VALUES (0, 'Room Temperature', false, false),
+       (1, 'Hibernaculum Temperature', false, false),
+       (2, 'Room Humidity', false, false),
+       (3, 'Hibernaculum Humidity', false, false),
+       (4, 'Wipe Counters & Sweep', false, false),
+       (5, 'Check Vermin Trap', false, false),
+       (6, 'Sweep', false, false),
+       (7, 'View Each Animal', false, false),
+       (8, 'Give/Check Food & Water', false, false),
+       (9, 'Double Check Water', false, false),
+       (10, 'Mop Floor', false, false),
+       (11, 'Manager Walkthrough', false, false),
        (12, 'Manager Check Expiration Dates on Drugs/Supplies',
-        false),
-       (13, 'Perform Cage Wash Temp Strip Test', false),
-       (14, 'Change Cage/Bedding', false),
-       (15, 'Change Water Bottle', false),
-       (16, 'Sanitize Enrichment', false),
-       (17, 'Check Light Timer', false),
-       (18, 'Mop Walls and Ceiling', false),
-       (19, 'Sanitize Garbage Can', false),
-       (20, 'Sanitize Mop Buckets & Cloth Mop Heads', false),
-       (21, 'Sanitize Dust Pans', false),
-       (22, 'Replace Disinfectant', false),
+        false, false),
+       (13, 'Perform Cage Wash Temp Strip Test', false, false),
+       (14, 'Change Cage/Bedding', false, false),
+       (15, 'Change Water Bottle', false, false),
+       (16, 'Sanitize Enrichment', false, false),
+       (17, 'Check Light Timer', false, false),
+       (18, 'Mop Walls and Ceiling', false, false),
+       (19, 'Sanitize Garbage Can', false, false),
+       (20, 'Sanitize Mop Buckets & Cloth Mop Heads', false, false),
+       (21, 'Sanitize Dust Pans', false, false),
+       (22, 'Replace Disinfectant', false, false),
        (23, 'Check Function of Heaters or Dehumidifiers, If Present',
-        false),
-       (24, 'Sanitize Storage Barrels & Scoops', false),
-       (25, 'Sanitize Small Containers, If Present', false),
-       (26, 'Refill Bins With Bedding, If Present', false),
-       (27, 'Sanitize bedding disposal station', false),
-       (28, 'Clean Sink With Comet, Then Spray With WD-40', false),
-       (29, 'Wipe Cage Washer Exterior With WD-40', false),
-       (30, 'Sanitize Water Bottle Filler', false),
-       (31, 'Clean Paper Towel & Soap Dispensers', false),
+        false, false),
+       (24, 'Sanitize Storage Barrels & Scoops', false, false),
+       (25, 'Sanitize Small Containers, If Present', false, false),
+       (26, 'Refill Bins With Bedding, If Present', false, false),
+       (27, 'Sanitize bedding disposal station', false, false),
+       (28, 'Clean Sink With Comet, Then Spray With WD-40', false, false),
+       (29, 'Wipe Cage Washer Exterior With WD-40', false, false),
+       (30, 'Sanitize Water Bottle Filler', false, false),
+       (31, 'Clean Paper Towel & Soap Dispensers', false, false),
        (32, 'Sanitize All Garbage Cans, Including Any In Hallway',
-        false),
-       (33, 'Disinfect Drain Per Sign Taped to the Wall', false),
-       (34, 'Clean Sink With Comet', false),
-       (35, 'Clean Refrigerator', false),
-       (36, 'Check Euthanasia Equipment', false),
-       (37, 'Check Anaesthesia Equipment', false),
+        false, false),
+       (33, 'Disinfect Drain Per Sign Taped to the Wall', false, false),
+       (34, 'Clean Sink With Comet', false, false),
+       (35, 'Clean Refrigerator', false, false),
+       (36, 'Check Euthanasia Equipment', false, false),
+       (37, 'Check Anaesthesia Equipment', false, false),
        (38,
         'Lab Animal Manager Checks Expiration Dates and Replaces as Needed',
-        false),
-       (39, 'Sanitize Shelves/Racks/Carts', false);
+        true, false),
+       (39, 'Sanitize Shelves/Racks/Carts', false, false);
 SELECT setval(
                pg_get_serial_sequence('tasks', 't_id'),
                COALESCE((SELECT max(t_id) FROM tasks), 0)
@@ -1094,6 +1095,7 @@ CREATE TABLE IF NOT EXISTS room_check_slots
     date_time timestamptz                     NOT NULL,
     r_id      integer REFERENCES rooms (r_id) NOT NULL,
     state     room_check_state                NOT NULL,
+    frequency public.task_frequency           NOT NULL,
     comment   bpchar,
     u_id      integer REFERENCES users (u_id)
 );
@@ -1129,12 +1131,26 @@ create policy "RoomCheckSlotsUpdateAuth"
     true
     )
     WITH CHECK (
-    ((comment IS NULL) OR
-     (comment = (SELECT r.comment
-                 FROM room_check_slots r
-                 WHERE r.rc_id = rc_id))) AND
-    ((check_is_admin() OR
-      u_id = get_my_u_id())));
+    ((comment IS NULL)
+--          OR
+--      (comment = (SELECT r.comment
+--                  FROM room_check_slots r
+--                  WHERE r.rc_id = rc_id))) AND
+--     ((check_is_admin() OR
+--       u_id = get_my_u_id())
+        ));
+CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS
+SELECT rcs.rc_id,
+       rcs.date_time,
+       rcs.state,
+       r.name AS room_name,
+       rcs.frequency,
+       rcs.comment,
+       u.name
+FROM room_check_slots rcs
+         JOIN rooms r ON rcs.r_id = r.r_id
+         LEFT JOIN users u ON rcs.u_id = u.u_id;
+GRANT SELECT ON TABLE public.room_check_slots_view TO authenticated;
 
 -- Task Records ------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_records

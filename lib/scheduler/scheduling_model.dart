@@ -49,7 +49,7 @@ class SchedulingModel extends ChangeNotifier {
     return _frequencyToRoomChecks[frequency]?[date]?[roomName];
   }
 
-  User? geUserAssignedToRoom(
+  String? getUserAssignedToRoom(
     RoomCheckDate date,
     String roomName,
     TaskFrequency frequency,
@@ -68,9 +68,15 @@ class SchedulingModel extends ChangeNotifier {
       date: date,
       roomName: roomName,
       frequency: frequency,
-      assigned: user,
+      assigned: user.email,
+      comment: null,
+      state: RoomCheckState.notStarted
     );
     _roomCheckRepository.assignListenerToRoomCheck(roomCheckSlot);
     notifyListeners();
+  }
+
+  void loadRoomChecks() {
+    _roomCheckRepository.loadRoomChecks();
   }
 }

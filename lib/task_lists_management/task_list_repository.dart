@@ -28,6 +28,21 @@ class QuantitativeTask<T> extends Task {
 
 enum TaskFrequency { daily, weekly, monthly }
 
+extension TaskFrequencyParser on String {
+  TaskFrequency get toTaskFrequency {
+    switch (this) {
+      case 'Daily':
+        return TaskFrequency.daily;
+      case 'Weekly':
+        return TaskFrequency.weekly;
+      case 'Monthly':
+        return TaskFrequency.monthly;
+      default:
+        throw ArgumentError('Invalid RoomCheckState string: $this');
+    }
+  }
+}
+
 class TaskList {
   final String name;
   final TaskFrequency frequency;

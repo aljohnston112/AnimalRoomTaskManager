@@ -62,12 +62,9 @@ class Database {
       today.day,
     ).toIso8601String();
     final data = await _supabase
-        .from('room_check_slots')
+        .from('room_check_slots_view')
         .select('''
-    *,
-    rooms (
-      name
-    )
+    *
   ''')
         .gte('date_time', startOfToday);
     return data.toList();

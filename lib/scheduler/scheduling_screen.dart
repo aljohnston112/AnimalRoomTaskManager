@@ -14,7 +14,10 @@ import '../room_check/room_check_screen.dart';
 class SchedulingScreen extends StatelessWidget {
   final SchedulingModel schedulingModel;
 
-  const SchedulingScreen({super.key, required this.schedulingModel});
+  SchedulingScreen({super.key, required this.schedulingModel}){
+    // TODO should be done in response to log in
+    schedulingModel.loadRoomChecks();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +280,7 @@ class SchedulingScreenCards extends StatelessWidget {
                           mediumTitleText(
                             context,
                             _getAssignedUserString(
-                              schedulingModel.geUserAssignedToRoom(
+                              schedulingModel.getUserAssignedToRoom(
                                 date,
                                 roomName,
                                 frequency,
@@ -358,9 +361,9 @@ class SchedulingScreenCards extends StatelessWidget {
     );
   }
 
-  String _getAssignedUserString(User? user) {
+  String _getAssignedUserString(String? user) {
     if (user != null) {
-      return "Assigned to ${user.email}";
+      return "Assigned to $user";
     }
     return "Unassigned";
   }
