@@ -14,7 +14,7 @@ import '../room_check/room_check_screen.dart';
 class SchedulingScreen extends StatelessWidget {
   final SchedulingModel schedulingModel;
 
-  SchedulingScreen({super.key, required this.schedulingModel}){
+  SchedulingScreen({super.key, required this.schedulingModel}) {
     // TODO should be done in response to log in
     schedulingModel.loadRoomChecks();
   }
@@ -245,34 +245,44 @@ class SchedulingScreenCards extends StatelessWidget {
   ) {
     final List<String> roomNames = roomToTaskLists.keys.toList();
 
-    return roomNames.map((roomName) {
-      var roomTaskList = roomToTaskLists[roomName]!;
-      return Selector2(
-        selector: (context, RecordRepository rr, RoomCheckRepository rcr) {
-          var recordMap = context.select(
-            (RecordRepository r) => r.getRecordsForRoom(roomName, date),
-          );
-          bool done = roomTaskList.tasks.every(
-            (t) => recordMap.keys.contains(t),
-          );
-          User? doneBy;
-          if (recordMap.isNotEmpty) {
-            doneBy = recordMap.values.first.doneBy;
-          }
-          return (done, doneBy);
-        },
-        builder: (context, data, c) {
-          var (done, doneBy) = data;
-          var logInUseCase = context.read<LoginUseCase>();
-          return ListenableBuilder(
-            listenable: schedulingModel,
-            builder: (context, _) => Card(
-              child: Padding(
-                padding: insets8,
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return [
+      GridView.builder(
+        key: PageStorageKey('${date.toString()}_grid'),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 8,
+          childAspectRatio: 0.8,
+        ),
+        itemCount: roomNames.length,
+        itemBuilder: (context, index) {
+          final roomName = roomNames[index];
+          var roomTaskList = roomToTaskLists[roomName]!;
+          return Selector2(
+            selector: (context, RecordRepository rr, RoomCheckRepository rcr) {
+              var recordMap = context.select(
+                (RecordRepository r) => r.getRecordsForRoom(roomName, date),
+              );
+              bool done = roomTaskList.tasks.every(
+                (t) => recordMap.keys.contains(t),
+              );
+              User? doneBy;
+              if (recordMap.isNotEmpty) {
+                doneBy = recordMap.values.first.doneBy;
+              }
+              return (done, doneBy);
+            },
+            builder: (context, data, c) {
+              var (done, doneBy) = data;
+              var logInUseCase = context.read<LoginUseCase>();
+              return ListenableBuilder(
+                listenable: schedulingModel,
+                builder: (context, _) => Card(
+                  child: Padding(
+                    padding: insets8,
+                    child: Column(
                       children: [
                         mediumTitleText(context, roomName),
                         if (!done) ...[
@@ -288,11 +298,7 @@ class SchedulingScreenCards extends StatelessWidget {
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                    padding8,
-                    Column(
-                      children: [
+                        padding8,
                         if (done && doneBy != null) ...[
                           mediumTitleText(context, _getDoneByString(doneBy)),
                         ] else ...[
@@ -325,14 +331,14 @@ class SchedulingScreenCards extends StatelessWidget {
                         ],
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
-      );
-    }).toList();
+      ),
+    ];
   }
 
   Widget _buildAssignmentButton(
@@ -341,7 +347,7 @@ class SchedulingScreenCards extends StatelessWidget {
     String roomName,
   ) {
     final loginUseCase = context.watch<LoginUseCase>();
-    return Row(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         FilledButton(

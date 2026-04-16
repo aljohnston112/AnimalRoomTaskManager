@@ -13,7 +13,7 @@ class LoginScreen extends StatelessWidget {
   final LoginUseCase _loginUseCase;
 
   LoginScreen({super.key, required loginUseCase}) : _loginUseCase = loginUseCase {
-    _emailController.text = "test@uwosh.edu";
+    _emailController.text = "@uwosh.edu";
   }
 
   @override
@@ -51,9 +51,18 @@ class LoginScreen extends StatelessWidget {
 
   Widget _buildLoginButton(BuildContext context) {
     return FilledButton(
-      onPressed: () {
+      onPressed: () async {
         if (_formKey.currentState!.validate()) {
-          _loginUseCase.login(_emailController.text, _passwordController.text);
+          if(!await _loginUseCase.login(_emailController.text, _passwordController.text)){
+            final snackBar = SnackBar(
+              content: const Text('Login failed'),
+              duration: const Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+            );
+            if(context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(snackBar);
+            }
+          }
         }
       },
       child: Text("Log in"),

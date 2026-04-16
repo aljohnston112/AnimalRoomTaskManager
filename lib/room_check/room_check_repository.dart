@@ -6,6 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 typedef RoomCheckDate = ({int year, int month, int day});
+extension RoomCheckDateSupabase on RoomCheckDate {
+  String toSupabaseString() {
+    final y = year.toString().padLeft(4, '0');
+    final m = month.toString().padLeft(2, '0');
+    final d = day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+}
 
 enum RoomCheckState { notStarted, started, done }
 
@@ -107,7 +115,10 @@ class RoomCheckRepository extends ChangeNotifier {
     roomChecksNotifier.value = _roomChecks;
   }
 
-  void assignListenerToRoomCheck(RoomCheckSlot roomCheckSlot) {
+  void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot, String user) {
     // TODO
+    final rcid = roomCheckSlot.rcid;
+      _database.assignUserToRoomCheck(roomCheckSlot, user);
+
   }
 }

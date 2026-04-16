@@ -31,6 +31,12 @@ class SchedulingModel extends ChangeNotifier {
     dailyRoomChecks = UnmodifiableMapView(_dailyInternal);
     weeklyRoomChecks = UnmodifiableMapView(_weeklyInternal);
     monthlyRoomChecks = UnmodifiableMapView(_monthlyInternal);
+    roomCheckRepository.roomChecksNotifier.addListener((){
+      final roomChecks = roomCheckRepository.roomChecksNotifier.value;
+      for(final entry in roomChecks.entries){
+        // TODO update room checks
+      }
+    });
   }
 
   UnmodifiableListView<RoomCheckSlot> getRoomChecks(
@@ -72,7 +78,7 @@ class SchedulingModel extends ChangeNotifier {
       comment: null,
       state: RoomCheckState.notStarted
     );
-    _roomCheckRepository.assignListenerToRoomCheck(roomCheckSlot);
+    _roomCheckRepository.assignUserToRoomCheck(roomCheckSlot, user.email);
     notifyListeners();
   }
 

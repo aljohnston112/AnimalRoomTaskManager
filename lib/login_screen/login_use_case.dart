@@ -18,8 +18,8 @@ class LoginUseCase extends ChangeNotifier {
 
   User? get loggedInUser => _loggedInUser;
 
-  Future<void> login(String email, String password) async {
-    _userRepository.tryLogIn(email, password);
+  Future<bool> login(String email, String password) async {
+    return _userRepository.tryLogIn(email, password);
   }
 
   Future<void> signup(String email, String password) async {

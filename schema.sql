@@ -1132,13 +1132,14 @@ create policy "RoomCheckSlotsUpdateAuth"
     )
     WITH CHECK (
     ((comment IS NULL)
+         OR
+     (comment = (SELECT r.comment
+                 FROM room_check_slots r
+                 WHERE r.rc_id = rc_id))) AND
+    ((check_is_admin()
 --          OR
---      (comment = (SELECT r.comment
---                  FROM room_check_slots r
---                  WHERE r.rc_id = rc_id))) AND
---     ((check_is_admin() OR
 --       u_id = get_my_u_id())
-        ));
+        )));
 CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS
 SELECT rcs.rc_id,
        rcs.date_time,

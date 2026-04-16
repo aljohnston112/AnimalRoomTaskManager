@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb show User;
+import 'supabase_flutter/supabase_flutter.dart';
 
 import '../supabase_client/database.dart';
 
@@ -138,12 +136,12 @@ class UserRepository extends ChangeNotifier {
   }
 
   /// Returns the user if they are authenticated, else null
-  Future<void> tryLogIn(String email, String password) async {
+  Future<bool> tryLogIn(String email, String password) async {
     // TODO for dev only
     // await dotenv.load(fileName: ".env");
     // email = dotenv.get("DEV_EMAIL");
     // password = dotenv.get("DEV_PASSWORD");
-    database.login(email: email, password: password);
+    return database.login(email: email, password: password);
   }
 
   Future<void> trySignUp(String email, String password) async {
