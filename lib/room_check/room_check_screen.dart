@@ -64,7 +64,16 @@ class RoomCheckScreen extends StatelessWidget {
         FilledButton(
           child: Text("Submit"),
           onPressed: () async {
-            roomCheckModel.submit();
+            if (!roomCheckModel.submit()) {
+              if (context.mounted) {
+                showSnackBar(
+                  context,
+                  "Some tasks were already done, "
+                      "so not all tasks have been attributed to you. "
+                      "All other tasks have been recorded",
+                );
+              }
+            }
             if (roomCheckModel.hasUnsavedComments()) {
               // If there are comments on uncompleted tasks,
               // they will not be saved,

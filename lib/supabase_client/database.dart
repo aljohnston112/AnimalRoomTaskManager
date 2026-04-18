@@ -78,8 +78,17 @@ class Database {
     return data.toList();
   }
 
-  void signUp({required String email, required String password}) async {
-    await _supabase.auth.signUp(email: email, password: password);
+  Future<bool> signUp({required String email, required String password}) async {
+    // if signUp succeeds,
+    // then the user table has been populated with the signed in user
+    AuthResponse response = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+    );
+    if (response.session == null) {
+      return false;
+    }
+    return true;
   }
 
   void subscribeToAuth(void Function(AuthState) onAuthChange) {
@@ -96,7 +105,11 @@ class Database {
     if (whereEmailMatches.isEmpty) {
       throw Exception("User is not white listed");
     }
-    switch (whereEmailMatches.first['ug_id']) {
+    return _getUserGroup(whereEmailMatches.first);
+  }
+
+  ur.UserGroup _getUserGroup(PostgrestMap postgresMap) {
+    switch (postgresMap['ug_id']) {
       case 0:
         return ur.UserGroup.admin;
       case 1:
@@ -112,14 +125,14 @@ class Database {
     String userEmail,
   ) async {
     final rcid = roomCheckSlot.rcid;
+
     if (rcid != null) {
-      _supabase
+      await _supabase
           .from(roomCheckTableName)
           .update({'u_id': roomCheckSlot.uid})
           .eq('rc_id', rcid);
     } else {
-      // TODO insert fails due to date being before now
-      _supabase.from(roomCheckTableName).insert({
+      await _supabase.from(roomCheckTableName).insert({
         'date_time': roomCheckSlot.date.toSupabaseString(),
         'r_id': roomCheckSlot.rid,
         'state': roomCheckSlot.state.toDbString,
@@ -130,15 +143,27 @@ class Database {
     }
   }
 
-  Future<int?> getUserWithAuthId(String authId) async {
+  Future<ur.User?> getUserWithAuthId(String authId) async {
     final userResponse = await _supabase
         .from('users')
-        .select('u_id')
+        .select('*')
         .eq('auth_id', authId)
         .maybeSingle();
     if (userResponse != null) {
-      return userResponse['u_id'];
+      return ur.User(
+        email: userResponse['name'],
+        group: _getUserGroup(userResponse),
+        uid: userResponse['u_id'],
+      );
     }
     return null;
+  }
+
+  Future<PostgrestMap> getRoomCheckWithId(int rcid) async {
+    return await _supabase
+        .from('room_check_slots_view')
+        .select()
+        .eq('rc_id', rcid)
+        .single();
   }
 }

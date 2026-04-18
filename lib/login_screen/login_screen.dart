@@ -12,7 +12,8 @@ class LoginScreen extends StatelessWidget {
 
   final LoginUseCase _loginUseCase;
 
-  LoginScreen({super.key, required loginUseCase}) : _loginUseCase = loginUseCase {
+  LoginScreen({super.key, required loginUseCase})
+    : _loginUseCase = loginUseCase {
     _emailController.text = "@uwosh.edu";
   }
 
@@ -53,14 +54,12 @@ class LoginScreen extends StatelessWidget {
     return FilledButton(
       onPressed: () async {
         if (_formKey.currentState!.validate()) {
-          if(!await _loginUseCase.login(_emailController.text, _passwordController.text)){
-            final snackBar = SnackBar(
-              content: const Text('Login failed'),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            );
-            if(context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
+          if (!await _loginUseCase.login(
+            _emailController.text,
+            _passwordController.text,
+          )) {
+            if (context.mounted) {
+              showSnackBar(context, 'Login failed');
             }
           }
         }
@@ -71,9 +70,16 @@ class LoginScreen extends StatelessWidget {
 
   Widget _buildSignUpButton(BuildContext context) {
     return FilledButton(
-      onPressed: () {
+      onPressed: () async {
         if (_formKey.currentState!.validate()) {
-          _loginUseCase.signup(_emailController.text, _passwordController.text);
+          if (!await _loginUseCase.signup(
+            _emailController.text,
+            _passwordController.text,
+          )) {
+            if (context.mounted) {
+              showSnackBar(context, 'Sign up failed');
+            }
+          }
         }
       },
       child: Text("Sign Up"),

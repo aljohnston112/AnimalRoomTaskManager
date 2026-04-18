@@ -93,8 +93,17 @@ class RoomCheckRepository extends ChangeNotifier {
   roomChecksNotifier = ValueNotifier({});
 
   RoomCheckRepository({required Database database}) : _database = database {
-    database.subscribeToRoomChecks((PostgresChangePayload p) {
-      var p1 = p;
+    database.subscribeToRoomChecks((PostgresChangePayload p) async {
+      var map = p.newRecord;
+      // These can be batched if users think app is slow
+      final updatedRow = await database.getRoomCheckWithId(map['rc_id']);
+      RoomCheckSlot roomCheck = _parseRoomCheck(updatedRow);
+      if (!_roomChecks[roomCheck.date]!.containsKey(roomCheck.frequency)) {
+        _roomChecks[roomCheck.date]![roomCheck.frequency] = {};
+      }
+      _roomChecks[roomCheck.date]![roomCheck.frequency]![roomCheck.roomName] =
+          roomCheck;
+      roomChecksNotifier.value = Map.from(_roomChecks);
     });
   }
 
@@ -112,27 +121,35 @@ class RoomCheckRepository extends ChangeNotifier {
         _roomChecks[roomCheckDate] = {};
         dates.add(roomCheckDate);
       }
-
-      // TODO concurrency issues?
-      TaskFrequency frequency = (map['frequency'] as String).toTaskFrequency;
-      if (!_roomChecks[roomCheckDate]!.containsKey(frequency)) {
-        _roomChecks[roomCheckDate]![frequency] = {};
+      RoomCheckSlot roomCheck = _parseRoomCheck(map);
+      if (!_roomChecks[roomCheck.date]!.containsKey(roomCheck.frequency)) {
+        _roomChecks[roomCheck.date]![roomCheck.frequency] = {};
       }
-
-      var roomName = map['room_name'];
-      _roomChecks[roomCheckDate]![frequency]![roomName] = RoomCheckSlot(
-        rcid: map['rc_id'],
-        rid: map['r_id'],
-        date: roomCheckDate,
-        roomName: roomName,
-        frequency: frequency,
-        comment: map['comment'],
-        uid: map['u_id'],
-        assigned: map['name'],
-        state: (map['state'] as String).toRoomCheckState,
-      );
+      _roomChecks[roomCheck.date]![roomCheck.frequency]![roomCheck.roomName] =
+          roomCheck;
     }
-    roomChecksNotifier.value = _roomChecks;
+    roomChecksNotifier.value = Map.from(_roomChecks);
+  }
+
+  RoomCheckSlot _parseRoomCheck(PostgrestMap map) {
+    DateTime parsedDate = DateTime.parse(map['date_time']);
+    RoomCheckDate roomCheckDate = (
+      year: parsedDate.year,
+      month: parsedDate.month,
+      day: parsedDate.day,
+    );
+    final roomCheck = RoomCheckSlot(
+      rcid: map['rc_id'],
+      rid: map['r_id'],
+      date: roomCheckDate,
+      roomName: map['room_name'],
+      frequency: (map['frequency'] as String).toTaskFrequency,
+      comment: map['comment'],
+      uid: map['u_id'],
+      assigned: map['name'],
+      state: (map['state'] as String).toRoomCheckState,
+    );
+    return roomCheck;
   }
 
   void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot, String user) {

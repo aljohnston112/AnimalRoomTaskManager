@@ -22,8 +22,7 @@ class LoginUseCase extends ChangeNotifier {
     return _userRepository.tryLogIn(email, password);
   }
 
-  Future<void> signup(String email, String password) async {
-    _userRepository.trySignUp(email, password);
-    // TODO need to add user to database table
+  Future<bool> signup(String email, String password) async {
+    return _userRepository.trySignUp(email, password);
   }
 }

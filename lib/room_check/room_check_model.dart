@@ -131,14 +131,16 @@ class RoomCheckModel extends ChangeNotifier {
     return _recordRepository.getRecordsForRoom(room, date).containsKey(task);
   }
 
-  void submit() {
+  bool submit() {
+    bool allRecordsAdded = true;
     for (var task in taskList.tasks) {
       String? comment = _commentControllers[task]?.text;
       String? valueText = _quantitativeValueControllers[task]?.text;
       User? loggedInUser = loginUseCase.loggedInUser;
       if (loggedInUser != null) {
+        bool wasRecordAdded = false;
         if (valueText?.isNotEmpty == true) {
-          _recordRepository.addRecord(
+          wasRecordAdded = _recordRepository.addRecord(
             QuantitativeRecord(
               room: room,
               task: task,
@@ -149,7 +151,7 @@ class RoomCheckModel extends ChangeNotifier {
             ),
           );
         } else if (_completedTasks.contains(task)) {
-          _recordRepository.addRecord(
+          wasRecordAdded = _recordRepository.addRecord(
             TaskRecord(
               room: room,
               task: task,
@@ -159,9 +161,13 @@ class RoomCheckModel extends ChangeNotifier {
             ),
           );
         }
+        if(!wasRecordAdded){
+          allRecordsAdded = false;
+        }
       }
     }
     notifyListeners();
+    return allRecordsAdded;
   }
 
   @override

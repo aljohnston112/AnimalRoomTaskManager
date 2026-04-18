@@ -21,33 +21,70 @@ class SchedulingModel extends ChangeNotifier {
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _weeklyInternal = {};
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _monthlyInternal = {};
 
-  late final UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  late UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
   dailyRoomChecks;
-  late final UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  late UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
   monthlyRoomChecks;
-  late final UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  late UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
   weeklyRoomChecks;
 
-  late final _frequencyToRoomChecks = {
-    TaskFrequency.daily: dailyRoomChecks,
-    TaskFrequency.weekly: weeklyRoomChecks,
-    TaskFrequency.monthly: monthlyRoomChecks,
-  };
+  late Map<
+    TaskFrequency,
+    UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  >
+  _frequencyToRoomChecks;
 
   SchedulingModel({
     required RoomCheckRepository roomCheckRepository,
     required TaskListRepository taskListRepository,
   }) : _roomCheckRepository = roomCheckRepository,
        _taskListRepository = taskListRepository {
-    dailyRoomChecks = UnmodifiableMapView(_dailyInternal);
-    weeklyRoomChecks = UnmodifiableMapView(_weeklyInternal);
-    monthlyRoomChecks = UnmodifiableMapView(_monthlyInternal);
+    updateViews();
     roomCheckRepository.roomChecksNotifier.addListener(() {
       final roomChecks = roomCheckRepository.roomChecksNotifier.value;
       for (final entry in roomChecks.entries) {
-        // TODO update room checks
+        final date = entry.key;
+        final frequencyToRoomToRoomCheck = entry.value;
+        for (var MapEntry(key: frequency, value: roomToroomCheck)
+            in frequencyToRoomToRoomCheck.entries) {
+          for (var MapEntry(key: room, value: roomCheck)
+              in roomToroomCheck.entries) {
+            switch (frequency) {
+              case TaskFrequency.daily:
+                if (!_dailyInternal.containsKey(date)) {
+                  _dailyInternal[date] = {};
+                }
+                _dailyInternal[date]![room] = roomCheck;
+                break;
+              case TaskFrequency.weekly:
+                if (!_weeklyInternal.containsKey(date)) {
+                  _weeklyInternal[date] = {};
+                }
+                _weeklyInternal[date]![room] = roomCheck;
+                break;
+              case TaskFrequency.monthly:
+                if (!_monthlyInternal.containsKey(date)) {
+                  _monthlyInternal[date] = {};
+                }
+                _monthlyInternal[date]![room] = roomCheck;
+            }
+          }
+        }
+        updateViews();
+        notifyListeners();
       }
     });
+  }
+
+  void updateViews() {
+    dailyRoomChecks = UnmodifiableMapView(_dailyInternal);
+    weeklyRoomChecks = UnmodifiableMapView(_weeklyInternal);
+    monthlyRoomChecks = UnmodifiableMapView(_monthlyInternal);
+    _frequencyToRoomChecks = {
+      TaskFrequency.daily: dailyRoomChecks,
+      TaskFrequency.weekly: weeklyRoomChecks,
+      TaskFrequency.monthly: monthlyRoomChecks,
+    };
   }
 
   UnmodifiableListView<RoomCheckSlot> getRoomChecks(
@@ -80,7 +117,8 @@ class SchedulingModel extends ChangeNotifier {
     User user,
     TaskFrequency frequency,
   ) {
-    var roomCheckSlot = RoomCheckSlot(
+    var roomCheck = _frequencyToRoomChecks[frequency]?[date]?[room.name];
+    roomCheck ??= RoomCheckSlot(
       rcid: null,
       date: date,
       rid: room.rid,
@@ -91,7 +129,7 @@ class SchedulingModel extends ChangeNotifier {
       comment: null,
       state: RoomCheckState.notStarted,
     );
-    _roomCheckRepository.assignUserToRoomCheck(roomCheckSlot, user.email);
+    _roomCheckRepository.assignUserToRoomCheck(roomCheck, user.email);
     notifyListeners();
   }
 

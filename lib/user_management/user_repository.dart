@@ -88,14 +88,8 @@ class UserRepository extends ChangeNotifier {
           var email = data.session?.user.email;
           var authId = data.session?.user.id;
           if (email != null && authId != null) {
-            // TODO pull group and authID in one call
-            onAuthChange(
-              User(
-                email: email,
-                group: await database.getUserGroup(email),
-                uid: await database.getUserWithAuthId(authId),
-              ),
-            );
+            var user = await database.getUserWithAuthId(authId);
+            onAuthChange(user);
           } else {
             onAuthChange(null);
           }
@@ -156,7 +150,7 @@ class UserRepository extends ChangeNotifier {
     return database.login(email: email, password: password);
   }
 
-  Future<void> trySignUp(String email, String password) async {
-    database.signUp(email: email, password: password);
+  Future<bool> trySignUp(String email, String password) async {
+    return database.signUp(email: email, password: password);
   }
 }

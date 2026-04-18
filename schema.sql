@@ -1144,8 +1144,11 @@ CREATE TABLE IF NOT EXISTS room_check_slots
     comment   bpchar,
     u_id      integer REFERENCES users (u_id)
 );
+ALTER TABLE room_check_slots
+    ADD CONSTRAINT unique_room_checks UNIQUE (date_time, r_id, frequency);
 ALTER TABLE "public"."room_check_slots"
     ENABLE ROW LEVEL SECURITY;
+ALTER PUBLICATION supabase_realtime ADD TABLE room_check_slots;
 GRANT USAGE ON TYPE public.room_check_slots TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.room_check_slots TO authenticated;
 REVOKE UPDATE ON public.room_check_slots FROM authenticated;
@@ -1182,8 +1185,8 @@ CREATE POLICY "RoomCheckSlotsUpdateAuth"
                  FROM room_check_slots r
                  WHERE r.rc_id = rc_id))) AND
     ((check_is_admin()
---          OR
---       u_id = get_my_u_id())
+        OR
+      u_id = get_my_u_id()
         )));
 DROP VIEW IF EXISTS room_check_slots_view;
 CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS

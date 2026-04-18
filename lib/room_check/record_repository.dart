@@ -66,7 +66,7 @@ class RecordRepository extends ChangeNotifier {
     return UnmodifiableMapView<Task, TaskRecord>({});
   }
 
-  void addRecord(TaskRecord record) {
+  bool addRecord(TaskRecord record) {
     if (!_roomToDateToTaskRecords.containsKey(record.room)) {
       _roomToDateToTaskRecords[record.room] = {};
     }
@@ -78,10 +78,11 @@ class RecordRepository extends ChangeNotifier {
     }
     var records = _roomToDateToTaskRecords[record.room]![roomCheckDate]!;
     if (records.containsKey(record.task)) {
-      // TODO let user know the task was already submitted
+      return false;
     }
     records[record.task] = record;
     notifyListeners();
+    return true;
   }
 
   /// TODO for local user testing only
