@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 typedef RoomCheckDate = ({int year, int month, int day});
+
 extension RoomCheckDateSupabase on RoomCheckDate {
   String toSupabaseString() {
     final y = year.toString().padLeft(4, '0');
@@ -16,6 +17,19 @@ extension RoomCheckDateSupabase on RoomCheckDate {
 }
 
 enum RoomCheckState { notStarted, started, done }
+
+extension RoomCheckStateExtension on RoomCheckState {
+  String get toDbString {
+    switch (this) {
+      case RoomCheckState.notStarted:
+        return 'not_started';
+      case RoomCheckState.started:
+        return 'started';
+      case RoomCheckState.done:
+        return 'done';
+    }
+  }
+}
 
 extension RoomCheckStateParser on String {
   RoomCheckState get toRoomCheckState {
@@ -35,18 +49,22 @@ extension RoomCheckStateParser on String {
 class RoomCheckSlot {
   final int? rcid;
   final RoomCheckDate date;
+  final int rid;
   final String roomName;
   final RoomCheckState state;
   final TaskFrequency frequency;
   final String? comment;
+  final int? uid;
   String? assigned;
 
   RoomCheckSlot({
     required this.rcid,
     required this.date,
+    required this.rid,
     required this.roomName,
     required this.frequency,
     required this.comment,
+    required this.uid,
     required this.assigned,
     required this.state,
   });
@@ -69,7 +87,9 @@ class RoomCheckRepository extends ChangeNotifier {
   final Map<RoomCheckDate, Map<TaskFrequency, Map<String, RoomCheckSlot>>>
   _roomChecks = {};
 
-  final ValueNotifier<Map<RoomCheckDate, Map<TaskFrequency, Map<String, RoomCheckSlot>>>>
+  final ValueNotifier<
+    Map<RoomCheckDate, Map<TaskFrequency, Map<String, RoomCheckSlot>>>
+  >
   roomChecksNotifier = ValueNotifier({});
 
   RoomCheckRepository({required Database database}) : _database = database {
@@ -79,8 +99,6 @@ class RoomCheckRepository extends ChangeNotifier {
   }
 
   Future<void> loadRoomChecks() async {
-    // TODO explicit load elsewhere? Storage location of room ids?
-
     final roomChecks = await _database.getRoomCheckSlots();
     List<RoomCheckDate> dates = _roomChecks.keys.toList();
     for (var map in roomChecks) {
@@ -104,10 +122,12 @@ class RoomCheckRepository extends ChangeNotifier {
       var roomName = map['room_name'];
       _roomChecks[roomCheckDate]![frequency]![roomName] = RoomCheckSlot(
         rcid: map['rc_id'],
+        rid: map['r_id'],
         date: roomCheckDate,
         roomName: roomName,
         frequency: frequency,
         comment: map['comment'],
+        uid: map['u_id'],
         assigned: map['name'],
         state: (map['state'] as String).toRoomCheckState,
       );
@@ -116,9 +136,6 @@ class RoomCheckRepository extends ChangeNotifier {
   }
 
   void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot, String user) {
-    // TODO
-    final rcid = roomCheckSlot.rcid;
-      _database.assignUserToRoomCheck(roomCheckSlot, user);
-
+    _database.assignUserToRoomCheck(roomCheckSlot, user);
   }
 }

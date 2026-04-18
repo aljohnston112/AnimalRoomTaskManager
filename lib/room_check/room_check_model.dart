@@ -4,6 +4,7 @@ import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../scheduler/scheduling_model.dart';
 import '../user_management/user_repository.dart';
 
 /// User task entry model
@@ -33,7 +34,7 @@ class TaskEntryModel {
 enum RoomCheckStatus { notStarted, started, done }
 
 class RoomCheckModel extends ChangeNotifier {
-  final String roomName;
+  final Room room;
   final TaskList taskList;
   final RecordRepository _recordRepository;
   final LoginUseCase loginUseCase;
@@ -46,7 +47,7 @@ class RoomCheckModel extends ChangeNotifier {
   final Set<Task> _completedTasks = {};
 
   RoomCheckModel({
-    required this.roomName,
+    required this.room,
     required this.taskList,
     required RecordRepository recordRepository,
     required this.loginUseCase,
@@ -61,7 +62,7 @@ class RoomCheckModel extends ChangeNotifier {
     }
 
     // Add recorded tasks
-    recordRepository.getRecordsForRoom(roomName, date).forEach((task, record) {
+    recordRepository.getRecordsForRoom(room, date).forEach((task, record) {
       _tasksThatShouldHaveADisplayedCommentField.add(task);
       if (record.comment case String comment) {
         _commentControllers[task]?.text = comment;
@@ -77,7 +78,7 @@ class RoomCheckModel extends ChangeNotifier {
   /// Gets the tasks for the room check this model represents including
   /// any that have already been completed
   List<TaskEntryModel> getTaskEntries() {
-    var records = _recordRepository.getRecordsForRoom(roomName, date);
+    var records = _recordRepository.getRecordsForRoom(room, date);
     return taskList.tasks
         .map(
           (task) =>
@@ -98,9 +99,8 @@ class RoomCheckModel extends ChangeNotifier {
   bool isTaskCompleted(Task task) => _completedTasks.contains(task);
 
   /// This toggles the completion status before submission.
-  ///
   void toggleTaskCompletion(Task task, bool? completed) {
-    var records = _recordRepository.getRecordsForRoom(roomName, date);
+    var records = _recordRepository.getRecordsForRoom(room, date);
     if (records[task] != null) {
       throw Exception("Submitted tasks can not have their completion toggled");
     }
@@ -118,7 +118,7 @@ class RoomCheckModel extends ChangeNotifier {
   }
 
   bool hasUnsavedComments() {
-    var records = _recordRepository.getRecordsForRoom(roomName, date);
+    var records = _recordRepository.getRecordsForRoom(room, date);
     for (var task in _tasksThatShouldHaveADisplayedCommentField) {
       if (!records.containsKey(task)) {
         return true;
@@ -128,9 +128,7 @@ class RoomCheckModel extends ChangeNotifier {
   }
 
   bool isTaskRecorded(Task task) {
-    return _recordRepository
-        .getRecordsForRoom(roomName, date)
-        .containsKey(task);
+    return _recordRepository.getRecordsForRoom(room, date).containsKey(task);
   }
 
   void submit() {
@@ -142,7 +140,7 @@ class RoomCheckModel extends ChangeNotifier {
         if (valueText?.isNotEmpty == true) {
           _recordRepository.addRecord(
             QuantitativeRecord(
-              roomName: roomName,
+              room: room,
               task: task,
               comment: comment,
               dateTime: DateTime.now(),
@@ -153,7 +151,7 @@ class RoomCheckModel extends ChangeNotifier {
         } else if (_completedTasks.contains(task)) {
           _recordRepository.addRecord(
             TaskRecord(
-              roomName: roomName,
+              room: room,
               task: task,
               comment: comment,
               dateTime: DateTime.now(),

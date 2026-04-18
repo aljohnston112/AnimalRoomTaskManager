@@ -14,10 +14,7 @@ import '../room_check/room_check_screen.dart';
 class SchedulingScreen extends StatelessWidget {
   final SchedulingModel schedulingModel;
 
-  SchedulingScreen({super.key, required this.schedulingModel}) {
-    // TODO should be done in response to log in
-    schedulingModel.loadRoomChecks();
-  }
+  const SchedulingScreen({super.key, required this.schedulingModel});
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +123,7 @@ class SchedulingScreenCards extends StatelessWidget {
       cards.add(
         _buildRoomAssignmentCard(
           context,
-          TaskListRepository.roomToDailyTaskLists,
+          context.read<TaskListRepository>().roomToDailyTaskLists,
           dateKey,
           i == 0,
           (year: year, month: month, day: day),
@@ -159,7 +156,7 @@ class SchedulingScreenCards extends StatelessWidget {
       cards.add(
         _buildRoomAssignmentCard(
           context,
-          TaskListRepository.roomToWeeklyTaskLists,
+          context.read<TaskListRepository>().roomToDailyTaskLists,
           dateKey,
           i == 0,
           (year: nextYear, month: nextMonth, day: nextDay),
@@ -182,7 +179,7 @@ class SchedulingScreenCards extends StatelessWidget {
       children: [
         _buildRoomAssignmentCard(
           context,
-          TaskListRepository.roomToMonthlyTaskLists,
+          context.read<TaskListRepository>().roomToDailyTaskLists,
           dateKey,
           isCurrentPeriod,
           (year: now.year, month: now.month, day: 1),
@@ -211,7 +208,7 @@ class SchedulingScreenCards extends StatelessWidget {
 
   Widget _buildRoomAssignmentCard(
     BuildContext context,
-    Map<String, TaskList> roomToTaskList,
+    Map<Room, TaskList> roomToTaskList,
     String dateString,
     bool isCurrentPeriod,
     RoomCheckDate date,
@@ -221,8 +218,7 @@ class SchedulingScreenCards extends StatelessWidget {
         padding: insets8,
         child: ExpansionTile(
           key: PageStorageKey(dateString),
-          expandedAlignment: Alignment.centerLeft,
-          expandedCrossAxisAlignment: CrossAxisAlignment.start,
+          expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
           title: mediumTitleText(context, dateString),
           children: _buildRoomAssignmentTiles(
             context,
@@ -238,113 +234,103 @@ class SchedulingScreenCards extends StatelessWidget {
 
   List<Widget> _buildRoomAssignmentTiles(
     BuildContext context,
-    Map<String, TaskList> roomToTaskLists,
+    Map<Room, TaskList> roomToTaskLists,
     bool isCurrentPeriod,
     RoomCheckDate date,
     TaskFrequency frequency,
   ) {
-    final List<String> roomNames = roomToTaskLists.keys.toList();
-
-    return [
-      GridView.builder(
-        key: PageStorageKey('${date.toString()}_grid'),
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          childAspectRatio: 0.8,
-        ),
-        itemCount: roomNames.length,
-        itemBuilder: (context, index) {
-          final roomName = roomNames[index];
-          var roomTaskList = roomToTaskLists[roomName]!;
-          return Selector2(
-            selector: (context, RecordRepository rr, RoomCheckRepository rcr) {
-              var recordMap = context.select(
-                (RecordRepository r) => r.getRecordsForRoom(roomName, date),
-              );
-              bool done = roomTaskList.tasks.every(
-                (t) => recordMap.keys.contains(t),
-              );
-              User? doneBy;
-              if (recordMap.isNotEmpty) {
-                doneBy = recordMap.values.first.doneBy;
-              }
-              return (done, doneBy);
-            },
-            builder: (context, data, c) {
-              var (done, doneBy) = data;
-              var logInUseCase = context.read<LoginUseCase>();
-              return ListenableBuilder(
-                listenable: schedulingModel,
-                builder: (context, _) => Card(
-                  child: Padding(
-                    padding: insets8,
-                    child: Column(
-                      children: [
-                        mediumTitleText(context, roomName),
-                        if (!done) ...[
-                          padding8,
-                          mediumTitleText(
-                            context,
-                            _getAssignedUserString(
-                              schedulingModel.getUserAssignedToRoom(
-                                date,
-                                roomName,
-                                frequency,
-                              ),
+    final List<Room> rooms = roomToTaskLists.keys.toList();
+    List<Widget> cards = [];
+    for (var room in rooms) {
+      var roomTaskList = roomToTaskLists[room]!;
+      cards.add(
+        Selector2(
+          selector: (context, RecordRepository rr, RoomCheckRepository rcr) {
+            var recordMap = context.select(
+              (RecordRepository r) => r.getRecordsForRoom(room, date),
+            );
+            bool done = roomTaskList.tasks.every(
+              (t) => recordMap.keys.contains(t),
+            );
+            User? doneBy;
+            if (recordMap.isNotEmpty) {
+              doneBy = recordMap.values.first.doneBy;
+            }
+            return (done, doneBy);
+          },
+          builder: (context, data, c) {
+            var (done, doneBy) = data;
+            var logInUseCase = context.read<LoginUseCase>();
+            return ListenableBuilder(
+              listenable: schedulingModel,
+              builder: (context, _) => Card(
+                child: Padding(
+                  padding: insets8,
+                  child: Column(
+                    children: [
+                      mediumTitleText(context, room.name),
+                      if (!done) ...[
+                        padding8,
+                        mediumTitleText(
+                          context,
+                          _getAssignedUserString(
+                            schedulingModel.getUserAssignedToRoom(
+                              date,
+                              room.name,
+                              frequency,
                             ),
                           ),
-                        ],
-                        padding8,
-                        if (done && doneBy != null) ...[
-                          mediumTitleText(context, _getDoneByString(doneBy)),
-                        ] else ...[
-                          _buildAssignmentButton(context, date, roomName),
-                        ],
-                        if (isCurrentPeriod && !done) ...[
-                          padding8,
-                          FilledButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) {
-                                    return RoomCheckScreen(
-                                      roomCheckModel: RoomCheckModel(
-                                        roomName: roomName,
-                                        taskList: roomTaskList,
-                                        recordRepository: context
-                                            .read<RecordRepository>(),
-                                        date: date,
-                                        loginUseCase: logInUseCase,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                            child: const Text("Start"),
-                          ),
-                        ],
+                        ),
                       ],
-                    ),
+                      padding8,
+                      if (done && doneBy != null) ...[
+                        mediumTitleText(context, _getDoneByString(doneBy)),
+                      ] else ...[
+                        _buildAssignmentButton(context, date, room),
+                      ],
+                      if (isCurrentPeriod && !done) ...[
+                        padding8,
+                        FilledButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) {
+                                  return RoomCheckScreen(
+                                    roomCheckModel: RoomCheckModel(
+                                      room: room,
+                                      taskList: roomTaskList,
+                                      recordRepository: context
+                                          .read<RecordRepository>(),
+                                      date: date,
+                                      loginUseCase: logInUseCase,
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                            // Reload after finishing, as there may be updates
+                            schedulingModel.refreshData();
+                          },
+                          child: const Text("Start"),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
-    ];
+              ),
+            );
+          },
+        ),
+      );
+    }
+    return cards;
   }
 
   Widget _buildAssignmentButton(
     BuildContext context,
     RoomCheckDate date,
-    String roomName,
+    Room room,
   ) {
     final loginUseCase = context.watch<LoginUseCase>();
     return Column(
@@ -354,7 +340,7 @@ class SchedulingScreenCards extends StatelessWidget {
           onPressed: () {
             schedulingModel.assignUserToRoomCheck(
               date,
-              roomName,
+              room,
               loginUseCase.loggedInUser!,
               _taskFrequency,
             );

@@ -38,7 +38,9 @@ class UserManagementScreen extends StatelessWidget {
           MaterialPageRoute(builder: (_) => AddNewUserPage(null, null)),
         );
         if (result != null) {
-          userListModel.addUser(User(email: result.email, group: result.group));
+          userListModel.addUser(
+            User(email: result.email, group: result.group, uid: null),
+          );
         }
       },
       child: Text("Add New User"),
@@ -132,7 +134,7 @@ class UserListWidget extends StatelessWidget {
         );
         if (result != null) {
           userListModel.updateUser(
-            User(email: result.email, group: result.group),
+            User(email: result.email, group: result.group, uid: user.uid),
           );
         }
       },

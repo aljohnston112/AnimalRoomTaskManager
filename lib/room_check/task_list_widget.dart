@@ -171,16 +171,29 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
       setState(() {
         _errorText = null;
       });
-    } else if (value < widget.task.range.min || value > widget.task.range.max) {
-      setState(() {
-        _errorText =
-            'Value out of range '
-                '(${widget.task.range.min} to ${widget.task.range.max})';
-      });
     } else {
-      setState(() {
-        _errorText = null;
-      });
+      for (final range in widget.task.ranges) {
+        if (value < range.min || value > range.max) {
+          if (range.isRequired) {
+            setState(() {
+              _errorText =
+                  'Value must be between '
+                  '(${range.min} to ${range.max})';
+            });
+            break;
+          } else {
+            setState(() {
+              _errorText =
+                  'Value out of range '
+                  '(${range.min} to ${range.max})';
+            });
+          }
+        } else {
+          setState(() {
+            _errorText = null;
+          });
+        }
+      }
     }
   }
 
@@ -198,7 +211,7 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
       ],
       decoration: buildInputDecoration(
-        widget.task.range.units,
+        widget.task.ranges.first.units,
       ).copyWith(errorText: _errorText),
     );
   }

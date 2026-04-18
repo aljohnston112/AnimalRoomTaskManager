@@ -6,8 +6,16 @@ import 'package:flutter/foundation.dart';
 
 import '../user_management/user_repository.dart';
 
+class Room {
+  final int rid;
+  final String name;
+
+  Room({required this.rid, required this.name});
+}
+
 class SchedulingModel extends ChangeNotifier {
   final RoomCheckRepository _roomCheckRepository;
+  final TaskListRepository _taskListRepository;
 
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _dailyInternal = {};
   final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _weeklyInternal = {};
@@ -26,14 +34,17 @@ class SchedulingModel extends ChangeNotifier {
     TaskFrequency.monthly: monthlyRoomChecks,
   };
 
-  SchedulingModel({required RoomCheckRepository roomCheckRepository})
-    : _roomCheckRepository = roomCheckRepository {
+  SchedulingModel({
+    required RoomCheckRepository roomCheckRepository,
+    required TaskListRepository taskListRepository,
+  }) : _roomCheckRepository = roomCheckRepository,
+       _taskListRepository = taskListRepository {
     dailyRoomChecks = UnmodifiableMapView(_dailyInternal);
     weeklyRoomChecks = UnmodifiableMapView(_weeklyInternal);
     monthlyRoomChecks = UnmodifiableMapView(_monthlyInternal);
-    roomCheckRepository.roomChecksNotifier.addListener((){
+    roomCheckRepository.roomChecksNotifier.addListener(() {
       final roomChecks = roomCheckRepository.roomChecksNotifier.value;
-      for(final entry in roomChecks.entries){
+      for (final entry in roomChecks.entries) {
         // TODO update room checks
       }
     });
@@ -65,24 +76,27 @@ class SchedulingModel extends ChangeNotifier {
 
   void assignUserToRoomCheck(
     RoomCheckDate date,
-    String roomName,
+    Room room,
     User user,
     TaskFrequency frequency,
   ) {
     var roomCheckSlot = RoomCheckSlot(
       rcid: null,
       date: date,
-      roomName: roomName,
+      rid: room.rid,
+      roomName: room.name,
       frequency: frequency,
+      uid: user.uid,
       assigned: user.email,
       comment: null,
-      state: RoomCheckState.notStarted
+      state: RoomCheckState.notStarted,
     );
     _roomCheckRepository.assignUserToRoomCheck(roomCheckSlot, user.email);
     notifyListeners();
   }
 
-  void loadRoomChecks() {
+  void refreshData() {
+    _taskListRepository.loadTaskLists();
     _roomCheckRepository.loadRoomChecks();
   }
 }

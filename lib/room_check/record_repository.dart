@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:flutter/cupertino.dart';
 
+import '../scheduler/scheduling_model.dart';
 import '../task_lists_management/task_list_repository.dart';
 import '../user_management/user_repository.dart';
 
@@ -16,14 +17,14 @@ extension ToRoomCheckDate on DateTime {
 /// Two records with the same task
 /// cannot share the same room and date as one another.
 class TaskRecord {
-  final String roomName;
+  final Room room;
   final Task task;
   final String? comment;
   final DateTime dateTime;
   final User doneBy;
 
   TaskRecord({
-    required this.roomName,
+    required this.room,
     required this.task,
     required this.comment,
     required this.dateTime,
@@ -35,7 +36,7 @@ class QuantitativeRecord extends TaskRecord {
   final double recordedValue;
 
   QuantitativeRecord({
-    required super.roomName,
+    required super.room,
     required super.task,
     required super.comment,
     required super.dateTime,
@@ -46,20 +47,19 @@ class QuantitativeRecord extends TaskRecord {
 
 /// Holds all the task records in memory
 class RecordRepository extends ChangeNotifier {
-
-  final Map<String, Map<RoomCheckDate, Map<Task, TaskRecord>>>
+  final Map<Room, Map<RoomCheckDate, Map<Task, TaskRecord>>>
   _roomToDateToTaskRecords = {};
 
   RecordRepository();
 
   UnmodifiableMapView<Task, TaskRecord> getRecordsForRoom(
-    String roomName,
+    Room room,
     RoomCheckDate date,
   ) {
-    if (_roomToDateToTaskRecords[roomName] != null) {
-      if (_roomToDateToTaskRecords[roomName]![date] != null) {
+    if (_roomToDateToTaskRecords[room] != null) {
+      if (_roomToDateToTaskRecords[room]![date] != null) {
         return UnmodifiableMapView<Task, TaskRecord>(
-          Map.fromEntries(_roomToDateToTaskRecords[roomName]![date]!.entries),
+          Map.fromEntries(_roomToDateToTaskRecords[room]![date]!.entries),
         );
       }
     }
@@ -67,16 +67,16 @@ class RecordRepository extends ChangeNotifier {
   }
 
   void addRecord(TaskRecord record) {
-    if (!_roomToDateToTaskRecords.containsKey(record.roomName)) {
-      _roomToDateToTaskRecords[record.roomName] = {};
+    if (!_roomToDateToTaskRecords.containsKey(record.room)) {
+      _roomToDateToTaskRecords[record.room] = {};
     }
-    var roomRecords = _roomToDateToTaskRecords[record.roomName]!;
+    var roomRecords = _roomToDateToTaskRecords[record.room]!;
     var recordDate = record.dateTime;
     final roomCheckDate = recordDate.toRoomCheckDate();
     if (!roomRecords.containsKey(roomCheckDate)) {
       roomRecords[roomCheckDate] = {};
     }
-    var records = _roomToDateToTaskRecords[record.roomName]![roomCheckDate]!;
+    var records = _roomToDateToTaskRecords[record.room]![roomCheckDate]!;
     if (records.containsKey(record.task)) {
       // TODO let user know the task was already submitted
     }

@@ -38,7 +38,9 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider(create: (context) => RecordRepository()),
         ChangeNotifierProvider.value(value: roomCheckRepository),
-        ChangeNotifierProvider(create: (context) => TaskListRepository()),
+        ChangeNotifierProvider(
+          create: (context) => TaskListRepository(database: database),
+        ),
       ],
       child: MyApp(),
     ),
@@ -75,10 +77,21 @@ class MyApp extends StatelessWidget {
           // ),
           loginUseCase.loggedInUser == null
           ? LoginScreen(loginUseCase: loginUseCase)
-          : SchedulingScreen(
-              schedulingModel: SchedulingModel(
-                roomCheckRepository: context.read<RoomCheckRepository>(),
-              ),
+          : Builder(
+              builder: (context) {
+                TaskListRepository taskListRepository = context
+                    .read<TaskListRepository>();
+                RoomCheckRepository roomCheckRepository = context
+                    .read<RoomCheckRepository>();
+                taskListRepository.loadTaskLists();
+                roomCheckRepository.loadRoomChecks();
+                return SchedulingScreen(
+                  schedulingModel: SchedulingModel(
+                    roomCheckRepository: roomCheckRepository,
+                    taskListRepository: taskListRepository,
+                  ),
+                );
+              },
             ),
     );
   }

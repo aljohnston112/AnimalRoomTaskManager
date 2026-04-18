@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_model.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
@@ -14,12 +15,16 @@ void main() {
 }
 
 void testRoomCheckModel() {
-  final taskA = Task(description: "A");
+  final taskA = Task(tid: 0, description: "A", managerOnly: false);
   final taskB = QuantitativeTask(
+    tid: 0,
     description: "B",
-    range: QuantitativeRange(min: 10, max: 100, units: "Bs"),
+    ranges: [
+      QuantitativeRange(min: 10, max: 100, units: "Bs", isRequired: false),
+    ],
+    managerOnly: false,
   );
-  final taskC = Task(description: "C");
+  final taskC = Task(tid: 0, description: "C", managerOnly: false);
   final tasks = UnmodifiableListView([taskA, taskB, taskC]);
   final taskList = TaskList(
     name: "D",
@@ -32,8 +37,9 @@ void testRoomCheckModel() {
     var recordRepository = RecordRepository();
     var userRepository = UserRepository(database: database);
     var loginUseCase = LoginUseCase(userRepository: userRepository);
+    final room = Room(rid: 1, name: "1");
     var roomCheckModel = RoomCheckModel(
-      roomName: "1",
+      room: room,
       taskList: taskList,
       recordRepository: recordRepository,
       date: DateTime.now().toRoomCheckDate(),
@@ -61,7 +67,7 @@ void testRoomCheckModel() {
     }
     expect(tasksInEntries, tasks);
 
-    var taskE = Task(description: "E");
+    var taskE = Task(tid: 0, description: "E", managerOnly: false);
     expect(
       () => roomCheckModel.getQuantitativeValueController(taskE),
       throwsA(isA<TypeError>()),
@@ -77,8 +83,9 @@ void testRoomCheckModel() {
     var recordRepository = RecordRepository();
     var userRepository = UserRepository(database: database);
     var loginUseCase = LoginUseCase(userRepository: userRepository);
+    final room = Room(rid: 1, name: "1");
     var roomCheckModel = RoomCheckModel(
-      roomName: "1",
+      room: room,
       taskList: taskList,
       recordRepository: recordRepository,
       date: DateTime.now().toRoomCheckDate(),
@@ -96,8 +103,9 @@ void testRoomCheckModel() {
     var recordRepository = RecordRepository();
     var userRepository = UserRepository(database: database);
     var loginUseCase = LoginUseCase(userRepository: userRepository);
+    final room = Room(rid: 1, name: "1");
     var roomCheckModel = RoomCheckModel(
-      roomName: "1",
+      room: room,
       taskList: taskList,
       recordRepository: recordRepository,
       date: DateTime.now().toRoomCheckDate(),
@@ -115,8 +123,9 @@ void testRoomCheckModel() {
     var userRepository = UserRepository(database: database);
     var loginUseCase = LoginUseCase(userRepository: userRepository);
     var roomCheckDate = DateTime.now().toRoomCheckDate();
+    final room = Room(rid: 1, name: "1");
     var roomCheckModel = RoomCheckModel(
-      roomName: "1",
+      room: room,
       taskList: taskList,
       recordRepository: recordRepository,
       date: roomCheckDate,
@@ -127,7 +136,7 @@ void testRoomCheckModel() {
     roomCheckModel.getCommentController(taskC).text = comment;
     roomCheckModel.submit();
     expect(
-      recordRepository.getRecordsForRoom("1", roomCheckDate)[taskC]!.comment,
+      recordRepository.getRecordsForRoom(room, roomCheckDate)[taskC]!.comment,
       comment,
     );
   });
@@ -136,13 +145,14 @@ void testRoomCheckModel() {
 void testTaskEntry() {
   var date = DateTime.fromMicrosecondsSinceEpoch(3);
   test("TaskEntry completed when set up with record", () {
-    var task = Task(description: "A");
+    var task = Task(tid: 0, description: "A", managerOnly: false);
+    final room = Room(rid: 1, name: "1");
     var record = TaskRecord(
-      roomName: "1",
+      room: room,
       task: task,
       comment: "B",
       dateTime: date,
-      doneBy: User(email: "me@me.io", group: UserGroup.admin)
+      doneBy: User(email: "me@me.io", group: UserGroup.admin, uid: null),
     );
     TaskEntryModel taskEntry = TaskEntryModel(
       task: task,
@@ -153,7 +163,7 @@ void testTaskEntry() {
   });
 
   test("TaskEntry not completed when set up without record", () {
-    var task = Task(description: "A");
+    var task = Task(tid: 0, description: "A", managerOnly: false);
     TaskEntryModel taskEntry = TaskEntryModel(
       task: task,
       record: null,

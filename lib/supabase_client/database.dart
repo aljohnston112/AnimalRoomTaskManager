@@ -1,5 +1,7 @@
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../user_management/user_repository.dart' as ur;
 
 class Database {
@@ -46,7 +48,6 @@ class Database {
 
   Future<bool> login({required String email, required String password}) async {
     try {
-      // database._supabase.from("room_check_slots").insert({'date_time': DateTime(2026, 4, 8).toIso8601String(), 'r_id': 1, 'state': 'not_started', 'u_id': null,})
       await _supabase.auth.signInWithPassword(email: email, password: password);
       return true;
     } on AuthApiException {
@@ -67,6 +68,13 @@ class Database {
     *
   ''')
         .gte('date_time', startOfToday);
+    return data.toList();
+  }
+
+  Future<List<PostgrestMap>> getTaskLists() async {
+    final data = await _supabase.from('room_check_tasks_view').select('''
+    *
+  ''');
     return data.toList();
   }
 
@@ -103,28 +111,34 @@ class Database {
     RoomCheckSlot roomCheckSlot,
     String userEmail,
   ) async {
-    // TODO get id from ram
+    final rcid = roomCheckSlot.rcid;
+    if (rcid != null) {
+      _supabase
+          .from(roomCheckTableName)
+          .update({'u_id': roomCheckSlot.uid})
+          .eq('rc_id', rcid);
+    } else {
+      // TODO insert fails due to date being before now
+      _supabase.from(roomCheckTableName).insert({
+        'date_time': roomCheckSlot.date.toSupabaseString(),
+        'r_id': roomCheckSlot.rid,
+        'state': roomCheckSlot.state.toDbString,
+        'frequency': roomCheckSlot.frequency.toDbString,
+        'comment': roomCheckSlot.comment,
+        'u_id': roomCheckSlot.uid,
+      });
+    }
+  }
+
+  Future<int?> getUserWithAuthId(String authId) async {
     final userResponse = await _supabase
         .from('users')
         .select('u_id')
-        .eq('name', userEmail)
+        .eq('auth_id', authId)
         .maybeSingle();
     if (userResponse != null) {
-      final int userId = userResponse['u_id'];
-      final rcid = roomCheckSlot.rcid;
-      if (rcid != null) {
-        _supabase
-            .from(roomCheckTableName)
-            .update({'u_id': userId})
-            .eq('rc_id', rcid);
-      } else {
-        // TODO insert
-        // _supabase.from(roomCheckTableName).insert({
-        //   'date_time',
-        //   roomCheckSlot.date.toSupabaseString(),
-        //   'r_id': roomCheckSlot.
-        // });
-      }
+      return userResponse['u_id'];
     }
+    return null;
   }
 }
