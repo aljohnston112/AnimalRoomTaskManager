@@ -20,12 +20,36 @@ class TaskListWidget extends StatelessWidget {
         child: ListenableBuilder(
           listenable: roomCheckModel,
           builder: (context, _) {
-            return ListView(
-              shrinkWrap: true,
-              // A card per task record
-              children: roomCheckModel.getTaskEntries().map((record) {
-                return _buildTaskCard(context, roomCheckModel, record);
-              }).toList(),
+            return Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    // A card per task record
+                    children: roomCheckModel.getTaskEntries().map((record) {
+                      return _buildTaskCard(context, roomCheckModel, record);
+                    }).toList(),
+                  ),
+                ),
+                if (roomCheckModel.getCommentController().text.isNotEmpty ||
+                    roomCheckModel.shouldCommentBeDisplayed()) ...[
+                  padding8,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: maxTextFieldWidth,
+                    ),
+                    child: _buildCommentInput(roomCheckModel.getSavedComment()?? ""),
+                  ),
+                  padding8,
+                ] else ...[
+                  padding8,
+                  FilledButton(
+                    child: Text("Add Comment"),
+                    onPressed: () {
+                      roomCheckModel.onAddCommentClicked();
+                    },
+                  ),
+                ],
+              ],
             );
           },
         ),
@@ -69,29 +93,6 @@ class TaskListWidget extends StatelessWidget {
       ] else ...[
         _buildTaskCompleteWidget(entry, context),
       ],
-
-      // The add comment button or comment field
-      if (roomCheckModel.shouldCommentBeDisplayedForTask(task)) ...[
-        // Only show the field if there is a comment or
-        // the task has already been recorded
-        if (roomCheckModel.getCommentController(task).text.isNotEmpty ||
-            !roomCheckModel.isTaskRecorded(task)) ...[
-          padding8,
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
-            child: _buildCommentInput(entry),
-          ),
-          padding8,
-        ],
-      ] else ...[
-        padding8,
-        FilledButton(
-          child: Text("Add Comment"),
-          onPressed: () {
-            roomCheckModel.onAddCommentClicked(task);
-          },
-        ),
-      ],
     ];
   }
 
@@ -126,13 +127,12 @@ class TaskListWidget extends StatelessWidget {
     );
   }
 
-  TextField _buildCommentInput(TaskEntryModel entry) {
-    var taskUnrecorded = entry.record == null;
+  TextField _buildCommentInput(String comment) {
     return TextField(
       // Can't overwrite submitted comments
-      enabled: taskUnrecorded,
+      enabled: comment.isEmpty,
       keyboardType: TextInputType.multiline,
-      controller: roomCheckModel.getCommentController(entry.task),
+      controller: roomCheckModel.getCommentController(),
       // No limit
       maxLines: null,
       decoration: buildInputDecoration("Comment"),

@@ -5,14 +5,18 @@ import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:test/test.dart';
 
 void main() {
-  var task = Task(tid: 0, description: "A", managerOnly: false);
+  var task = Task(
+    tid: 0,
+    description: "A",
+    managerOnly: false,
+    frequency: TaskFrequency.daily,
+  );
   var date = DateTime.fromMicrosecondsSinceEpoch(3);
   var me = User(email: "me@me.com", group: UserGroup.admin, uid: null);
   var room = Room(rid: 1, name: "1");
   var taskRecord = TaskRecord(
     room: room,
     task: task,
-    comment: "B",
     dateTime: date,
     doneBy: me,
   );
@@ -20,11 +24,17 @@ void main() {
     RecordRepository recordRepository = RecordRepository();
     recordRepository.addRecord(taskRecord);
     expect(
-      recordRepository.getRecordsForRoom(room, date.toRoomCheckDate()).length,
+      recordRepository
+          .getRecordsForRoom(room, date.toRoomCheckDate(), TaskFrequency.daily)
+          .length,
       1,
     );
     expect(
-      recordRepository.getRecordsForRoom(room, date.toRoomCheckDate())[task],
+      recordRepository.getRecordsForRoom(
+        room,
+        date.toRoomCheckDate(),
+        TaskFrequency.daily,
+      )[task],
       taskRecord,
     );
   });
@@ -34,11 +44,17 @@ void main() {
     recordRepository.addRecord(taskRecord);
     recordRepository.addRecord(taskRecord);
     expect(
-      recordRepository.getRecordsForRoom(room, date.toRoomCheckDate()).length,
+      recordRepository
+          .getRecordsForRoom(room, date.toRoomCheckDate(), TaskFrequency.daily)
+          .length,
       1,
     );
     expect(
-      recordRepository.getRecordsForRoom(room, date.toRoomCheckDate())[task],
+      recordRepository.getRecordsForRoom(
+        room,
+        date.toRoomCheckDate(),
+        TaskFrequency.daily,
+      )[task],
       taskRecord,
     );
   });

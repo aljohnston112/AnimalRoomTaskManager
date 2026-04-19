@@ -79,6 +79,20 @@ class RoomCheckSlot {
 
   @override
   int get hashCode => date.hashCode ^ roomName.hashCode;
+
+  RoomCheckSlot withComment(String comment) {
+    return RoomCheckSlot(
+      rcid: rcid,
+      date: date,
+      rid: rid,
+      roomName: roomName,
+      frequency: frequency,
+      comment: comment,
+      uid: uid,
+      assigned: assigned,
+      state: state,
+    );
+  }
 }
 
 class RoomCheckRepository extends ChangeNotifier {
@@ -98,6 +112,9 @@ class RoomCheckRepository extends ChangeNotifier {
       // These can be batched if users think app is slow
       final updatedRow = await database.getRoomCheckWithId(map['rc_id']);
       RoomCheckSlot roomCheck = _parseRoomCheck(updatedRow);
+      if (!_roomChecks.containsKey(roomCheck.date)) {
+        _roomChecks[roomCheck.date] = {};
+      }
       if (!_roomChecks[roomCheck.date]!.containsKey(roomCheck.frequency)) {
         _roomChecks[roomCheck.date]![roomCheck.frequency] = {};
       }
@@ -154,5 +171,42 @@ class RoomCheckRepository extends ChangeNotifier {
 
   void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot, String user) {
     _database.assignUserToRoomCheck(roomCheckSlot, user);
+  }
+
+  RoomCheckSlot? getRoomCheck(
+    RoomCheckDate date,
+    TaskFrequency frequency,
+    String roomName,
+  ) {
+    if (_roomChecks.containsKey(date)) {
+      var frequencyToRoomChecks = _roomChecks[date];
+      if (frequencyToRoomChecks?.containsKey(frequency) == true) {
+        if (frequencyToRoomChecks?[frequency]?.containsKey(roomName) == true) {
+          return frequencyToRoomChecks?[frequency]?[roomName];
+        }
+      }
+    }
+    return null;
+  }
+
+  void saveComment(RoomCheckSlot roomCheckSlot, String comment) {
+    var date = roomCheckSlot.date;
+    if (!_roomChecks.containsKey(date)) {
+      _roomChecks[date] = {};
+    }
+    var frequencyToRoomChecks = _roomChecks[date];
+    var frequency = roomCheckSlot.frequency;
+    if (frequencyToRoomChecks?.containsKey(frequency) != true) {
+      frequencyToRoomChecks?[frequency] = {};
+    }
+    var roomName = roomCheckSlot.roomName;
+    var withComment =
+    frequencyToRoomChecks?[frequency]?[roomName]?.withComment(comment);
+    withComment ??= roomCheckSlot.withComment(comment);
+    updateRoomCheck(withComment);
+  }
+
+  void updateRoomCheck(RoomCheckSlot roomCheckSlot) {
+    _database.upsertRoomCheck(roomCheckSlot);
   }
 }

@@ -1,4 +1,6 @@
-DROP SCHEMA public CASCADE;
+SET search_path TO public, auth, pg_temp;
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 SET search_path TO public, auth;
 GRANT USAGE ON SCHEMA public TO authenticated;
@@ -20,7 +22,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."user_groups"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.user_groups TO authenticated;
 GRANT SELECT ON TABLE public.user_groups TO authenticated;
 
 -- Users -------------------------------------------------------------
@@ -34,7 +35,6 @@ CREATE TABLE IF NOT EXISTS users
 );
 ALTER TABLE "public"."users"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.users TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.users TO authenticated;
 REVOKE UPDATE ON public.users FROM authenticated;
 GRANT UPDATE (deleted) ON public.users TO authenticated;
@@ -48,7 +48,8 @@ CREATE POLICY "UsersSelectAuth"
     NOT deleted
     );
 CREATE OR REPLACE FUNCTION public.check_is_admin()
-    RETURNS boolean AS
+    RETURNS boolean
+    SET search_path TO public, auth, pg_temp AS
 $$
 SELECT EXISTS (SELECT 1
                FROM public.users
@@ -57,7 +58,6 @@ SELECT EXISTS (SELECT 1
                  AND NOT deleted);
 $$ LANGUAGE sql STABLE
                 SECURITY DEFINER;
-SET search_path TO public, auth, pg_temp;
 CREATE POLICY "UserGroupsSelectAuth"
     ON "public"."user_groups"
     AS PERMISSIVE
@@ -83,7 +83,8 @@ CREATE POLICY "UsersUpdateAuth"
     WITH CHECK (check_is_admin());
 
 CREATE OR REPLACE FUNCTION get_my_u_id()
-    RETURNS integer AS
+    RETURNS integer
+    SET search_path TO public, auth, pg_temp AS
 $$
 SELECT u_id
 FROM public.users
@@ -99,7 +100,6 @@ CREATE TABLE IF NOT EXISTS email_whitelist
 );
 ALTER TABLE "public"."email_whitelist"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.email_whitelist TO authenticated;
 GRANT SELECT, INSERT, DELETE ON TABLE public.email_whitelist TO authenticated;
 CREATE POLICY "EmailWhitelistSelectAuth"
     ON "public"."email_whitelist"
@@ -120,7 +120,8 @@ CREATE POLICY "EmailWhitelistDeleteAuth"
     TO authenticated
     USING (check_is_admin());
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-    RETURNS trigger AS
+    RETURNS trigger
+    SET search_path TO public, auth, pg_temp AS
 $$
 DECLARE
     _ug_id integer;
@@ -146,7 +147,8 @@ CREATE TRIGGER on_auth_user_created
 EXECUTE PROCEDURE public.handle_new_user();
 
 CREATE OR REPLACE FUNCTION public.on_user_deleted_purge()
-    RETURNS trigger AS
+    RETURNS trigger
+    SET search_path TO public, auth, pg_temp AS
 $$
 BEGIN
     IF (NEW.deleted = TRUE AND OLD.deleted = FALSE) THEN
@@ -186,7 +188,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."facilities"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.facilities TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.facilities TO authenticated;
 REVOKE UPDATE ON public.facilities FROM authenticated;
 GRANT UPDATE (deleted) ON public.facilities TO authenticated;
@@ -232,7 +233,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."labs"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.labs TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.labs TO authenticated;
 REVOKE UPDATE ON public.labs FROM authenticated;
 GRANT UPDATE (color, deleted) ON public.labs TO authenticated;
@@ -268,7 +268,6 @@ CREATE TABLE IF NOT EXISTS enrichment_lists
 );
 ALTER TABLE "public"."enrichment_lists"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.enrichment_lists TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.enrichment_lists TO authenticated;
 REVOKE UPDATE ON public.enrichment_lists FROM authenticated;
 GRANT UPDATE (deleted) ON public.enrichment_lists TO authenticated;
@@ -332,7 +331,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."rooms"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.rooms TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.rooms TO authenticated;
 REVOKE UPDATE ON public.rooms FROM authenticated;
 GRANT UPDATE (deleted) ON public.rooms TO authenticated;
@@ -368,7 +366,6 @@ CREATE TABLE IF NOT EXISTS lab_group_memberships
 );
 ALTER TABLE "public"."lab_group_memberships"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.lab_group_memberships TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.lab_group_memberships TO authenticated;
 CREATE POLICY "LabGroupMembershipsSelectAuth"
     ON "public"."lab_group_memberships"
@@ -402,7 +399,6 @@ CREATE TABLE IF NOT EXISTS censuses
 );
 ALTER TABLE "public"."censuses"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.censuses TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.censuses TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE censuses_c_id_seq TO authenticated;
 CREATE POLICY "CensusesSelectAuth"
@@ -427,7 +423,6 @@ CREATE TABLE IF NOT EXISTS animals
 );
 ALTER TABLE "public"."animals"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.animals TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.animals TO authenticated;
 REVOKE UPDATE ON public.animals FROM authenticated;
 GRANT UPDATE (deleted) ON public.animals TO authenticated;
@@ -464,7 +459,6 @@ CREATE TABLE IF NOT EXISTS census_records
 );
 ALTER TABLE "public"."census_records"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.census_records TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.census_records TO authenticated;
 CREATE POLICY "CensusRecordsSelectAuth"
     ON "public"."census_records"
@@ -499,7 +493,6 @@ CREATE TABLE IF NOT EXISTS enrichment_types
 );
 ALTER TABLE "public"."enrichment_types"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.enrichment_types TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.enrichment_types TO authenticated;
 REVOKE UPDATE ON public.enrichment_types FROM authenticated;
 GRANT UPDATE (deleted) ON public.enrichment_types TO authenticated;
@@ -536,7 +529,6 @@ CREATE TABLE IF NOT EXISTS enrichments
 );
 ALTER TABLE "public"."enrichments"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.enrichments TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.enrichments TO authenticated;
 REVOKE UPDATE ON public.enrichments FROM authenticated;
 GRANT UPDATE (deleted) ON public.enrichments TO authenticated;
@@ -572,7 +564,6 @@ CREATE TABLE IF NOT EXISTS enrichment_list_memberships
 );
 ALTER TABLE "public"."enrichment_list_memberships"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.enrichment_list_memberships TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.enrichment_list_memberships TO authenticated;
 CREATE POLICY "EnrichmentListMembershipsSelectAuth"
     ON "public"."enrichment_list_memberships"
@@ -597,7 +588,6 @@ CREATE TABLE IF NOT EXISTS enrichment_list_assignment_dates
 );
 ALTER TABLE "public"."enrichment_list_assignment_dates"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.enrichment_list_assignment_dates TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.enrichment_list_assignment_dates TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE enrichment_list_assignment_dates_ela_id_seq TO authenticated;
 CREATE POLICY "EnrichmentListAssignment_DatesSelectAuth"
@@ -654,7 +644,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."task_lists"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.task_lists TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.task_lists TO authenticated;
 REVOKE UPDATE ON public.task_lists FROM authenticated;
 GRANT UPDATE (deleted) ON public.task_lists TO authenticated;
@@ -681,49 +670,6 @@ CREATE POLICY "TaskListsUpdateAuth"
     )
     WITH CHECK (check_is_admin());
 
-DROP VIEW IF EXISTS room_check_tasks_view;
-
-CREATE OR REPLACE VIEW room_check_tasks_view
-            WITH
-            (security_invoker = on)
-AS
-SELECT r.r_id,
-       r.name                AS room_name,
-       tl.name               AS task_list_name,
-       tl.frequency,
-       COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
-               't_id', t.t_id,
-               'task_name', t.name,
-               'manager_only', t.manager_only,
-               'quantitative', CASE
-                                   WHEN qt.t_id IS NOT NULL
-                                       THEN
-                                       JSONB_BUILD_OBJECT(
-                                               'unit',
-                                               qr.unit,
-                                               'min',
-                                               qr.minimum,
-                                               'max',
-                                               qr.maximum,
-                                               'required',
-                                               qr.required
-                                       ) END)) FILTER (
-                    WHERE t.t_id IS NOT NULL),
-                '[]'::jsonb) AS tasks
-FROM rooms r
-         LEFT JOIN task_list_room_memberships tlrm
-                   ON r.r_id = tlrm.r_id
-         LEFT JOIN task_lists tl ON tlrm.tl_id = tl.tl_id
-         LEFT JOIN task_list_task_memberships tltm
-                   ON tlrm.tl_id = tltm.tl_id
-         LEFT JOIN tasks t ON tltm.t_id = t.t_id
-         LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
-         LEFT JOIN quantitative_ranges qr ON qt.qr_id = qr.qr_id
-GROUP BY r.r_id,
-         tl.name,
-         tl.frequency;
-
-GRANT SELECT ON TABLE public.room_check_tasks_view TO authenticated;
 -- Tasks -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tasks
 (
@@ -786,7 +732,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."tasks"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.tasks TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.tasks TO authenticated;
 REVOKE UPDATE ON public.tasks FROM authenticated;
 GRANT UPDATE (deleted) ON public.tasks TO authenticated;
@@ -838,7 +783,6 @@ SELECT SETVAL(
        );
 ALTER TABLE "public"."quantitative_ranges"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.quantitative_ranges TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.quantitative_ranges TO authenticated;
 REVOKE UPDATE ON public.quantitative_ranges FROM authenticated;
 GRANT UPDATE (deleted) ON public.quantitative_ranges TO authenticated;
@@ -881,7 +825,6 @@ VALUES (0, 0),
        (3, 4);
 ALTER TABLE "public"."quantitative_tasks"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.quantitative_tasks TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.quantitative_tasks TO authenticated;
 CREATE POLICY "QuantitativeTasksSelectAuth"
     ON "public"."quantitative_tasks"
@@ -1011,7 +954,6 @@ VALUES (0, 0),
        (15, 26);
 ALTER TABLE "public"."task_list_task_memberships"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.task_list_task_memberships TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.task_list_task_memberships TO authenticated;
 CREATE POLICY "TaskListTaskMembershipsSelectAuth"
     ON "public"."task_list_task_memberships"
@@ -1115,7 +1057,6 @@ VALUES (4, 0),
        (16, 19);
 ALTER TABLE "public"."task_list_room_memberships"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.task_list_room_memberships TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.task_list_room_memberships TO authenticated;
 CREATE POLICY "TaskListRoomMembershipsSelectAuth"
     ON "public"."task_list_room_memberships"
@@ -1149,7 +1090,6 @@ ALTER TABLE room_check_slots
 ALTER TABLE "public"."room_check_slots"
     ENABLE ROW LEVEL SECURITY;
 ALTER PUBLICATION supabase_realtime ADD TABLE room_check_slots;
-GRANT USAGE ON TYPE public.room_check_slots TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.room_check_slots TO authenticated;
 REVOKE UPDATE ON public.room_check_slots FROM authenticated;
 GRANT UPDATE (state, comment, u_id) ON public.room_check_slots TO authenticated;
@@ -1179,15 +1119,18 @@ CREATE POLICY "RoomCheckSlotsUpdateAuth"
     TRUE
     )
     WITH CHECK (
-    ((comment IS NULL)
+    (((SELECT r.comment
+       FROM room_check_slots r
+       WHERE r.rc_id = rc_id) = comment)
         OR
-     (comment = (SELECT r.comment
-                 FROM room_check_slots r
-                 WHERE r.rc_id = rc_id))) AND
-    ((check_is_admin()
-        OR
-      u_id = get_my_u_id()
-        )));
+     ((SELECT r.comment
+       FROM room_check_slots r
+       WHERE r.rc_id = rc_id) IS NULL)
+        )
+        AND
+    (check_is_admin() OR
+     u_id IS NULL OR
+     u_id = get_my_u_id()));
 DROP VIEW IF EXISTS room_check_slots_view;
 CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS
 SELECT rcs.rc_id,
@@ -1210,13 +1153,12 @@ CREATE TABLE IF NOT EXISTS task_records
     tr_id     serial PRIMARY KEY,
     t_id      integer REFERENCES tasks (t_id)             NOT NULL,
     rc_id     integer REFERENCES room_check_slots (rc_id) NOT NULL,
-    date_time timestamptz                                 NOT NULL
+    date_time timestamptz DEFAULT NOW()                   NOT NULL
 );
 ALTER TABLE task_records
     ADD CONSTRAINT unique_task_per_check UNIQUE (t_id, rc_id);
 ALTER TABLE "public"."task_records"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.task_records TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.task_records TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE task_records_tr_id_seq TO authenticated;
 CREATE POLICY "TaskRecordsSelectAuth"
@@ -1240,7 +1182,6 @@ CREATE TABLE IF NOT EXISTS quantitative_task_records
 );
 ALTER TABLE "public"."quantitative_task_records"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.quantitative_task_records TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.quantitative_task_records TO authenticated;
 REVOKE UPDATE ON public.quantitative_task_records FROM authenticated;
 GRANT UPDATE (value) ON public.quantitative_task_records TO authenticated;
@@ -1275,7 +1216,6 @@ CREATE TABLE IF NOT EXISTS task_record_users
 );
 ALTER TABLE "public"."task_record_users"
     ENABLE ROW LEVEL SECURITY;
-GRANT USAGE ON TYPE public.task_record_users TO authenticated;
 GRANT SELECT, INSERT ON TABLE public.task_record_users TO authenticated;
 CREATE POLICY "TaskRecordUsersSelectAuth"
     ON "public"."task_record_users"
@@ -1292,3 +1232,47 @@ CREATE POLICY "TaskRecordUsersInsertAuth"
 -- TODO a quantitative range can have at most 2 ranges
 -- One range that can be required, and one that is not required
 -- If another range is added to a tast, the units must match
+
+DROP VIEW IF EXISTS room_check_tasks_view;
+
+CREATE OR REPLACE VIEW room_check_tasks_view
+            WITH
+            (security_invoker = on)
+AS
+SELECT r.r_id,
+       r.name                AS room_name,
+       tl.name               AS task_list_name,
+       tl.frequency,
+       COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
+               't_id', t.t_id,
+               'task_name', t.name,
+               'manager_only', t.manager_only,
+               'quantitative', CASE
+                                   WHEN qt.t_id IS NOT NULL
+                                       THEN
+                                       JSONB_BUILD_OBJECT(
+                                               'unit',
+                                               qr.unit,
+                                               'min',
+                                               qr.minimum,
+                                               'max',
+                                               qr.maximum,
+                                               'required',
+                                               qr.required
+                                       ) END)) FILTER (
+                    WHERE t.t_id IS NOT NULL),
+                '[]'::jsonb) AS tasks
+FROM rooms r
+         LEFT JOIN task_list_room_memberships tlrm
+                   ON r.r_id = tlrm.r_id
+         LEFT JOIN task_lists tl ON tlrm.tl_id = tl.tl_id
+         LEFT JOIN task_list_task_memberships tltm
+                   ON tlrm.tl_id = tltm.tl_id
+         LEFT JOIN tasks t ON tltm.t_id = t.t_id
+         LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
+         LEFT JOIN quantitative_ranges qr ON qt.qr_id = qr.qr_id
+GROUP BY r.r_id,
+         tl.name,
+         tl.frequency;
+
+GRANT SELECT ON TABLE public.room_check_tasks_view TO authenticated;

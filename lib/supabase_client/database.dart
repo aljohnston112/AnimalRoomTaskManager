@@ -166,4 +166,20 @@ class Database {
         .eq('rc_id', rcid)
         .single();
   }
+
+  Future<void> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
+    // TODO this fails every time despite update working
+    //  in the supabase console when impersonating the user with matching u_id
+    await _supabase.from('room_check_slots').upsert({
+      if (roomCheckSlot.rcid != null) ...{'rc_id': roomCheckSlot.rcid},
+
+      'date_time': roomCheckSlot.date.toSupabaseString(),
+      'r_id': roomCheckSlot.rid,
+      'state': roomCheckSlot.state.toDbString,
+      'frequency': roomCheckSlot.frequency.toDbString,
+      'comment': roomCheckSlot.comment,
+      'u_id': roomCheckSlot.uid,
+    }, onConflict: 'date_time, r_id, frequency');
+  }
+
 }

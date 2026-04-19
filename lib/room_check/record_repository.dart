@@ -19,14 +19,12 @@ extension ToRoomCheckDate on DateTime {
 class TaskRecord {
   final Room room;
   final Task task;
-  final String? comment;
   final DateTime dateTime;
   final User doneBy;
 
   TaskRecord({
     required this.room,
     required this.task,
-    required this.comment,
     required this.dateTime,
     required this.doneBy,
   });
@@ -38,7 +36,6 @@ class QuantitativeRecord extends TaskRecord {
   QuantitativeRecord({
     required super.room,
     required super.task,
-    required super.comment,
     required super.dateTime,
     required super.doneBy,
     required this.recordedValue,
@@ -55,14 +52,53 @@ class RecordRepository extends ChangeNotifier {
   UnmodifiableMapView<Task, TaskRecord> getRecordsForRoom(
     Room room,
     RoomCheckDate date,
+    TaskFrequency frequency,
   ) {
-    if (_roomToDateToTaskRecords[room] != null) {
-      if (_roomToDateToTaskRecords[room]![date] != null) {
-        return UnmodifiableMapView<Task, TaskRecord>(
-          Map.fromEntries(_roomToDateToTaskRecords[room]![date]!.entries),
-        );
-      }
+    if (!_roomToDateToTaskRecords.containsKey(room)) {
+      return UnmodifiableMapView<Task, TaskRecord>({});
     }
+
+    var dateToTaskRecord = _roomToDateToTaskRecords[room]!;
+    switch (frequency) {
+      case TaskFrequency.daily:
+        if (dateToTaskRecord.containsKey(date)) {
+          return UnmodifiableMapView<Task, TaskRecord>(
+            Map.fromEntries(
+              dateToTaskRecord[date]!.entries.where((record) {
+                return record.key.frequency == TaskFrequency.daily;
+              }),
+            ),
+          );
+        }
+      case TaskFrequency.weekly:
+        DateTime dateTime = DateTime(date.year, date.month, date.day);
+        var previousSunday = dateTime.subtract(
+          Duration(days: dateTime.weekday % 7),
+        );
+        final weekDate = previousSunday.toRoomCheckDate();
+        if (dateToTaskRecord.containsKey(weekDate)) {
+          return UnmodifiableMapView<Task, TaskRecord>(
+            Map.fromEntries(
+              dateToTaskRecord[weekDate]!.entries.where((record) {
+                return record.key.frequency == TaskFrequency.weekly;
+              }),
+            ),
+          );
+        }
+      case TaskFrequency.monthly:
+        DateTime dateTime = DateTime(date.year, date.month, 1);
+        final monthDate = dateTime.toRoomCheckDate();
+        if (dateToTaskRecord.containsKey(monthDate)) {
+          return UnmodifiableMapView<Task, TaskRecord>(
+            Map.fromEntries(
+              dateToTaskRecord[monthDate]!.entries.where((record) {
+                return record.key.frequency == TaskFrequency.monthly;
+              }),
+            ),
+          );
+        }
+    }
+
     return UnmodifiableMapView<Task, TaskRecord>({});
   }
 
@@ -76,7 +112,7 @@ class RecordRepository extends ChangeNotifier {
     if (!roomRecords.containsKey(roomCheckDate)) {
       roomRecords[roomCheckDate] = {};
     }
-    var records = _roomToDateToTaskRecords[record.room]![roomCheckDate]!;
+    var records = roomRecords[roomCheckDate]!;
     if (records.containsKey(record.task)) {
       return false;
     }

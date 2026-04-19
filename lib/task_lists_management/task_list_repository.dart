@@ -9,11 +9,13 @@ class Task {
   final int tid;
   final String description;
   final bool managerOnly;
+  final TaskFrequency frequency;
 
   Task({
     required this.description,
     required this.managerOnly,
     required this.tid,
+    required this.frequency,
   });
 }
 
@@ -39,6 +41,7 @@ class QuantitativeTask<T> extends Task {
     required this.ranges,
     required super.managerOnly,
     required super.tid,
+    required super.frequency,
   });
 }
 
@@ -121,11 +124,17 @@ class TaskListRepository extends ChangeNotifier {
                 ),
               ],
               managerOnly: isManagerTask,
+              frequency: frequency,
             ),
           );
         } else {
           tasks[tid]!.add(
-            Task(tid: tid, description: taskName, managerOnly: isManagerTask),
+            Task(
+              tid: tid,
+              description: taskName,
+              managerOnly: isManagerTask,
+              frequency: frequency,
+            ),
           );
         }
       }
@@ -149,6 +158,7 @@ class TaskListRepository extends ChangeNotifier {
               ranges: ranges,
               managerOnly: task.managerOnly,
               tid: task.tid,
+              frequency: frequency
             ),
           );
         }

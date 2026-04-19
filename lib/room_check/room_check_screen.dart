@@ -50,31 +50,16 @@ class RoomCheckScreen extends StatelessWidget {
           child: Text("Cancel"),
           onPressed: () async {
             // Go back only after user has confirmed they want to cancel
-            await showDialog<bool>(
-              context: context,
-              builder: (context) => buildCancelConfirmationDialog(context),
-            ).then((result) {
-              if (result == true) {
-                navigatorKey.currentState?.pop();
-              }
-            });
-          },
-        ),
-        padding16,
-        FilledButton(
-          child: Text("Submit"),
-          onPressed: () async {
-            if (!roomCheckModel.submit()) {
-              if (context.mounted) {
-                showSnackBar(
-                  context,
-                  "Some tasks were already done, "
-                      "so not all tasks have been attributed to you. "
-                      "All other tasks have been recorded",
-                );
-              }
-            }
-            if (roomCheckModel.hasUnsavedComments()) {
+            if (roomCheckModel.hasUnsavedTasks()) {
+              await showDialog<bool>(
+                context: context,
+                builder: (context) => buildCancelConfirmationDialog(context),
+              ).then((result) {
+                if (result == true) {
+                  navigatorKey.currentState?.pop();
+                }
+              });
+            } else if (roomCheckModel.hasUnsavedComment()) {
               // If there are comments on uncompleted tasks,
               // they will not be saved,
               // so the user has to confirm their deletion
@@ -89,6 +74,23 @@ class RoomCheckScreen extends StatelessWidget {
             } else {
               Navigator.of(context).pop();
             }
+          },
+        ),
+        padding16,
+        FilledButton(
+          child: Text("Submit"),
+          onPressed: () async {
+            if (!roomCheckModel.submit()) {
+              if (context.mounted) {
+                showSnackBar(
+                  context,
+                  "Some tasks were already done, "
+                  "so not all tasks have been attributed to you. "
+                  "All other tasks have been recorded",
+                );
+              }
+            }
+            Navigator.of(context).pop();
           },
         ),
       ],
@@ -115,9 +117,7 @@ class RoomCheckScreen extends StatelessWidget {
   AlertDialog buildUnsavedCommentsDialog(BuildContext context) {
     return AlertDialog(
       title: Text('Confirm Losing Progress'),
-      content: Text(
-        'Are you sure you want to lose your comments on uncompleted tasks?',
-      ),
+      content: Text('Are you sure you want to lose your comment?'),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),

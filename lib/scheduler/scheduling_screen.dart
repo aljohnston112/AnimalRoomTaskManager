@@ -120,14 +120,15 @@ class SchedulingScreenCards extends StatelessWidget {
       final day = date.day;
       final year = date.year;
       var dateKey = "$month/$day/$year";
+      final taskLists = context
+          .watch<TaskListRepository>()
+          .roomToDailyTaskLists;
       cards.add(
-        _buildRoomAssignmentCard(
-          context,
-          context.read<TaskListRepository>().roomToDailyTaskLists,
-          dateKey,
-          i == 0,
-          (year: year, month: month, day: day),
-        ),
+        _buildRoomAssignmentCard(context, taskLists, dateKey, i == 0, (
+          year: year,
+          month: month,
+          day: day,
+        )),
       );
     }
     return SchedulerListView(title: "Daily Scheduler", children: cards);
@@ -153,14 +154,15 @@ class SchedulingScreenCards extends StatelessWidget {
       var dateKey =
           "$previousMonth/$previousDay/$previousYear to "
           "$nextMonth/$nextDay/$nextYear";
+      final taskLists = context
+          .watch<TaskListRepository>()
+          .roomToWeeklyTaskLists;
       cards.add(
-        _buildRoomAssignmentCard(
-          context,
-          context.read<TaskListRepository>().roomToDailyTaskLists,
-          dateKey,
-          i == 0,
-          (year: nextYear, month: nextMonth, day: nextDay),
-        ),
+        _buildRoomAssignmentCard(context, taskLists, dateKey, i == 0, (
+          year: nextYear,
+          month: nextMonth,
+          day: nextDay,
+        )),
       );
     }
     return SchedulerListView(title: "Weekly Scheduler", children: cards);
@@ -174,16 +176,17 @@ class SchedulingScreenCards extends StatelessWidget {
     final String dateKey = "$monthName ${now.year}";
 
     var isCurrentPeriod = true;
+    final taskLists = context
+        .watch<TaskListRepository>()
+        .roomToMonthlyTaskLists;
     return SchedulerListView(
       title: "Monthly Scheduler",
       children: [
-        _buildRoomAssignmentCard(
-          context,
-          context.read<TaskListRepository>().roomToDailyTaskLists,
-          dateKey,
-          isCurrentPeriod,
-          (year: now.year, month: now.month, day: 1),
-        ),
+        _buildRoomAssignmentCard(context, taskLists, dateKey, isCurrentPeriod, (
+          year: now.year,
+          month: now.month,
+          day: 1,
+        )),
       ],
     );
   }
@@ -247,7 +250,8 @@ class SchedulingScreenCards extends StatelessWidget {
         Selector2(
           selector: (context, RecordRepository rr, RoomCheckRepository rcr) {
             var recordMap = context.select(
-              (RecordRepository r) => r.getRecordsForRoom(room, date),
+              (RecordRepository r) =>
+                  r.getRecordsForRoom(room, date, frequency),
             );
             bool done = roomTaskList.tasks.every(
               (t) => recordMap.keys.contains(t),
@@ -256,10 +260,10 @@ class SchedulingScreenCards extends StatelessWidget {
             if (recordMap.isNotEmpty) {
               doneBy = recordMap.values.first.doneBy;
             }
-            return (done, doneBy);
+            return (done, doneBy, rcr.getRoomCheck(date, frequency, room.name));
           },
           builder: (context, data, c) {
-            var (done, doneBy) = data;
+            var (done, doneBy, roomCheck) = data;
             var logInUseCase = context.read<LoginUseCase>();
             return ListenableBuilder(
               listenable: schedulingModel,
@@ -292,6 +296,7 @@ class SchedulingScreenCards extends StatelessWidget {
                         padding8,
                         FilledButton(
                           onPressed: () async {
+                            // TODO assign room check if unassigned
                             await Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -300,10 +305,11 @@ class SchedulingScreenCards extends StatelessWidget {
                                     roomCheckModel: RoomCheckModel(
                                       room: room,
                                       taskList: roomTaskList,
-                                      recordRepository: context
-                                          .read<RecordRepository>(),
+                                      recordRepository: context.read(),
+                                      roomCheckRepository: context.read(),
                                       date: date,
                                       loginUseCase: logInUseCase,
+                                      roomCheckSlot: roomCheck,
                                     ),
                                   );
                                 },
