@@ -5,6 +5,8 @@ import 'package:animal_room_task_manager/task_lists_management/task_list_reposit
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
+import '../scheduler/scheduling_model.dart';
+
 typedef RoomCheckDate = ({int year, int month, int day});
 
 extension RoomCheckDateSupabase on RoomCheckDate {
@@ -46,11 +48,41 @@ extension RoomCheckStateParser on String {
   }
 }
 
+class RoomCheckSlotKey {
+  final String buildingName;
+  final Room room;
+  final RoomCheckDate date;
+  final TaskFrequency frequency;
+
+  RoomCheckSlotKey({
+    required this.buildingName,
+    required this.room,
+    required this.date,
+    required this.frequency,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return other is RoomCheckSlotKey &&
+        other.buildingName == buildingName &&
+        other.room == room &&
+        other.date == date &&
+        other.frequency == frequency;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    buildingName.hashCode,
+    room.hashCode,
+    date.hashCode,
+    frequency.hashCode,
+  );
+}
+
 class RoomCheckSlot {
   final int? rcid;
   final RoomCheckDate date;
-  final int rid;
-  final String roomName;
+  final Room room;
   final RoomCheckState state;
   final TaskFrequency frequency;
   final String? comment;
@@ -60,8 +92,7 @@ class RoomCheckSlot {
   RoomCheckSlot({
     required this.rcid,
     required this.date,
-    required this.rid,
-    required this.roomName,
+    required this.room,
     required this.frequency,
     required this.comment,
     required this.uid,
@@ -73,19 +104,18 @@ class RoomCheckSlot {
   bool operator ==(Object other) {
     return other is RoomCheckSlot &&
         other.date == date &&
-        other.roomName == roomName &&
+        other.room == room &&
         other.frequency == frequency;
   }
 
   @override
-  int get hashCode => date.hashCode ^ roomName.hashCode;
+  int get hashCode => date.hashCode ^ room.hashCode;
 
   RoomCheckSlot withComment(String comment) {
     return RoomCheckSlot(
       rcid: rcid,
       date: date,
-      rid: rid,
-      roomName: roomName,
+      room: room,
       frequency: frequency,
       comment: comment,
       uid: uid,
@@ -98,8 +128,7 @@ class RoomCheckSlot {
     return RoomCheckSlot(
       rcid: rcid,
       date: date,
-      rid: rid,
-      roomName: roomName,
+      room: room,
       frequency: frequency,
       comment: comment,
       uid: uid,
@@ -112,8 +141,7 @@ class RoomCheckSlot {
 class RoomCheckRepository {
   final Database _database;
 
-  final Map<RoomCheckDate, Map<TaskFrequency, Map<String, RoomCheckSlot>>>
-  _roomChecks = {};
+  final Map<RoomCheckSlotKey, RoomCheckSlot> _roomChecks = {};
 
   final ValueNotifier<
     Map<RoomCheckDate, Map<TaskFrequency, Map<String, RoomCheckSlot>>>
@@ -126,38 +154,42 @@ class RoomCheckRepository {
       // These can be batched if users think app is slow
       final updatedRow = await database.getRoomCheckWithId(map['rc_id']);
       RoomCheckSlot roomCheck = _parseRoomCheck(updatedRow);
-      if (!_roomChecks.containsKey(roomCheck.date)) {
-        _roomChecks[roomCheck.date] = {};
-      }
-      if (!_roomChecks[roomCheck.date]!.containsKey(roomCheck.frequency)) {
-        _roomChecks[roomCheck.date]![roomCheck.frequency] = {};
-      }
-      _roomChecks[roomCheck.date]![roomCheck.frequency]![roomCheck.roomName] =
-          roomCheck;
-      roomChecksNotifier.value = Map.from(_roomChecks);
+      print(roomCheck);
+      //   if (!_roomChecks.containsKey(roomCheck.date)) {
+      //     _roomChecks[roomCheck.date] = {};
+      //   }
+      //   if (!_roomChecks[roomCheck.date]!.containsKey(roomCheck.frequency)) {
+      //     _roomChecks[roomCheck.date]![roomCheck.frequency] = {};
+      //   }
+      //   _roomChecks[roomCheck.date]![roomCheck.frequency]![roomCheck.roomName] =
+      //       roomCheck;
+      //   roomChecksNotifier.value = Map.from(_roomChecks);
     });
   }
 
   Future<void> loadRoomChecks() async {
-    final roomChecks = await _database.getRoomCheckSlots();
-    List<RoomCheckDate> dates = _roomChecks.keys.toList();
-    for (var map in roomChecks) {
-      DateTime parsedDate = DateTime.parse(map['date_time']);
-      RoomCheckDate roomCheckDate = (
-        year: parsedDate.year,
-        month: parsedDate.month,
-        day: parsedDate.day,
-      );
-      if (!dates.contains(roomCheckDate)) {
-        _roomChecks[roomCheckDate] = {};
-        dates.add(roomCheckDate);
+    final buildingRoomChecksList = await _database.getRoomCheckSlots();
+    for (var buildingRoomCheckMap in buildingRoomChecksList) {
+      final bid = buildingRoomCheckMap['b_id'];
+      final buildingName = buildingRoomCheckMap['building_name'];
+      final roomChecksList = buildingRoomCheckMap['room_check_slots'];
+      for (var roomCheckMap in roomChecksList) {
+        DateTime parsedDate = DateTime.parse(roomCheckMap['date_time']);
+        RoomCheckDate roomCheckDate = (
+          year: parsedDate.year,
+          month: parsedDate.month,
+          day: parsedDate.day,
+        );
+        RoomCheckSlot roomCheck = _parseRoomCheck(roomCheckMap);
+        print(roomCheck);
+        RoomCheckSlotKey key = RoomCheckSlotKey(
+          buildingName: buildingName,
+          room: roomCheck.room,
+          date: roomCheckDate,
+          frequency: roomCheck.frequency,
+        );
+        _roomChecks[key] = roomCheck;
       }
-      RoomCheckSlot roomCheck = _parseRoomCheck(map);
-      if (!_roomChecks[roomCheck.date]!.containsKey(roomCheck.frequency)) {
-        _roomChecks[roomCheck.date]![roomCheck.frequency] = {};
-      }
-      _roomChecks[roomCheck.date]![roomCheck.frequency]![roomCheck.roomName] =
-          roomCheck;
     }
     roomChecksNotifier.value = Map.from(_roomChecks);
   }
@@ -171,9 +203,8 @@ class RoomCheckRepository {
     );
     final roomCheck = RoomCheckSlot(
       rcid: map['rc_id'],
-      rid: map['r_id'],
       date: roomCheckDate,
-      roomName: map['room_name'],
+      room: Room(rid: map['r_id'], name: map['room_name']),
       frequency: (map['frequency'] as String).toTaskFrequency,
       comment: map['comment'],
       uid: map['u_id'],
@@ -188,34 +219,35 @@ class RoomCheckRepository {
   }
 
   RoomCheckSlot? getRoomCheck(
+    String buildingName,
     RoomCheckDate date,
     TaskFrequency frequency,
-    String roomName,
+    Room room,
   ) {
-    if (_roomChecks.containsKey(date)) {
-      var frequencyToRoomChecks = _roomChecks[date];
-      if (frequencyToRoomChecks?.containsKey(frequency) == true) {
-        if (frequencyToRoomChecks?[frequency]?.containsKey(roomName) == true) {
-          return frequencyToRoomChecks?[frequency]?[roomName];
-        }
-      }
-    }
-    return null;
+    RoomCheckSlotKey key = RoomCheckSlotKey(
+      buildingName: buildingName,
+      room: room,
+      date: date,
+      frequency: frequency,
+    );
+    return _roomChecks[key];
   }
 
-  void saveComment(RoomCheckSlot roomCheckSlot, String comment) {
-    var date = roomCheckSlot.date;
-    if (!_roomChecks.containsKey(date)) {
-      _roomChecks[date] = {};
-    }
-    var frequencyToRoomChecks = _roomChecks[date];
-    var frequency = roomCheckSlot.frequency;
-    if (frequencyToRoomChecks?.containsKey(frequency) != true) {
-      frequencyToRoomChecks?[frequency] = {};
-    }
-    var roomName = roomCheckSlot.roomName;
-    var withComment =
-    frequencyToRoomChecks?[frequency]?[roomName]?.withComment(comment);
+  void saveComment(
+    String buildingName,
+    RoomCheckSlot roomCheckSlot,
+    String comment,
+  ) {
+    // The room check in the map wil be more recent
+    RoomCheckSlotKey key = RoomCheckSlotKey(
+      buildingName: buildingName,
+      room: roomCheckSlot.room,
+      date: roomCheckSlot.date,
+      frequency: roomCheckSlot.frequency,
+    );
+    var withComment = _roomChecks[key]?.withComment(comment);
+
+    // Will use the provided room check since if it is new
     withComment ??= roomCheckSlot.withComment(comment);
     updateRoomCheck(withComment);
   }

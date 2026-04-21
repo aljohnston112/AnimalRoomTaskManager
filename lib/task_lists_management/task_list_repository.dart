@@ -5,6 +5,33 @@ import 'package:flutter/material.dart';
 
 import '../scheduler/scheduling_model.dart';
 
+class TaskListKey {
+  final String buildingName;
+  final Room room;
+  final TaskFrequency frequency;
+
+  TaskListKey({
+    required this.buildingName,
+    required this.room,
+    required this.frequency,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return other is TaskListKey &&
+        other.buildingName == buildingName &&
+        other.room == room &&
+        other.frequency == frequency;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    buildingName.hashCode,
+    room.hashCode,
+    frequency.hashCode,
+  );
+}
+
 class Task {
   final int tid;
   final String description;
@@ -85,23 +112,18 @@ class TaskList {
 
 class TaskListRepository extends ChangeNotifier {
   final Database _database;
-  final Map<Room, TaskList> roomToDailyTaskLists = {};
-  final Map<Room, TaskList> roomToWeeklyTaskLists = {};
-  final Map<Room, TaskList> roomToMonthlyTaskLists = {};
+  final Map<TaskListKey, TaskList> taskLists = {};
 
   TaskListRepository({required Database database}) : _database = database;
 
   Future<void> loadTaskLists() async {
-    roomToDailyTaskLists.clear();
-    roomToWeeklyTaskLists.clear();
-    roomToMonthlyTaskLists.clear();
-
-    final taskLists = await _database.getTaskLists();
-    for (final taskListRecord in taskLists) {
+    this.taskLists.clear();
+    final roomCheckSlots = await _database.getTaskLists();
+    for (final roomCheck in roomCheckSlots) {
       TaskFrequency frequency =
-          (taskListRecord['frequency'] as String).toTaskFrequency;
+          (roomCheck['frequency'] as String).toTaskFrequency;
       Map<int, List<Task>> tasks = {};
-      for (final task in taskListRecord['tasks']) {
+      for (final task in roomCheck['tasks']) {
         final quant = task['quantitative'];
 
         final tid = task['t_id'];
@@ -165,17 +187,18 @@ class TaskListRepository extends ChangeNotifier {
       }
 
       TaskList taskList = TaskList(
-        name: taskListRecord['task_list_name'],
+        name: roomCheck['task_list_name'],
         frequency: frequency,
         tasks: UnmodifiableListView(flattenedTasks),
       );
       Room room = Room(
-        rid: taskListRecord['r_id'],
-        name: taskListRecord['room_name'],
+        rid: roomCheck['r_id'],
+        name: roomCheck['room_name'],
       );
+      TaskListKey taskListKey = TaskListKey(buildingName: buildingName, room: room, frequency: frequency)
       switch (frequency) {
         case TaskFrequency.daily:
-          roomToDailyTaskLists[room] = taskList;
+          this.taskLists[room] = taskList;
           break;
         case TaskFrequency.weekly:
           roomToWeeklyTaskLists[room] = taskList;

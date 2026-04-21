@@ -135,8 +135,7 @@ class SchedulingModel extends ChangeNotifier {
     roomCheck ??= RoomCheckSlot(
       rcid: null,
       date: date,
-      rid: room.rid,
-      roomName: room.name,
+      room: room,
       frequency: frequency,
       uid: user.uid,
       assigned: user.email,

@@ -35,7 +35,7 @@ enum RoomCheckStatus { notStarted, started, done }
 
 class RoomCheckModel extends ChangeNotifier {
   late final RoomCheckSlot _roomCheckSlot;
-  final Room room;
+  final String buildingName;
   final TaskList taskList;
   final RecordRepository _recordRepository;
   final RoomCheckRepository _roomCheckRepository;
@@ -49,7 +49,7 @@ class RoomCheckModel extends ChangeNotifier {
   late bool _shouldHaveADisplayedCommentField;
 
   RoomCheckModel({
-    required this.room,
+    required this.buildingName,
     required this.taskList,
     required RecordRepository recordRepository,
     required RoomCheckRepository roomCheckRepository,
@@ -58,10 +58,12 @@ class RoomCheckModel extends ChangeNotifier {
   }) : _recordRepository = recordRepository,
        _roomCheckRepository = roomCheckRepository,
        _commentController = TextEditingController() {
+    var room = _roomCheckSlot.room;
     final roomCheckSlot = _roomCheckRepository.getRoomCheck(
+      buildingName,
       date,
       taskList.frequency,
-      room.name,
+      room,
     );
     _shouldHaveADisplayedCommentField = roomCheckSlot?.comment != null;
     if (roomCheckSlot != null) {
@@ -70,8 +72,7 @@ class RoomCheckModel extends ChangeNotifier {
       _roomCheckSlot = RoomCheckSlot(
         rcid: null,
         date: date,
-        rid: room.rid,
-        roomName: room.name,
+        room: room,
         frequency: taskList.frequency,
         comment: null,
         uid: loginUseCase.loggedInUser?.uid,
@@ -109,7 +110,7 @@ class RoomCheckModel extends ChangeNotifier {
   /// any that have already been completed
   List<TaskEntryModel> getTaskEntries() {
     var records = _recordRepository.getRecordsForRoom(
-      room,
+      _roomCheckSlot.room,
       date,
       taskList.frequency,
     );
@@ -135,7 +136,7 @@ class RoomCheckModel extends ChangeNotifier {
   /// This toggles the completion status before submission.
   void toggleTaskCompletion(Task task, bool? completed) {
     var records = _recordRepository.getRecordsForRoom(
-      room,
+      _roomCheckSlot.room,
       date,
       taskList.frequency,
     );
@@ -158,7 +159,7 @@ class RoomCheckModel extends ChangeNotifier {
 
   bool isTaskRecorded(Task task) {
     return _recordRepository
-        .getRecordsForRoom(room, date, taskList.frequency)
+        .getRecordsForRoom(_roomCheckSlot.room, date, taskList.frequency)
         .containsKey(task);
   }
 
@@ -166,7 +167,7 @@ class RoomCheckModel extends ChangeNotifier {
     bool allRecordsAdded = true;
     String? comment = _commentController.text;
     if (comment != _roomCheckSlot.comment) {
-      _roomCheckRepository.saveComment(_roomCheckSlot, comment);
+      _roomCheckRepository.saveComment(buildingName, _roomCheckSlot, comment);
     }
     for (var task in taskList.tasks) {
       String? valueText = _quantitativeValueControllers[task]?.text;
@@ -176,7 +177,7 @@ class RoomCheckModel extends ChangeNotifier {
         if (valueText?.isNotEmpty == true) {
           wasRecordAdded = _recordRepository.addRecord(
             QuantitativeRecord(
-              room: room,
+              room: _roomCheckSlot.room,
               task: task,
               dateTime: DateTime.now(),
               recordedValue: double.parse(valueText!),
@@ -186,7 +187,7 @@ class RoomCheckModel extends ChangeNotifier {
         } else if (_completedTasks.contains(task)) {
           wasRecordAdded = _recordRepository.addRecord(
             TaskRecord(
-              room: room,
+              room: _roomCheckSlot.room,
               task: task,
               dateTime: DateTime.now(),
               doneBy: loggedInUser,
@@ -205,7 +206,7 @@ class RoomCheckModel extends ChangeNotifier {
   bool hasUnsavedTasks() {
     bool unsaved = false;
     var records = _recordRepository.getRecordsForRoom(
-      room,
+      _roomCheckSlot.room,
       date,
       taskList.frequency,
     );

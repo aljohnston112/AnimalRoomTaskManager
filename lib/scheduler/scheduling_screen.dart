@@ -122,9 +122,9 @@ class SchedulingScreenCards extends StatelessWidget {
       var dateKey = "$month/$day/$year";
       final taskLists = context
           .watch<TaskListRepository>()
-          .roomToDailyTaskLists;
+          .taskLists;
       cards.add(
-        _buildRoomAssignmentCards(context, taskLists, dateKey, i == 0, (
+        _buildRoomAssignmentCards(context, buildingName, taskLists, dateKey, i == 0, (
           year: year,
           month: month,
           day: day,
@@ -158,7 +158,7 @@ class SchedulingScreenCards extends StatelessWidget {
           .watch<TaskListRepository>()
           .roomToWeeklyTaskLists;
       cards.add(
-        _buildRoomAssignmentCards(context, taskLists, dateKey, i == 0, (
+        _buildRoomAssignmentCards(context, buildingName, taskLists, dateKey, i == 0, (
           year: nextYear,
           month: nextMonth,
           day: nextDay,
@@ -184,6 +184,7 @@ class SchedulingScreenCards extends StatelessWidget {
       children: [
         _buildRoomAssignmentCards(
           context,
+          buildingName,
           taskLists,
           dateKey,
           isCurrentPeriod,
@@ -213,6 +214,7 @@ class SchedulingScreenCards extends StatelessWidget {
 
   Widget _buildRoomAssignmentCards(
     BuildContext context,
+    String buildingName,
     Map<Room, TaskList> roomToTaskList,
     String dateString,
     bool isCurrentPeriod,
@@ -227,6 +229,7 @@ class SchedulingScreenCards extends StatelessWidget {
           title: mediumTitleText(context, dateString),
           children: _buildRoomAssignmentTiles(
             context,
+            buildingName,
             roomToTaskList,
             isCurrentPeriod,
             date
@@ -238,6 +241,7 @@ class SchedulingScreenCards extends StatelessWidget {
 
   List<Widget> _buildRoomAssignmentTiles(
     BuildContext context,
+    String buildingName,
     Map<Room, TaskList> roomToTaskLists,
     bool isCurrentPeriod,
     RoomCheckDate date,
@@ -290,7 +294,7 @@ class SchedulingScreenCards extends StatelessWidget {
                               builder: (_) {
                                 return RoomCheckScreen(
                                   roomCheckModel: RoomCheckModel(
-                                    room: room,
+                                    buildingName: buildingName,
                                     taskList: roomTaskList,
                                     recordRepository: context.read(),
                                     roomCheckRepository: context.read(),

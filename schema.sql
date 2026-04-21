@@ -1,5 +1,5 @@
 SET search_path TO public, auth, pg_temp;
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP TRIGGER IF EXISTS trigger_on_auth_user_created ON auth.users;
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
 SET search_path TO public, auth;
@@ -140,11 +140,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 SET search_path TO public, auth, pg_temp;
-CREATE TRIGGER on_auth_user_created
+CREATE TRIGGER trigger_on_auth_user_created
     AFTER INSERT
     ON auth.users
     FOR EACH ROW
-EXECUTE PROCEDURE public.handle_new_user();
+EXECUTE FUNCTION public.handle_new_user();
 
 CREATE OR REPLACE FUNCTION public.on_user_deleted_purge()
     RETURNS trigger
@@ -167,7 +167,7 @@ CREATE TRIGGER trigger_purge_user
     AFTER UPDATE OF deleted
     ON public.users
     FOR EACH ROW
-EXECUTE PROCEDURE public.on_user_deleted_purge();
+EXECUTE FUNCTION public.on_user_deleted_purge();
 
 -- Facilities --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS facilities
@@ -294,37 +294,78 @@ CREATE POLICY "EnrichmentListsUpdateAuth"
     )
     WITH CHECK (check_is_admin());
 
+-- Buildings ---------------------------------------------------------
+CREATE TABLE buildings
+(
+    b_id    serial PRIMARY KEY,
+    name    bpchar  NOT NULL,
+    deleted boolean NOT NULL
+);
+INSERT INTO buildings(b_id, name, deleted)
+VALUES (0, 'Halsey', FALSE),
+       (1, 'Clow', FALSE);
+SELECT SETVAL(
+               PG_GET_SERIAL_SEQUENCE('buildings', 'b_id'),
+               COALESCE((SELECT MAX(b_id) FROM buildings), 0)
+       );
+ALTER TABLE "public"."buildings"
+    ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT ON TABLE public.buildings TO authenticated;
+REVOKE UPDATE ON public.buildings FROM authenticated;
+GRANT UPDATE (deleted) ON public.buildings TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE buildings_b_id_seq TO authenticated;
+CREATE POLICY "BuildingsSelectAuth"
+    ON "public"."buildings"
+    AS PERMISSIVE
+    FOR SELECT
+    TO authenticated
+    USING (TRUE);
+CREATE POLICY "BuildingsInsertAuth"
+    ON "public"."buildings"
+    AS PERMISSIVE
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (check_is_admin());
+CREATE POLICY "BuildingsUpdateAuth"
+    ON "public"."buildings"
+    AS PERMISSIVE
+    FOR UPDATE
+    TO authenticated
+    USING (check_is_admin())
+    WITH CHECK (check_is_admin());
+
 -- Rooms -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS rooms
 (
     r_id    serial PRIMARY KEY,
+    b_id    integer REFERENCES buildings (b_id)  NOT NULL,
     name    bpchar                               NOT NULL,
     f_id    integer REFERENCES facilities (f_id) NOT NULL,
     l_id    integer REFERENCES labs (l_id),
     el_id   integer REFERENCES enrichment_lists (el_id),
     deleted boolean                              NOT NULL
 );
-INSERT INTO rooms(r_id, name, f_id, l_id, el_id, deleted)
-VALUES (0, 'CACF 36B', 3, 0, NULL, FALSE),
-       (1, 'CACF 36C', 3, 0, NULL, FALSE),
-       (2, 'CACF 36D', 3, 0, NULL, FALSE),
-       (3, 'CACF 36E', 3, 0, NULL, FALSE),
-       (4, 'CACF 36F', 3, 0, NULL, FALSE),
-       (5, 'CACF 36G', 1, 0, NULL, FALSE),
-       (6, 'CACF 36H', 3, 0, NULL, FALSE),
-       (7, 'CACF 36J', 0, 0, NULL, FALSE),
-       (8, 'CACF 36K', 0, 0, NULL, FALSE),
-       (9, 'CACF 36L', 2, 0, NULL, FALSE),
-       (10, 'HACF 17', 1, 3, NULL, FALSE),
-       (11, 'HACF 19A', 3, 3, NULL, FALSE),
-       (12, 'HACF 19B', 3, 0, NULL, FALSE),
-       (13, 'HACF 19C', 3, 3, NULL, FALSE),
-       (14, 'HACF 19D', 4, 0, NULL, FALSE),
-       (15, 'HACF 19E/F', 2, 3, NULL, FALSE),
-       (16, 'HACF 19G', 0, 3, NULL, FALSE),
-       (17, 'HACF 19H', 3, 3, NULL, FALSE),
-       (18, 'HACF 19J', 3, 3, NULL, FALSE),
-       (19, 'HACF 56A', 4, NULL, NULL, FALSE);
+INSERT INTO rooms(r_id, name, f_id, l_id, el_id, deleted, b_id)
+VALUES (0, '36B', 3, 0, NULL, FALSE, 1),
+       (1, '36C', 3, 0, NULL, FALSE, 1),
+       (2, '36D', 3, 0, NULL, FALSE, 1),
+       (3, '36E', 3, 0, NULL, FALSE, 1),
+       (4, '36F', 3, 0, NULL, FALSE, 1),
+       (5, '36G', 1, 0, NULL, FALSE, 1),
+       (6, '36H', 3, 0, NULL, FALSE, 1),
+       (7, '36J', 0, 0, NULL, FALSE, 1),
+       (8, '36K', 0, 0, NULL, FALSE, 1),
+       (9, '36L', 2, 0, NULL, FALSE, 1),
+       (10, '17', 1, 3, NULL, FALSE, 0),
+       (11, '19A', 3, 3, NULL, FALSE, 0),
+       (12, '19B', 3, 0, NULL, FALSE, 0),
+       (13, '19C', 3, 3, NULL, FALSE, 0),
+       (14, '19D', 4, 0, NULL, FALSE, 0),
+       (15, '19E/F', 2, 3, NULL, FALSE, 0),
+       (16, '19G', 0, 3, NULL, FALSE, 0),
+       (17, '19H', 3, 3, NULL, FALSE, 0),
+       (18, '19J', 3, 3, NULL, FALSE, 0),
+       (19, '56A', 4, NULL, NULL, FALSE, 0);
 SELECT SETVAL(
                PG_GET_SERIAL_SEQUENCE('rooms', 'r_id'),
                COALESCE((SELECT MAX(r_id) FROM rooms), 0)
@@ -725,7 +766,15 @@ VALUES (0, 'Room Temperature', FALSE, FALSE),
        (38,
         'Lab Animal Manager Checks Expiration Dates and Replaces as Needed',
         TRUE, FALSE),
-       (39, 'Sanitize Shelves/Racks/Carts', FALSE, FALSE);
+       (39, 'Sanitize Shelves/Racks/Carts', FALSE, FALSE),
+       (40, 'Min Room Temperature', FALSE, FALSE),
+       (41, 'Max Room Temperature', FALSE, FALSE),
+       (42, 'Min Room Humidity', FALSE, FALSE),
+       (43, 'Max Room Humidity', FALSE, FALSE),
+       (44, 'Min Hibernaculum Temperature', FALSE, FALSE),
+       (45, 'Max Hibernaculum Temperature', FALSE, FALSE),
+       (46, 'Min Hibernaculum Humidity', FALSE, FALSE),
+       (47, 'Max Hibernaculum Humidity', FALSE, FALSE);
 SELECT SETVAL(
                PG_GET_SERIAL_SEQUENCE('tasks', 't_id'),
                COALESCE((SELECT MAX(t_id) FROM tasks), 0)
@@ -761,21 +810,19 @@ CREATE POLICY "TasksUpdateAuth"
 -- Quantitative Ranges -----------------------------------------------
 CREATE TABLE IF NOT EXISTS quantitative_ranges
 (
-    qr_id    serial PRIMARY KEY,
-    unit     bpchar  NOT NULL,
-    required boolean NOT NULL,
-    maximum  numeric NOT NULL,
-    minimum  numeric NOT NULL,
-    deleted  boolean NOT NULL,
+    qr_id   serial PRIMARY KEY,
+    unit    bpchar  NOT NULL,
+    maximum numeric NOT NULL,
+    minimum numeric NOT NULL,
+    deleted boolean NOT NULL,
     CHECK ( minimum < maximum )
 );
-INSERT INTO quantitative_ranges (qr_id, unit, required, maximum,
+INSERT INTO quantitative_ranges (qr_id, unit, maximum,
                                  minimum, deleted)
-VALUES (0, 'Fahrenheit', FALSE, 79, 32, FALSE),
-       (1, 'Fahrenheit', FALSE, 42, 32, FALSE),
-       (2, 'RH', TRUE, 99.9, 0, FALSE),
-       (3, 'RH', FALSE, 70, 30, FALSE),
-       (4, 'RH', FALSE, 40, 30, FALSE);
+VALUES (0, 'Fahrenheit', 79, 32, FALSE),
+       (1, 'Fahrenheit', 42, 32, FALSE),
+       (2, 'RH', 100, 0, FALSE),
+       (3, 'RH', 70, 30, FALSE);
 SELECT SETVAL(
                PG_GET_SERIAL_SEQUENCE('quantitative_ranges', 'qr_id'),
                COALESCE((SELECT MAX(qr_id) FROM quantitative_ranges),
@@ -812,17 +859,24 @@ CREATE POLICY "QuantitativeRangesUpdateAuth"
 -- Quantitative Tasks ------------------------------------------------
 CREATE TABLE IF NOT EXISTS quantitative_tasks
 (
-    t_id  integer REFERENCES tasks (t_id)                NOT NULL,
-    qr_id integer REFERENCES quantitative_ranges (qr_id) NOT NULL,
-    PRIMARY KEY (t_id, qr_id)
+    t_id           integer PRIMARY KEY REFERENCES tasks (t_id) NOT NULL,
+    qr_id_warning  integer REFERENCES quantitative_ranges (qr_id),
+    qr_id_required integer REFERENCES quantitative_ranges (qr_id),
+    CONSTRAINT distinct_ranges CHECK (qr_id_warning != qr_id_required)
 );
-INSERT INTO quantitative_tasks (t_id, qr_id)
-VALUES (0, 0),
-       (1, 1),
-       (2, 2),
-       (3, 2),
-       (2, 3),
-       (3, 4);
+INSERT INTO quantitative_tasks (t_id, qr_id_warning, qr_id_required)
+VALUES (0, 0, NULL),
+       (1, 1, NULL),
+       (2, 3, NULL),
+       (3, 3, 2),
+       (40, 0, NULL),
+       (41, 0, NULL),
+       (42, 2, 3),
+       (43, 2, 3),
+       (44, 1, NULL),
+       (45, 1, NULL),
+       (46, 2, 3),
+       (47, 2, 3);
 ALTER TABLE "public"."quantitative_tasks"
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.quantitative_tasks TO authenticated;
@@ -838,120 +892,161 @@ CREATE POLICY "QuantitativeTasksInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (check_is_admin());
+CREATE OR REPLACE FUNCTION check_quantitative_units()
+    RETURNS TRIGGER AS
+$$
+DECLARE
+    unit_warning  text;
+    unit_required text;
+BEGIN
+    IF NEW.qr_id_warning IS NOT NULL AND NEW.qr_id_required IS NOT NULL THEN
+        SELECT unit
+        INTO unit_warning
+        FROM quantitative_ranges
+        WHERE qr_id = NEW.qr_id_warning;
+        SELECT unit
+        INTO unit_required
+        FROM quantitative_ranges
+        WHERE qr_id = NEW.qr_id_required;
+        IF unit_warning != unit_required THEN
+            RAISE EXCEPTION
+                'Mismatched units: warning range unit is % but required range unit is %',
+                unit_warning,
+                unit_required;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE TRIGGER trigger_validate_units
+    BEFORE INSERT OR UPDATE
+    ON quantitative_tasks
+    FOR EACH ROW
+EXECUTE FUNCTION check_quantitative_units();
 
 -- Task List Task Memberships ---------------------------------------------
 CREATE TABLE IF NOT EXISTS task_list_task_memberships
 (
     tl_id integer REFERENCES task_lists (tl_id) NOT NULL,
     t_id  integer REFERENCES tasks (t_id)       NOT NULL,
-    PRIMARY KEY (tl_id, t_id)
+    index integer                               NOT NULL,
+    PRIMARY KEY (tl_id, t_id),
+    CONSTRAINT unique_task_order UNIQUE (tl_id, index) DEFERRABLE
 );
-INSERT INTO task_list_task_memberships (tl_id, t_id)
-VALUES (0, 0),
-       (0, 2),
+INSERT INTO task_list_task_memberships (tl_id, t_id, index)
+VALUES (0, 0, 0),
+       (0, 2, 1),
 
-       (1, 0),
-       (1, 2),
-       (1, 4),
-       (1, 5),
+       (1, 0, 0),
+       (1, 2, 1),
+       (1, 4, 2),
+       (1, 5, 3),
 
-       (2, 0),
-       (2, 2),
-       (2, 4),
-       (2, 5),
+       (2, 0, 0),
+       (2, 2, 1),
+       (2, 4, 2),
+       (2, 5, 3),
 
-       (3, 0),
-       (3, 2),
-       (3, 6),
-       (3, 5),
+       (3, 0, 0),
+       (3, 2, 1),
+       (3, 6, 2),
+       (3, 5, 3),
 
-       (4, 0),
-       (4, 2),
-       (4, 7),
-       (4, 8),
-       (4, 4),
-       (4, 5),
-       (4, 9),
+       (4, 0, 0),
+       (4, 40, 1),
+       (4, 41, 2),
+       (4, 42, 3),
+       (4, 43, 4),
+       (4, 2, 5),
+       (4, 7, 6),
+       (4, 8, 7),
+       (4, 4, 8),
+       (4, 5, 9),
+       (4, 9, 10),
 
-       (5, 1),
-       (5, 3),
-       (5, 7),
-       (5, 8),
-       (5, 4),
-       (5, 5),
-       (5, 9),
+       (5, 1, 0),
+       (5, 44, 1),
+       (5, 45, 2),
+       (5, 46, 3),
+       (5, 47, 4),
+       (5, 3, 5),
+       (5, 7, 6),
+       (5, 8, 7),
+       (5, 4, 8),
+       (5, 5, 9),
+       (5, 9, 10),
 
-       (6, 11),
+       (6, 11, 0),
 
-       (7, 10),
-       (7, 11),
-       (7, 12),
+       (7, 10, 0),
+       (7, 11, 1),
+       (7, 12, 2),
 
-       (8, 10),
-       (8, 11),
+       (8, 10, 0),
+       (8, 11, 1),
 
-       (9, 13),
-       (9, 10),
-       (9, 11),
+       (9, 13, 0),
+       (9, 10, 1),
+       (9, 11, 2),
 
-       (10, 14),
-       (10, 15),
-       (10, 16),
-       (10, 17),
-       (10, 10),
-       (10, 11),
+       (10, 14, 0),
+       (10, 15, 1),
+       (10, 16, 2),
+       (10, 17, 3),
+       (10, 10, 4),
+       (10, 11, 5),
 
-       (11, 14),
-       (11, 15),
-       (11, 16),
-       (11, 17),
-       (11, 10),
-       (11, 11),
+       (11, 14, 0),
+       (11, 15, 1),
+       (11, 16, 2),
+       (11, 17, 3),
+       (11, 10, 4),
+       (11, 11, 5),
 
-       (12, 18),
-       (12, 39),
-       (12, 34),
-       (12, 31),
-       (12, 19),
-       (12, 20),
-       (12, 24),
-       (12, 25),
-       (12, 21),
-       (12, 22),
-       (12, 26),
-       (12, 35),
-       (12, 36),
-       (12, 37),
+       (12, 18, 0),
+       (12, 39, 1),
+       (12, 34, 2),
+       (12, 31, 3),
+       (12, 19, 4),
+       (12, 20, 5),
+       (12, 24, 6),
+       (12, 25, 7),
+       (12, 21, 8),
+       (12, 22, 9),
+       (12, 26, 10),
+       (12, 35, 11),
+       (12, 36, 12),
+       (12, 37, 13),
 
-       (13, 18),
-       (13, 39),
-       (13, 19),
-       (13, 20),
-       (13, 24),
-       (13, 25),
-       (13, 21),
-       (13, 22),
-       (13, 26),
+       (13, 18, 0),
+       (13, 39, 1),
+       (13, 19, 2),
+       (13, 20, 3),
+       (13, 24, 4),
+       (13, 25, 5),
+       (13, 21, 6),
+       (13, 22, 7),
+       (13, 26, 8),
 
-       (14, 18),
-       (14, 27),
-       (14, 28),
-       (14, 29),
-       (14, 30),
-       (14, 31),
-       (14, 32),
-       (14, 20),
-       (14, 21),
-       (14, 22),
-       (14, 33),
+       (14, 18, 0),
+       (14, 27, 1),
+       (14, 28, 2),
+       (14, 29, 3),
+       (14, 30, 4),
+       (14, 31, 5),
+       (14, 32, 6),
+       (14, 20, 7),
+       (14, 21, 8),
+       (14, 22, 9),
+       (14, 33, 10),
 
-       (15, 18),
-       (15, 39),
-       (15, 19),
-       (15, 20),
-       (15, 21),
-       (15, 22),
-       (15, 26);
+       (15, 18, 0),
+       (15, 39, 1),
+       (15, 19, 2),
+       (15, 20, 3),
+       (15, 21, 4),
+       (15, 22, 5),
+       (15, 26, 6);
 ALTER TABLE "public"."task_list_task_memberships"
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.task_list_task_memberships TO authenticated;
@@ -967,6 +1062,20 @@ CREATE POLICY "TaskListTaskMembershipsInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (check_is_admin());
+CREATE OR REPLACE FUNCTION reorder_tasks(payload jsonb)
+    RETURNS void AS
+$$
+BEGIN
+    SET CONSTRAINTS unique_task_order DEFERRED;
+
+    UPDATE task_list_task_memberships AS t
+    SET index = (new_task ->> 'new_index')::int
+    FROM JSONB_ARRAY_ELEMENTS(payload) AS new_task
+    WHERE t.t_id = (new_task ->> 't_id')::int
+      AND t.tl_id = (new_task ->> 'tl_id')::int;
+    SET CONSTRAINTS unique_task_order IMMEDIATE;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Task List Room Memberships ----------------------------------------
 CREATE TABLE IF NOT EXISTS task_list_room_memberships
@@ -1083,10 +1192,9 @@ CREATE TABLE IF NOT EXISTS room_check_slots
     state     room_check_state                NOT NULL,
     frequency public.task_frequency           NOT NULL,
     comment   bpchar,
-    u_id      integer REFERENCES users (u_id)
+    u_id      integer REFERENCES users (u_id),
+    CONSTRAINT unique_room_checks UNIQUE (date_time, r_id, frequency)
 );
-ALTER TABLE room_check_slots
-    ADD CONSTRAINT unique_room_checks UNIQUE (date_time, r_id, frequency);
 ALTER TABLE "public"."room_check_slots"
     ENABLE ROW LEVEL SECURITY;
 ALTER PUBLICATION supabase_realtime ADD TABLE room_check_slots;
@@ -1130,18 +1238,25 @@ CREATE POLICY "RoomCheckSlotsUpdateAuth"
              u_id = get_my_u_id()));
 DROP VIEW IF EXISTS room_check_slots_view;
 CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS
-SELECT rcs.rc_id,
-       rcs.date_time,
-       rcs.state,
-       r.r_id,
-       r.name AS room_name,
-       rcs.frequency,
-       rcs.comment,
-       u.u_id,
-       u.name
+SELECT b.b_id,
+       b.name                AS building_name,
+       COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
+                                  'rc_id', rcs.rc_id,
+                                  'date_time', rcs.date_time,
+                                  'state', rcs.state,
+                                  'room_id', r.r_id,
+                                  'room_name', r.name,
+                                  'frequency', rcs.frequency,
+                                  'comment', rcs.comment,
+                                  'user_id', u.u_id,
+                                  'user_name', u.name
+                          ) ORDER BY rcs.date_time DESC),
+                '[]'::jsonb) AS room_check_slots
 FROM room_check_slots rcs
          JOIN rooms r ON rcs.r_id = r.r_id
-         LEFT JOIN users u ON rcs.u_id = u.u_id;
+         LEFT JOIN buildings b ON b.b_id = r.b_id
+         LEFT JOIN users u ON rcs.u_id = u.u_id
+GROUP BY b.b_id;
 GRANT SELECT ON TABLE public.room_check_slots_view TO authenticated;
 
 -- Task Records ------------------------------------------------------
@@ -1199,9 +1314,7 @@ CREATE POLICY "QuantitativeTaskRecordsUpdateAuth"
     AS PERMISSIVE
     FOR UPDATE
     TO authenticated
-    USING (
-    check_is_admin()
-    )
+    USING (check_is_admin())
     WITH CHECK (check_is_admin());
 
 -- Task Record Users -------------------------------------------------
@@ -1226,50 +1339,69 @@ CREATE POLICY "TaskRecordUsersInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (TRUE);
--- TODO a quantitative range can have at most 2 ranges
--- One range that can be required, and one that is not required
--- If another range is added to a tast, the units must match
-
-DROP VIEW IF EXISTS room_check_tasks_view;
-
 CREATE OR REPLACE VIEW room_check_tasks_view
             WITH
             (security_invoker = on)
 AS
-SELECT r.r_id,
-       r.name                AS room_name,
-       tl.name               AS task_list_name,
-       tl.frequency,
-       COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
-               't_id', t.t_id,
-               'task_name', t.name,
-               'manager_only', t.manager_only,
-               'quantitative', CASE
-                                   WHEN qt.t_id IS NOT NULL
-                                       THEN
-                                       JSONB_BUILD_OBJECT(
-                                               'unit',
-                                               qr.unit,
-                                               'min',
-                                               qr.minimum,
-                                               'max',
-                                               qr.maximum,
-                                               'required',
-                                               qr.required
-                                       ) END)) FILTER (
-                    WHERE t.t_id IS NOT NULL),
-                '[]'::jsonb) AS tasks
-FROM rooms r
-         LEFT JOIN task_list_room_memberships tlrm
-                   ON r.r_id = tlrm.r_id
-         LEFT JOIN task_lists tl ON tlrm.tl_id = tl.tl_id
-         LEFT JOIN task_list_task_memberships tltm
-                   ON tlrm.tl_id = tltm.tl_id
-         LEFT JOIN tasks t ON tltm.t_id = t.t_id
-         LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
-         LEFT JOIN quantitative_ranges qr ON qt.qr_id = qr.qr_id
-GROUP BY r.r_id,
-         tl.name,
-         tl.frequency;
+WITH room_task_groups AS (
+    SELECT
+        r.b_id,
+        r.r_id,
+        r.name AS room_name,
+        tl.name AS task_list_name,
+        tl.frequency,
+        JSONB_AGG(JSONB_BUILD_OBJECT(
+                          't_id', t.t_id,
+                          'task_name', t.name,
+                          'manager_only', t.manager_only,
+                          'quantitative_ranges', CASE WHEN qt.t_id IS NOT NULL THEN
+                                                          JSONB_BUILD_OBJECT(
+                                                                  'unit', COALESCE(qrw.unit, qrr.unit),
+                                                                  'warning_range',
+                                                                  CASE
+                                                                      WHEN qrw.qr_id IS NOT NULL
+                                                                          THEN
+                                                                          JSONB_BUILD_OBJECT(
+                                                                                  'min',
+                                                                                  qrw.minimum,
+                                                                                  'max',
+                                                                                  qrw.maximum)
+                                                                      END,
+                                                                  'required_range',
+                                                                  CASE
+                                                                      WHEN qrr.qr_id IS NOT NULL
+                                                                          THEN
+                                                                          JSONB_BUILD_OBJECT(
+                                                                                  'min',
+                                                                                  qrr.minimum,
+                                                                                  'max',
+                                                                                  qrr.maximum)
+                                                                      END
+                                                          )
+                              END
+                  ) ORDER BY tltm.index) AS tasks
+    FROM rooms r
+             LEFT JOIN task_list_room_memberships tlrm ON r.r_id = tlrm.r_id
+             LEFT JOIN task_lists tl ON tlrm.tl_id = tl.tl_id
+             LEFT JOIN task_list_task_memberships tltm ON tl.tl_id = tltm.tl_id
+             LEFT JOIN tasks t ON tltm.t_id = t.t_id
+             LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
+             LEFT JOIN quantitative_ranges qrw ON qt.qr_id_warning = qrw.qr_id
+             LEFT JOIN quantitative_ranges qrr ON qt.qr_id_required = qrr.qr_id
+    GROUP BY r.r_id, tl.name, tl.frequency
+)
+SELECT
+    b.b_id,
+    b.name AS building_name,
+    COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
+            'r_id', rtg.r_id,
+            'room_name', rtg.room_name,
+            'task_list_name', rtg.task_list_name,
+            'frequency', rtg.frequency,
+            'tasks', rtg.tasks
+                       )), '[]'::jsonb) AS rooms
+FROM buildings b
+         LEFT JOIN room_task_groups rtg ON b.b_id = rtg.b_id
+GROUP BY b.b_id, b.name;
 
 GRANT SELECT ON TABLE public.room_check_tasks_view TO authenticated;
