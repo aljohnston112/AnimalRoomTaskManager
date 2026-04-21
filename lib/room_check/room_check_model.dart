@@ -46,7 +46,7 @@ class RoomCheckModel extends ChangeNotifier {
   final Map<Task, TextEditingController> _quantitativeValueControllers = {};
 
   final Set<Task> _completedTasks = {};
-  bool _shouldHaveADisplayedCommentField;
+  late bool _shouldHaveADisplayedCommentField;
 
   RoomCheckModel({
     required this.room,
@@ -55,14 +55,17 @@ class RoomCheckModel extends ChangeNotifier {
     required RoomCheckRepository roomCheckRepository,
     required this.loginUseCase,
     required this.date,
-    required RoomCheckSlot? roomCheckSlot,
   }) : _recordRepository = recordRepository,
        _roomCheckRepository = roomCheckRepository,
-       _commentController = TextEditingController(),
-       _shouldHaveADisplayedCommentField = roomCheckSlot?.comment != null {
-    // TODO rcid is missing when the record is in the database
+       _commentController = TextEditingController() {
+    final roomCheckSlot = _roomCheckRepository.getRoomCheck(
+      date,
+      taskList.frequency,
+      room.name,
+    );
+    _shouldHaveADisplayedCommentField = roomCheckSlot?.comment != null;
     if (roomCheckSlot != null) {
-      _roomCheckSlot = roomCheckSlot;
+      _roomCheckSlot = roomCheckSlot.withState(RoomCheckState.started);
     } else {
       _roomCheckSlot = RoomCheckSlot(
         rcid: null,
@@ -75,8 +78,8 @@ class RoomCheckModel extends ChangeNotifier {
         assigned: loginUseCase.loggedInUser?.email,
         state: RoomCheckState.started,
       );
-      roomCheckRepository.updateRoomCheck(_roomCheckSlot);
     }
+    roomCheckRepository.updateRoomCheck(_roomCheckSlot);
 
     // Initialize input controllers
     for (var task in taskList.tasks) {

@@ -22,16 +22,34 @@ class Database {
     return Database._(connection.client);
   }
 
-  void subscribeToRoomChecks(void Function(PostgresChangePayload) callback) {
-    _supabase
-        .channel(roomCheckTableName)
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: roomCheckTableName,
-          callback: callback,
-        )
-        .subscribe();
+  Future<bool> signUp({required String email, required String password}) async {
+    // if signUp succeeds,
+    // then the users table has been populated with the signed in user
+    AuthResponse response = await _supabase.auth.signUp(
+      email: email,
+      password: password,
+    );
+    if (response.session == null) {
+      return false;
+    }
+    return true;
+  }
+
+  Future<bool> login({required String email, required String password}) async {
+    try {
+      await _supabase.auth.signInWithPassword(email: email, password: password);
+      return true;
+    } on AuthApiException {
+      return false;
+    }
+  }
+
+  // Subscriptions
+  // ---------------------------------------------------------------------------
+  void subscribeToAuth(void Function(AuthState) onAuthChange) {
+    _supabase.auth.onAuthStateChange.listen((data) {
+      onAuthChange(data);
+    });
   }
 
   void subscribeToFacilities(void Function(PostgresChangePayload) callback) {
@@ -46,15 +64,20 @@ class Database {
         .subscribe();
   }
 
-  Future<bool> login({required String email, required String password}) async {
-    try {
-      await _supabase.auth.signInWithPassword(email: email, password: password);
-      return true;
-    } on AuthApiException {
-      return false;
-    }
+  void subscribeToRoomChecks(void Function(PostgresChangePayload) callback) {
+    _supabase
+        .channel(roomCheckTableName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: roomCheckTableName,
+          callback: callback,
+        )
+        .subscribe();
   }
 
+  // selectors
+  // ---------------------------------------------------------------------------
   Future<List<PostgrestMap>> getRoomCheckSlots() async {
     final today = DateTime.now();
     final startOfToday = DateTime(
@@ -78,36 +101,6 @@ class Database {
     return data.toList();
   }
 
-  Future<bool> signUp({required String email, required String password}) async {
-    // if signUp succeeds,
-    // then the user table has been populated with the signed in user
-    AuthResponse response = await _supabase.auth.signUp(
-      email: email,
-      password: password,
-    );
-    if (response.session == null) {
-      return false;
-    }
-    return true;
-  }
-
-  void subscribeToAuth(void Function(AuthState) onAuthChange) {
-    _supabase.auth.onAuthStateChange.listen((data) {
-      onAuthChange(data);
-    });
-  }
-
-  Future<ur.UserGroup> getUserGroup(String? email) async {
-    final data = await _supabase.from('email_whitelist').select('''
-    ug_id, email
-  ''');
-    final whereEmailMatches = data.where((d) => d["email"] == email);
-    if (whereEmailMatches.isEmpty) {
-      throw Exception("User is not white listed");
-    }
-    return _getUserGroup(whereEmailMatches.first);
-  }
-
   ur.UserGroup _getUserGroup(PostgrestMap postgresMap) {
     switch (postgresMap['ug_id']) {
       case 0:
@@ -118,29 +111,6 @@ class Database {
         return ur.UserGroup.roomChecker;
     }
     throw Exception("Invalid user group");
-  }
-
-  Future<void> assignUserToRoomCheck(
-    RoomCheckSlot roomCheckSlot,
-    String userEmail,
-  ) async {
-    final rcid = roomCheckSlot.rcid;
-
-    if (rcid != null) {
-      await _supabase
-          .from(roomCheckTableName)
-          .update({'u_id': roomCheckSlot.uid})
-          .eq('rc_id', rcid);
-    } else {
-      await _supabase.from(roomCheckTableName).insert({
-        'date_time': roomCheckSlot.date.toSupabaseString(),
-        'r_id': roomCheckSlot.rid,
-        'state': roomCheckSlot.state.toDbString,
-        'frequency': roomCheckSlot.frequency.toDbString,
-        'comment': roomCheckSlot.comment,
-        'u_id': roomCheckSlot.uid,
-      });
-    }
   }
 
   Future<ur.User?> getUserWithAuthId(String authId) async {
@@ -167,19 +137,46 @@ class Database {
         .single();
   }
 
-  Future<void> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
-    // TODO this fails every time despite update working
-    //  in the supabase console when impersonating the user with matching u_id
-    await _supabase.from('room_check_slots').upsert({
-      if (roomCheckSlot.rcid != null) ...{'rc_id': roomCheckSlot.rcid},
-
+  // inserts/updates
+  // ---------------------------------------------------------------------------
+  Future<void> insertRoomCheck(RoomCheckSlot roomCheckSlot) async {
+    await _supabase.from(roomCheckTableName).insert({
       'date_time': roomCheckSlot.date.toSupabaseString(),
       'r_id': roomCheckSlot.rid,
       'state': roomCheckSlot.state.toDbString,
       'frequency': roomCheckSlot.frequency.toDbString,
       'comment': roomCheckSlot.comment,
       'u_id': roomCheckSlot.uid,
-    }, onConflict: 'date_time, r_id, frequency');
+    });
+  }
+
+  Future<void> assignUserToRoomCheck(RoomCheckSlot roomCheckSlot) async {
+    final rcid = roomCheckSlot.rcid;
+    if (rcid != null) {
+      await _supabase
+          .from(roomCheckTableName)
+          .update({'u_id': roomCheckSlot.uid})
+          .eq('rc_id', rcid);
+    } else {
+      await insertRoomCheck(roomCheckSlot);
+    }
+  }
+
+  Future<void> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
+    // TODO insert can throw if records are not up to date
+    var rcid = roomCheckSlot.rcid;
+    if (rcid != null) {
+      await _supabase
+          .from('room_check_slots')
+          .update({
+            'state': roomCheckSlot.state.toDbString,
+            'comment': roomCheckSlot.comment,
+            'u_id': roomCheckSlot.uid,
+          })
+          .eq('rc_id', rcid);
+    } else {
+      await insertRoomCheck(roomCheckSlot);
+    }
   }
 
 }

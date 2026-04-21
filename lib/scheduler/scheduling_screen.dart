@@ -124,7 +124,7 @@ class SchedulingScreenCards extends StatelessWidget {
           .watch<TaskListRepository>()
           .roomToDailyTaskLists;
       cards.add(
-        _buildRoomAssignmentCard(context, taskLists, dateKey, i == 0, (
+        _buildRoomAssignmentCards(context, taskLists, dateKey, i == 0, (
           year: year,
           month: month,
           day: day,
@@ -158,7 +158,7 @@ class SchedulingScreenCards extends StatelessWidget {
           .watch<TaskListRepository>()
           .roomToWeeklyTaskLists;
       cards.add(
-        _buildRoomAssignmentCard(context, taskLists, dateKey, i == 0, (
+        _buildRoomAssignmentCards(context, taskLists, dateKey, i == 0, (
           year: nextYear,
           month: nextMonth,
           day: nextDay,
@@ -182,11 +182,13 @@ class SchedulingScreenCards extends StatelessWidget {
     return SchedulerListView(
       title: "Monthly Scheduler",
       children: [
-        _buildRoomAssignmentCard(context, taskLists, dateKey, isCurrentPeriod, (
-          year: now.year,
-          month: now.month,
-          day: 1,
-        )),
+        _buildRoomAssignmentCards(
+          context,
+          taskLists,
+          dateKey,
+          isCurrentPeriod,
+          (year: now.year, month: now.month, day: 1),
+        ),
       ],
     );
   }
@@ -209,7 +211,7 @@ class SchedulingScreenCards extends StatelessWidget {
     return monthNames[month - 1];
   }
 
-  Widget _buildRoomAssignmentCard(
+  Widget _buildRoomAssignmentCards(
     BuildContext context,
     Map<Room, TaskList> roomToTaskList,
     String dateString,
@@ -227,8 +229,7 @@ class SchedulingScreenCards extends StatelessWidget {
             context,
             roomToTaskList,
             isCurrentPeriod,
-            date,
-            _taskFrequency,
+            date
           ),
         ),
       ),
@@ -240,89 +241,73 @@ class SchedulingScreenCards extends StatelessWidget {
     Map<Room, TaskList> roomToTaskLists,
     bool isCurrentPeriod,
     RoomCheckDate date,
-    TaskFrequency frequency,
   ) {
     final List<Room> rooms = roomToTaskLists.keys.toList();
     List<Widget> cards = [];
     for (var room in rooms) {
-      var roomTaskList = roomToTaskLists[room]!;
+      final roomTaskList = roomToTaskLists[room]!;
+      final frequency = roomTaskList.frequency;
       cards.add(
-        Selector2(
-          selector: (context, RecordRepository rr, RoomCheckRepository rcr) {
-            var recordMap = context.select(
-              (RecordRepository r) =>
-                  r.getRecordsForRoom(room, date, frequency),
-            );
-            bool done = roomTaskList.tasks.every(
-              (t) => recordMap.keys.contains(t),
-            );
-            User? doneBy;
-            if (recordMap.isNotEmpty) {
-              doneBy = recordMap.values.first.doneBy;
-            }
-            return (done, doneBy, rcr.getRoomCheck(date, frequency, room.name));
-          },
-          builder: (context, data, c) {
-            var (done, doneBy, roomCheck) = data;
+        ListenableBuilder(
+          listenable: schedulingModel,
+          builder: (context, _) {
             var logInUseCase = context.read<LoginUseCase>();
-            return ListenableBuilder(
-              listenable: schedulingModel,
-              builder: (context, _) => Card(
-                child: Padding(
-                  padding: insets8,
-                  child: Column(
-                    children: [
-                      mediumTitleText(context, room.name),
-                      if (!done) ...[
-                        padding8,
-                        mediumTitleText(
-                          context,
-                          _getAssignedUserString(
-                            schedulingModel.getUserAssignedToRoom(
-                              date,
-                              room.name,
-                              frequency,
-                            ),
+            final TaskListState(:tasksDone, :doneBy) = schedulingModel
+                .getTaskListState(roomTaskList, room, date);
+            return Card(
+              child: Padding(
+                padding: insets8,
+                child: Column(
+                  children: [
+                    mediumTitleText(context, room.name),
+                    if (!tasksDone) ...[
+                      padding8,
+                      mediumTitleText(
+                        context,
+                        _getAssignedUserString(
+                          schedulingModel.getUserAssignedToRoom(
+                            date,
+                            room.name,
+                            frequency,
                           ),
                         ),
-                      ],
-                      padding8,
-                      if (done && doneBy != null) ...[
-                        mediumTitleText(context, _getDoneByString(doneBy)),
-                      ] else ...[
-                        _buildAssignmentButton(context, date, room),
-                      ],
-                      if (isCurrentPeriod && !done) ...[
-                        padding8,
-                        FilledButton(
-                          onPressed: () async {
-                            // TODO assign room check if unassigned
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) {
-                                  return RoomCheckScreen(
-                                    roomCheckModel: RoomCheckModel(
-                                      room: room,
-                                      taskList: roomTaskList,
-                                      recordRepository: context.read(),
-                                      roomCheckRepository: context.read(),
-                                      date: date,
-                                      loginUseCase: logInUseCase,
-                                      roomCheckSlot: roomCheck,
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                            // Reload after finishing, as there may be updates
-                            schedulingModel.refreshData();
-                          },
-                          child: const Text("Start"),
-                        ),
-                      ],
+                      ),
                     ],
-                  ),
+                    padding8,
+                    if (tasksDone && doneBy != null) ...[
+                      mediumTitleText(context, _getDoneByString(doneBy)),
+                    ] else ...[
+                      _buildAssignmentButton(context, date, room),
+                    ],
+                    if (isCurrentPeriod && !tasksDone) ...[
+                      padding8,
+                      FilledButton(
+                        onPressed: () async {
+                          // TODO assign room check if unassigned
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) {
+                                return RoomCheckScreen(
+                                  roomCheckModel: RoomCheckModel(
+                                    room: room,
+                                    taskList: roomTaskList,
+                                    recordRepository: context.read(),
+                                    roomCheckRepository: context.read(),
+                                    date: date,
+                                    loginUseCase: logInUseCase,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                          // Reload after finishing, as there may be updates
+                          schedulingModel.refreshData();
+                        },
+                        child: const Text("Start"),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             );

@@ -93,9 +93,23 @@ class RoomCheckSlot {
       state: state,
     );
   }
+
+  RoomCheckSlot withState(RoomCheckState started) {
+    return RoomCheckSlot(
+      rcid: rcid,
+      date: date,
+      rid: rid,
+      roomName: roomName,
+      frequency: frequency,
+      comment: comment,
+      uid: uid,
+      assigned: assigned,
+      state: RoomCheckState.started,
+    );
+  }
 }
 
-class RoomCheckRepository extends ChangeNotifier {
+class RoomCheckRepository {
   final Database _database;
 
   final Map<RoomCheckDate, Map<TaskFrequency, Map<String, RoomCheckSlot>>>
@@ -169,8 +183,8 @@ class RoomCheckRepository extends ChangeNotifier {
     return roomCheck;
   }
 
-  void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot, String user) {
-    _database.assignUserToRoomCheck(roomCheckSlot, user);
+  void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot) {
+    _database.assignUserToRoomCheck(roomCheckSlot);
   }
 
   RoomCheckSlot? getRoomCheck(

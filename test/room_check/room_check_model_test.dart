@@ -57,8 +57,7 @@ void testRoomCheckModel() {
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: DateTime.now().toRoomCheckDate(),
-      loginUseCase: loginUseCase,
-      roomCheckSlot: null,
+      loginUseCase: loginUseCase
     );
 
     expect(roomCheckModel.taskList, taskList);
@@ -107,8 +106,7 @@ void testRoomCheckModel() {
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: DateTime.now().toRoomCheckDate(),
-      loginUseCase: loginUseCase,
-      roomCheckSlot: null,
+      loginUseCase: loginUseCase
     );
     expect(roomCheckModel.isTaskCompleted(taskB), false);
     roomCheckModel.toggleTaskCompletion(taskB, true);
@@ -130,8 +128,7 @@ void testRoomCheckModel() {
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: DateTime.now().toRoomCheckDate(),
-      loginUseCase: loginUseCase,
-      roomCheckSlot: null,
+      loginUseCase: loginUseCase
     );
     expect(roomCheckModel.shouldCommentBeDisplayed(), false);
     roomCheckModel.onAddCommentClicked();
@@ -154,8 +151,7 @@ void testRoomCheckModel() {
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: roomCheckDate,
-      loginUseCase: loginUseCase,
-      roomCheckSlot: null,
+      loginUseCase: loginUseCase
     );
     var comment = "I'm a comment";
     roomCheckModel.toggleTaskCompletion(taskC, true);

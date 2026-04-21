@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/foundation.dart';
@@ -13,7 +14,15 @@ class Room {
   Room({required this.rid, required this.name});
 }
 
+class TaskListState {
+  final bool tasksDone;
+  final User? doneBy;
+
+  TaskListState({required this.tasksDone, required this.doneBy});
+}
+
 class SchedulingModel extends ChangeNotifier {
+  final RecordRepository _recordRepository;
   final RoomCheckRepository _roomCheckRepository;
   final TaskListRepository _taskListRepository;
 
@@ -35,11 +44,16 @@ class SchedulingModel extends ChangeNotifier {
   _frequencyToRoomChecks;
 
   SchedulingModel({
+    required RecordRepository recordRepository,
     required RoomCheckRepository roomCheckRepository,
     required TaskListRepository taskListRepository,
-  }) : _roomCheckRepository = roomCheckRepository,
+  }) : _recordRepository = recordRepository,
+       _roomCheckRepository = roomCheckRepository,
        _taskListRepository = taskListRepository {
+    _roomCheckRepository.loadRoomChecks();
+    _taskListRepository.loadTaskLists();
     updateViews();
+    // TODO only the changed/new rows should be updated
     roomCheckRepository.roomChecksNotifier.addListener(() {
       final roomChecks = roomCheckRepository.roomChecksNotifier.value;
       for (final entry in roomChecks.entries) {
@@ -70,9 +84,9 @@ class SchedulingModel extends ChangeNotifier {
             }
           }
         }
-        updateViews();
-        notifyListeners();
       }
+      updateViews();
+      notifyListeners();
     });
   }
 
@@ -129,7 +143,7 @@ class SchedulingModel extends ChangeNotifier {
       comment: null,
       state: RoomCheckState.notStarted,
     );
-    _roomCheckRepository.assignUserToRoomCheck(roomCheck, user.email);
+    _roomCheckRepository.assignUserToRoomCheck(roomCheck);
     notifyListeners();
   }
 
@@ -137,4 +151,30 @@ class SchedulingModel extends ChangeNotifier {
     _taskListRepository.loadTaskLists();
     _roomCheckRepository.loadRoomChecks();
   }
+
+  TaskListState getTaskListState(
+    TaskList taskList,
+    Room room,
+    RoomCheckDate date,
+  ) {
+    var recordMap = _recordRepository.getRecordsForRoom(
+      room,
+      date,
+      taskList.frequency,
+    );
+
+    // TODO list<User>
+    User? doneBy;
+    if (recordMap.isNotEmpty) {
+      doneBy = recordMap.values.first.doneBy;
+    }
+
+    return TaskListState(
+      tasksDone: taskList.tasks.every((t) => recordMap.keys.contains(t)),
+      doneBy: doneBy,
+    );
+  }
+
+
+
 }
