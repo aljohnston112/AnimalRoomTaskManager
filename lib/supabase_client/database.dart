@@ -85,17 +85,12 @@ class Database {
       today.month,
       today.day,
     ).toIso8601String();
-    final data = await _supabase
-        .from('room_check_slots_view')
-        .select('''
-    *
-  ''')
-        .gte('date_time', startOfToday);
+    final data = await _supabase.from('room_check_slots_view').select('''*''');
     return data.toList();
   }
 
   Future<List<PostgrestMap>> getTaskLists() async {
-    final data = await _supabase.from('room_check_tasks_view').select('''
+    final data = await _supabase.from('room_check_task_lists_view').select('''
     *
   ''');
     return data.toList();
@@ -131,10 +126,24 @@ class Database {
 
   Future<PostgrestMap> getRoomCheckWithId(int rcid) async {
     return await _supabase
-        .from('room_check_slots_view')
+        .from('full_room_checks_view')
         .select()
         .eq('rc_id', rcid)
         .single();
+  }
+
+  Future<int> getRoomCheckRCID(
+    RoomCheckDate date,
+    int rid,
+    TaskFrequency frequency,
+  ) async {
+    return (await _supabase
+        .from('room_check_slots')
+        .select('rc_id')
+        .eq('r_id', rid)
+        .eq('date_time', date.toSupabaseString())
+        .eq('frequency', frequency.toDbString)
+        .single())['rc_id'];
   }
 
   // inserts/updates
@@ -142,11 +151,11 @@ class Database {
   Future<void> insertRoomCheck(RoomCheckSlot roomCheckSlot) async {
     await _supabase.from(roomCheckTableName).insert({
       'date_time': roomCheckSlot.date.toSupabaseString(),
-      'r_id': roomCheckSlot.rid,
+      'r_id': roomCheckSlot.room.rid,
       'state': roomCheckSlot.state.toDbString,
       'frequency': roomCheckSlot.frequency.toDbString,
       'comment': roomCheckSlot.comment,
-      'u_id': roomCheckSlot.uid,
+      'u_id': roomCheckSlot.user?.uid,
     });
   }
 
@@ -155,10 +164,29 @@ class Database {
     if (rcid != null) {
       await _supabase
           .from(roomCheckTableName)
-          .update({'u_id': roomCheckSlot.uid})
+          .update({'u_id': roomCheckSlot.user?.uid})
           .eq('rc_id', rcid);
     } else {
-      await insertRoomCheck(roomCheckSlot);
+      // this is needed since there may be a race condition between a
+      // room check slot getting pushed to supabase and downloaded,
+      // and when trying to insert a room check with a new assignment
+      try {
+        await insertRoomCheck(roomCheckSlot);
+      } on PostgrestException catch (ex, e) {
+        if (ex.message.contains("duplicate key")) {
+          final rcid = await getRoomCheckRCID(
+            roomCheckSlot.date,
+            roomCheckSlot.room.rid,
+            roomCheckSlot.frequency,
+          );
+          await _supabase
+              .from(roomCheckTableName)
+              .update({'u_id': roomCheckSlot.user?.uid})
+              .eq('rc_id', rcid);
+        } else {
+          rethrow;
+        }
+      }
     }
   }
 
@@ -171,12 +199,11 @@ class Database {
           .update({
             'state': roomCheckSlot.state.toDbString,
             'comment': roomCheckSlot.comment,
-            'u_id': roomCheckSlot.uid,
+            'u_id': roomCheckSlot.user?.uid,
           })
           .eq('rc_id', rcid);
     } else {
       await insertRoomCheck(roomCheckSlot);
     }
   }
-
 }

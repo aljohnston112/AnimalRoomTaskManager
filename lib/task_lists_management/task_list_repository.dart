@@ -25,11 +25,8 @@ class TaskListKey {
   }
 
   @override
-  int get hashCode => Object.hash(
-    buildingName.hashCode,
-    room.hashCode,
-    frequency.hashCode,
-  );
+  int get hashCode =>
+      Object.hash(buildingName.hashCode, room.hashCode, frequency.hashCode);
 }
 
 class Task {
@@ -117,94 +114,95 @@ class TaskListRepository extends ChangeNotifier {
   TaskListRepository({required Database database}) : _database = database;
 
   Future<void> loadTaskLists() async {
-    this.taskLists.clear();
-    final roomCheckSlots = await _database.getTaskLists();
-    for (final roomCheck in roomCheckSlots) {
-      TaskFrequency frequency =
-          (roomCheck['frequency'] as String).toTaskFrequency;
-      Map<int, List<Task>> tasks = {};
-      for (final task in roomCheck['tasks']) {
-        final quant = task['quantitative'];
-
-        final tid = task['t_id'];
-        if (!tasks.containsKey(tid)) {
-          tasks[tid] = [];
-        }
-        final taskName = task['task_name'];
-        final isManagerTask = task['manager_only'];
-        if (quant != null) {
-          tasks[tid]!.add(
-            QuantitativeTask(
-              tid: tid,
-              description: taskName,
-              ranges: [
-                QuantitativeRange(
-                  min: quant['min'],
-                  max: quant['max'],
-                  units: quant['unit'],
-                  isRequired: false,
-                ),
-              ],
-              managerOnly: isManagerTask,
-              frequency: frequency,
-            ),
-          );
-        } else {
-          tasks[tid]!.add(
-            Task(
-              tid: tid,
-              description: taskName,
-              managerOnly: isManagerTask,
-              frequency: frequency,
-            ),
-          );
-        }
-      }
-
-      // Any quantitative tasks with more than 1 range hae 2 ranges
-      // One range for warning the user of an out of range value,
-      // and another range that the user cannot record a value out of
-      List<Task> flattenedTasks = [];
-      for (final MapEntry(key: _, value: tasks) in tasks.entries) {
-        if (tasks.length == 1) {
-          flattenedTasks.add(tasks.first);
-        } else {
-          final task = tasks.first;
-          List<QuantitativeRange> ranges = [];
-          for (final task in tasks) {
-            ranges.addAll((task as QuantitativeTask).ranges);
+    taskLists.clear();
+    final map = await _database.getTaskLists();
+    for (final buildingMap in map) {
+      final bid = buildingMap['b_id'];
+      final buildingName = buildingMap['building_name'];
+      final taskListsByFrequency = buildingMap['task_lists_by_frequency'];
+      for (final taskListsWithFrequency in taskListsByFrequency) {
+        final frequency =
+            (taskListsWithFrequency['frequency'] as String).toTaskFrequency;
+        final taskLists = taskListsWithFrequency['task_lists'];
+        for (final taskList in taskLists) {
+          final tlid = taskList['tl_id'];
+          final taskListName = taskList['task_list_name'];
+          final roomsDB = taskList['rooms'];
+          final tasksDB = taskList['tasks'];
+          // Rooms with the task list
+          List<Room> rooms = [];
+          for (final roomDB in roomsDB) {
+            rooms.add(Room(rid: roomDB['r_id'], name: roomDB['room_name']));
           }
-          flattenedTasks.add(
-            QuantitativeTask(
-              description: task.description,
-              ranges: ranges,
-              managerOnly: task.managerOnly,
-              tid: task.tid,
-              frequency: frequency
-            ),
-          );
-        }
-      }
+          // Tasks in the task list
+          List<Task> tasks = [];
+          if (tasksDB != null) {
+            for (final task in tasksDB) {
+              final tid = task['t_id'];
+              final taskName = task['task_name'];
+              final isManagerTask = task['manager_only'];
+              final quantitativeRangesDB = task['quantitative_ranges'];
+              List<QuantitativeRange> quantitativeRanges = [];
+              if (quantitativeRangesDB != null) {
+                final unit = quantitativeRangesDB['unit'];
+                final warningRangeDB = quantitativeRangesDB['warning_range'];
+                QuantitativeRange? warningRange;
+                if (warningRangeDB != null) {
+                  warningRange = QuantitativeRange(
+                    min: warningRangeDB['min'],
+                    max: warningRangeDB['max'],
+                    units: unit,
+                    isRequired: false,
+                  );
+                  quantitativeRanges.add(warningRange);
+                }
+                final requiredRangeDB = quantitativeRangesDB['required_range'];
+                QuantitativeRange? requiredRange;
+                if (requiredRangeDB != null) {
+                  requiredRange = QuantitativeRange(
+                    min: requiredRangeDB['min'],
+                    max: requiredRangeDB['max'],
+                    units: unit,
+                    isRequired: true,
+                  );
+                  quantitativeRanges.add(requiredRange);
+                }
+                tasks.add(
+                  QuantitativeTask(
+                    description: taskName,
+                    ranges: quantitativeRanges,
+                    managerOnly: isManagerTask,
+                    tid: tid,
+                    frequency: frequency,
+                  ),
+                );
+              } else {
+                tasks.add(
+                  Task(
+                    description: taskName,
+                    managerOnly: isManagerTask,
+                    tid: tid,
+                    frequency: frequency,
+                  ),
+                );
+              }
 
-      TaskList taskList = TaskList(
-        name: roomCheck['task_list_name'],
-        frequency: frequency,
-        tasks: UnmodifiableListView(flattenedTasks),
-      );
-      Room room = Room(
-        rid: roomCheck['r_id'],
-        name: roomCheck['room_name'],
-      );
-      TaskListKey taskListKey = TaskListKey(buildingName: buildingName, room: room, frequency: frequency)
-      switch (frequency) {
-        case TaskFrequency.daily:
-          this.taskLists[room] = taskList;
-          break;
-        case TaskFrequency.weekly:
-          roomToWeeklyTaskLists[room] = taskList;
-          break;
-        case TaskFrequency.monthly:
-          roomToMonthlyTaskLists[room] = taskList;
+              TaskList taskList = TaskList(
+                name: taskListName,
+                frequency: frequency,
+                tasks: UnmodifiableListView(tasks),
+              );
+              for (final room in rooms) {
+                TaskListKey taskListKey = TaskListKey(
+                  buildingName: buildingName,
+                  room: room,
+                  frequency: frequency,
+                );
+                this.taskLists[taskListKey] = taskList;
+              }
+            }
+          }
+        }
       }
     }
   }

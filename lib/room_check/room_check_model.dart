@@ -1,10 +1,10 @@
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/cupertino.dart';
 
-import '../scheduler/scheduling_model.dart';
 import '../user_management/user_repository.dart';
 
 /// User task entry model
@@ -55,10 +55,10 @@ class RoomCheckModel extends ChangeNotifier {
     required RoomCheckRepository roomCheckRepository,
     required this.loginUseCase,
     required this.date,
+    required Room room,
   }) : _recordRepository = recordRepository,
        _roomCheckRepository = roomCheckRepository,
        _commentController = TextEditingController() {
-    var room = _roomCheckSlot.room;
     final roomCheckSlot = _roomCheckRepository.getRoomCheck(
       buildingName,
       date,
@@ -75,8 +75,7 @@ class RoomCheckModel extends ChangeNotifier {
         room: room,
         frequency: taskList.frequency,
         comment: null,
-        uid: loginUseCase.loggedInUser?.uid,
-        assigned: loginUseCase.loggedInUser?.email,
+        user: loginUseCase.loggedInUser,
         state: RoomCheckState.started,
       );
     }

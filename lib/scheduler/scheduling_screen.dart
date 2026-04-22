@@ -1,5 +1,4 @@
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
-import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:animal_room_task_manager/theme_data.dart';
@@ -36,8 +35,8 @@ class SchedulingScreen extends StatelessWidget {
   Widget _buildDailySchedulingButton(BuildContext context) {
     return FilledButton(
       child: Text("Daily"),
-      onPressed: () {
-        Navigator.push(
+      onPressed: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => SchedulingScreenCards(
@@ -53,8 +52,8 @@ class SchedulingScreen extends StatelessWidget {
   Widget _buildWeeklySchedulingButton(BuildContext context) {
     return FilledButton(
       child: Text("Weekly"),
-      onPressed: () {
-        Navigator.push(
+      onPressed: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => SchedulingScreenCards(
@@ -70,8 +69,8 @@ class SchedulingScreen extends StatelessWidget {
   Widget _buildMonthlySchedulingButton(BuildContext context) {
     return FilledButton(
       child: Text("Monthly"),
-      onPressed: () {
-        Navigator.push(
+      onPressed: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (_) => SchedulingScreenCards(
@@ -99,37 +98,59 @@ class SchedulingScreenCards extends StatelessWidget {
   Widget build(BuildContext context) {
     // Create the expanding cards that contain the room assignments
     final now = DateTime.now();
-    switch (_taskFrequency) {
-      case TaskFrequency.daily:
-        return _buildDailyTaskCardList(now, context);
-      case TaskFrequency.weekly:
-        return _buildWeeklyTaskCardList(now, context);
-      case TaskFrequency.monthly:
-        return _buildMonthlyTaskCardList(now, context);
-    }
+    return buildScaffold(
+      title: switch (_taskFrequency) {
+        TaskFrequency.daily => "Daily Tasks",
+        TaskFrequency.weekly => "Weekly Tasks",
+        TaskFrequency.monthly => "Monthly Tasks",
+      },
+      child: switch (_taskFrequency) {
+        TaskFrequency.daily => _buildDailyTaskCardList(now, context),
+        TaskFrequency.weekly => _buildWeeklyTaskCardList(now, context),
+        TaskFrequency.monthly => _buildMonthlyTaskCardList(now, context),
+      },
+    );
   }
 
   SchedulerListView _buildDailyTaskCardList(
     DateTime now,
     BuildContext context,
   ) {
-    List<Widget> cards = [];
+    final taskLists = Map.fromEntries(
+      context.watch<TaskListRepository>().taskLists.entries.where(
+        (e) => e.key.frequency == TaskFrequency.daily,
+      ),
+    );
+    final List<String> uniqueBuildings = taskLists.keys
+        .map((key) => key.buildingName)
+        .toSet()
+        .toList();
+    uniqueBuildings.sort();
+
+    Map<String, List<Widget>> cards = {};
+    for (final building in uniqueBuildings) {
+      cards[building] = [];
+    }
     for (int i = 0; i < 32; i++) {
       final date = now.add(Duration(days: i));
       final month = date.month;
       final day = date.day;
       final year = date.year;
       var dateKey = "$month/$day/$year";
-      final taskLists = context
-          .watch<TaskListRepository>()
-          .taskLists;
-      cards.add(
-        _buildRoomAssignmentCards(context, buildingName, taskLists, dateKey, i == 0, (
-          year: year,
-          month: month,
-          day: day,
-        )),
-      );
+      for (final building in uniqueBuildings) {
+        final taskInBuilding = Map.fromEntries(
+          taskLists.entries
+              .where((e) => e.key.buildingName == building)
+              .toList(),
+        );
+        cards[building]!.add(
+          _buildRoomAssignmentCards(context, taskInBuilding, dateKey, i == 0, (
+            year: year,
+            month: month,
+            day: day,
+          )),
+        );
+      }
     }
     return SchedulerListView(title: "Daily Scheduler", children: cards);
   }
@@ -138,7 +159,21 @@ class SchedulingScreenCards extends StatelessWidget {
     DateTime now,
     BuildContext context,
   ) {
-    List<Widget> cards = [];
+    final taskLists = Map.fromEntries(
+      context.watch<TaskListRepository>().taskLists.entries.where(
+        (e) => e.key.frequency == TaskFrequency.weekly,
+      ),
+    );
+    final List<String> uniqueBuildings = taskLists.keys
+        .map((key) => key.buildingName)
+        .toSet()
+        .toList();
+    uniqueBuildings.sort();
+
+    Map<String, List<Widget>> cards = {};
+    for (final building in uniqueBuildings) {
+      cards[building] = [];
+    }
     var previousSunday = now.subtract(Duration(days: now.weekday % 7));
     for (int i = 0; i < 4; i++) {
       previousSunday = previousSunday.add(Duration(days: i * 7));
@@ -154,17 +189,22 @@ class SchedulingScreenCards extends StatelessWidget {
       var dateKey =
           "$previousMonth/$previousDay/$previousYear to "
           "$nextMonth/$nextDay/$nextYear";
-      final taskLists = context
-          .watch<TaskListRepository>()
-          .roomToWeeklyTaskLists;
-      cards.add(
-        _buildRoomAssignmentCards(context, buildingName, taskLists, dateKey, i == 0, (
-          year: nextYear,
-          month: nextMonth,
-          day: nextDay,
-        )),
-      );
+      for (final building in uniqueBuildings) {
+        final tasksInBuilding = Map.fromEntries(
+          taskLists.entries
+              .where((e) => e.key.buildingName == building)
+              .toList(),
+        );
+        cards[building]!.add(
+          _buildRoomAssignmentCards(context, tasksInBuilding, dateKey, i == 0, (
+            year: nextYear,
+            month: nextMonth,
+            day: nextDay,
+          )),
+        );
+      }
     }
+
     return SchedulerListView(title: "Weekly Scheduler", children: cards);
   }
 
@@ -172,26 +212,41 @@ class SchedulingScreenCards extends StatelessWidget {
     DateTime now,
     BuildContext context,
   ) {
+    final taskLists = Map.fromEntries(
+      context.watch<TaskListRepository>().taskLists.entries.where(
+        (e) => e.key.frequency == TaskFrequency.monthly,
+      ),
+    );
+    final List<String> uniqueBuildings = taskLists.keys
+        .map((key) => key.buildingName)
+        .toSet()
+        .toList();
+    uniqueBuildings.sort();
+
+    Map<String, List<Widget>> cards = {};
+    for (final building in uniqueBuildings) {
+      cards[building] = [];
+    }
+
     final String monthName = _getMonthName(now.month);
     final String dateKey = "$monthName ${now.year}";
-
     var isCurrentPeriod = true;
-    final taskLists = context
-        .watch<TaskListRepository>()
-        .roomToMonthlyTaskLists;
-    return SchedulerListView(
-      title: "Monthly Scheduler",
-      children: [
+
+    for (final building in uniqueBuildings) {
+      final tasksInBuilding = Map.fromEntries(
+        taskLists.entries.where((e) => e.key.buildingName == building).toList(),
+      );
+      cards[building]!.add(
         _buildRoomAssignmentCards(
           context,
-          buildingName,
-          taskLists,
+          tasksInBuilding,
           dateKey,
           isCurrentPeriod,
           (year: now.year, month: now.month, day: 1),
         ),
-      ],
-    );
+      );
+    }
+    return SchedulerListView(title: "Monthly Scheduler", children: cards);
   }
 
   String _getMonthName(int month) {
@@ -214,8 +269,7 @@ class SchedulingScreenCards extends StatelessWidget {
 
   Widget _buildRoomAssignmentCards(
     BuildContext context,
-    String buildingName,
-    Map<Room, TaskList> roomToTaskList,
+    Map<TaskListKey, TaskList> taskLists,
     String dateString,
     bool isCurrentPeriod,
     RoomCheckDate date,
@@ -229,10 +283,9 @@ class SchedulingScreenCards extends StatelessWidget {
           title: mediumTitleText(context, dateString),
           children: _buildRoomAssignmentTiles(
             context,
-            buildingName,
-            roomToTaskList,
+            taskLists,
             isCurrentPeriod,
-            date
+            date,
           ),
         ),
       ),
@@ -241,15 +294,14 @@ class SchedulingScreenCards extends StatelessWidget {
 
   List<Widget> _buildRoomAssignmentTiles(
     BuildContext context,
-    String buildingName,
-    Map<Room, TaskList> roomToTaskLists,
+    Map<TaskListKey, TaskList> taskLists,
     bool isCurrentPeriod,
     RoomCheckDate date,
   ) {
-    final List<Room> rooms = roomToTaskLists.keys.toList();
+    final List<TaskListKey> keys = taskLists.keys.toList();
     List<Widget> cards = [];
-    for (var room in rooms) {
-      final roomTaskList = roomToTaskLists[room]!;
+    for (var key in keys) {
+      final roomTaskList = taskLists[key]!;
       final frequency = roomTaskList.frequency;
       cards.add(
         ListenableBuilder(
@@ -257,21 +309,22 @@ class SchedulingScreenCards extends StatelessWidget {
           builder: (context, _) {
             var logInUseCase = context.read<LoginUseCase>();
             final TaskListState(:tasksDone, :doneBy) = schedulingModel
-                .getTaskListState(roomTaskList, room, date);
+                .getTaskListState(roomTaskList, key.room, date);
             return Card(
               child: Padding(
                 padding: insets8,
                 child: Column(
                   children: [
-                    mediumTitleText(context, room.name),
+                    mediumTitleText(context, key.room.name),
                     if (!tasksDone) ...[
                       padding8,
                       mediumTitleText(
                         context,
                         _getAssignedUserString(
                           schedulingModel.getUserAssignedToRoom(
+                            key.buildingName,
                             date,
-                            room.name,
+                            key.room,
                             frequency,
                           ),
                         ),
@@ -281,7 +334,12 @@ class SchedulingScreenCards extends StatelessWidget {
                     if (tasksDone && doneBy != null) ...[
                       mediumTitleText(context, _getDoneByString(doneBy)),
                     ] else ...[
-                      _buildAssignmentButton(context, date, room),
+                      _buildAssignmentButton(
+                        key.buildingName,
+                        context,
+                        date,
+                        key.room,
+                      ),
                     ],
                     if (isCurrentPeriod && !tasksDone) ...[
                       padding8,
@@ -294,7 +352,8 @@ class SchedulingScreenCards extends StatelessWidget {
                               builder: (_) {
                                 return RoomCheckScreen(
                                   roomCheckModel: RoomCheckModel(
-                                    buildingName: buildingName,
+                                    buildingName: key.buildingName,
+                                    room: key.room,
                                     taskList: roomTaskList,
                                     recordRepository: context.read(),
                                     roomCheckRepository: context.read(),
@@ -323,6 +382,7 @@ class SchedulingScreenCards extends StatelessWidget {
   }
 
   Widget _buildAssignmentButton(
+    String buildingName,
     BuildContext context,
     RoomCheckDate date,
     Room room,
@@ -334,6 +394,7 @@ class SchedulingScreenCards extends StatelessWidget {
         FilledButton(
           onPressed: () {
             schedulingModel.assignUserToRoomCheck(
+              buildingName,
               date,
               room,
               loginUseCase.loggedInUser!,
@@ -362,7 +423,7 @@ class SchedulingScreenCards extends StatelessWidget {
 
 class SchedulerListView extends StatelessWidget {
   final String title;
-  final List<Widget> children;
+  final Map<String, List<Widget>> children;
 
   const SchedulerListView({
     super.key,
@@ -372,28 +433,46 @@ class SchedulerListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return buildScaffold(
-      title: title,
-      child: Center(
+    List<Widget> buildingTiles = [];
+    for (final building in children.keys) {
+      buildingTiles.add(
+        Card(
+          child: ExpansionTile(
+            key: PageStorageKey(building),
+            title: mediumTitleText(context, building),
+            children: children[building]!,
+          ),
+        ),
+      );
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: widePhoneWidth),
         child: Column(
           children: [
             Expanded(
-              child: ConstrainedBox(
-                // To prevent the list from taking up the full width of a wide screen
-                constraints: const BoxConstraints(maxWidth: widePhoneWidth),
-                child: ListView(
-                  shrinkWrap: true,
-                  padding: insets8,
-                  children: children,
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: insets8,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: buildingTiles,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             padding8,
             FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text("Done"),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Done"),
             ),
             padding8,
           ],

@@ -52,12 +52,13 @@ void testRoomCheckModel() {
     var loginUseCase = LoginUseCase(userRepository: userRepository);
     final room = Room(rid: 1, name: "1");
     var roomCheckModel = RoomCheckModel(
-      room: room,
+      buildingName: 'building',
       taskList: taskList,
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: DateTime.now().toRoomCheckDate(),
-      loginUseCase: loginUseCase
+      loginUseCase: loginUseCase,
+      room: room,
     );
 
     expect(roomCheckModel.taskList, taskList);
@@ -106,7 +107,8 @@ void testRoomCheckModel() {
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: DateTime.now().toRoomCheckDate(),
-      loginUseCase: loginUseCase
+      loginUseCase: loginUseCase,
+      buildingName: 'building',
     );
     expect(roomCheckModel.isTaskCompleted(taskB), false);
     roomCheckModel.toggleTaskCompletion(taskB, true);
@@ -123,12 +125,13 @@ void testRoomCheckModel() {
     var loginUseCase = LoginUseCase(userRepository: userRepository);
     final room = Room(rid: 1, name: "1");
     var roomCheckModel = RoomCheckModel(
-      room: room,
+      buildingName: 'building',
       taskList: taskList,
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: DateTime.now().toRoomCheckDate(),
-      loginUseCase: loginUseCase
+      loginUseCase: loginUseCase,
+      room: room,
     );
     expect(roomCheckModel.shouldCommentBeDisplayed(), false);
     roomCheckModel.onAddCommentClicked();
@@ -145,13 +148,15 @@ void testRoomCheckModel() {
     var roomCheckDate = DateTime.now().toRoomCheckDate();
     var roomName = "1";
     final room = Room(rid: 1, name: roomName);
+    var buildingName = 'building';
     var roomCheckModel = RoomCheckModel(
-      room: room,
+      buildingName: buildingName,
       taskList: taskList,
       recordRepository: recordRepository,
       roomCheckRepository: roomCheckRepository,
       date: roomCheckDate,
-      loginUseCase: loginUseCase
+      loginUseCase: loginUseCase,
+      room: room,
     );
     var comment = "I'm a comment";
     roomCheckModel.toggleTaskCompletion(taskC, true);
@@ -159,7 +164,7 @@ void testRoomCheckModel() {
     roomCheckModel.submit();
     expect(
       roomCheckRepository
-          .getRoomCheck(roomCheckDate, taskList.frequency, roomName)!
+          .getRoomCheck(buildingName, roomCheckDate, taskList.frequency, room)!
           .comment,
       comment,
     );

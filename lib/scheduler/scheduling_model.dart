@@ -12,6 +12,13 @@ class Room {
   final String name;
 
   Room({required this.rid, required this.name});
+
+  @override
+  bool operator ==(Object other) =>
+      other is Room && name == other.name && rid == other.rid;
+
+  @override
+  int get hashCode => rid.hashCode;
 }
 
 class TaskListState {
@@ -26,20 +33,23 @@ class SchedulingModel extends ChangeNotifier {
   final RoomCheckRepository _roomCheckRepository;
   final TaskListRepository _taskListRepository;
 
-  final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _dailyInternal = {};
-  final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _weeklyInternal = {};
-  final Map<RoomCheckDate, Map<String, RoomCheckSlot>> _monthlyInternal = {};
+  final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  _dailyInternal = {};
+  final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  _weeklyInternal = {};
+  final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  _monthlyInternal = {};
 
-  late UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  late UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   dailyRoomChecks;
-  late UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  late UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   monthlyRoomChecks;
-  late UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+  late UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   weeklyRoomChecks;
 
   late Map<
     TaskFrequency,
-    UnmodifiableMapView<RoomCheckDate, Map<String, RoomCheckSlot>>
+    UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   >
   _frequencyToRoomChecks;
 
@@ -57,32 +67,38 @@ class SchedulingModel extends ChangeNotifier {
     roomCheckRepository.roomChecksNotifier.addListener(() {
       final roomChecks = roomCheckRepository.roomChecksNotifier.value;
       for (final entry in roomChecks.entries) {
-        final date = entry.key;
-        final frequencyToRoomToRoomCheck = entry.value;
-        for (var MapEntry(key: frequency, value: roomToroomCheck)
-            in frequencyToRoomToRoomCheck.entries) {
-          for (var MapEntry(key: room, value: roomCheck)
-              in roomToroomCheck.entries) {
-            switch (frequency) {
-              case TaskFrequency.daily:
-                if (!_dailyInternal.containsKey(date)) {
-                  _dailyInternal[date] = {};
-                }
-                _dailyInternal[date]![room] = roomCheck;
-                break;
-              case TaskFrequency.weekly:
-                if (!_weeklyInternal.containsKey(date)) {
-                  _weeklyInternal[date] = {};
-                }
-                _weeklyInternal[date]![room] = roomCheck;
-                break;
-              case TaskFrequency.monthly:
-                if (!_monthlyInternal.containsKey(date)) {
-                  _monthlyInternal[date] = {};
-                }
-                _monthlyInternal[date]![room] = roomCheck;
+        final key = entry.key;
+        final roomCheck = entry.value;
+        var buildingName = key.buildingName;
+        var date = key.date;
+        var room = key.room;
+        switch (key.frequency) {
+          case TaskFrequency.daily:
+            if (!_dailyInternal.containsKey(buildingName)) {
+              _dailyInternal[buildingName] = {};
             }
-          }
+            if (!_dailyInternal[buildingName]!.containsKey(date)) {
+              _dailyInternal[buildingName]![date] = {};
+            }
+            _dailyInternal[buildingName]![date]![room] = roomCheck;
+            break;
+          case TaskFrequency.weekly:
+            if (!_weeklyInternal.containsKey(buildingName)) {
+              _weeklyInternal[buildingName] = {};
+            }
+            if (!_weeklyInternal[buildingName]!.containsKey(date)) {
+              _weeklyInternal[buildingName]![date] = {};
+            }
+            _weeklyInternal[buildingName]![date]![room] = roomCheck;
+            break;
+          case TaskFrequency.monthly:
+            if (!_monthlyInternal.containsKey(buildingName)) {
+              _monthlyInternal[buildingName] = {};
+            }
+            if (!_monthlyInternal[buildingName]!.containsKey(date)) {
+              _monthlyInternal[buildingName]![date] = {};
+            }
+            _monthlyInternal[buildingName]![date]![room] = roomCheck;
         }
       }
       updateViews();
@@ -101,48 +117,46 @@ class SchedulingModel extends ChangeNotifier {
     };
   }
 
-  UnmodifiableListView<RoomCheckSlot> getRoomChecks(
-    RoomCheckDate date,
-    TaskFrequency frequency,
-  ) {
-    final roomChecks = _frequencyToRoomChecks[frequency]?[date]?.keys;
-    return UnmodifiableListView(roomChecks?.cast<RoomCheckSlot>() ?? []);
-  }
-
   RoomCheckSlot? getRoomCheck(
+    String buildingName,
     RoomCheckDate date,
     TaskFrequency frequency,
-    String roomName,
+    Room room,
   ) {
-    return _frequencyToRoomChecks[frequency]?[date]?[roomName];
+    return _frequencyToRoomChecks[frequency]?[buildingName]?[date]?[room];
   }
 
   String? getUserAssignedToRoom(
+    String buildingName,
     RoomCheckDate date,
-    String roomName,
+    Room room,
     TaskFrequency frequency,
   ) {
-    return _frequencyToRoomChecks[frequency]?[date]?[roomName]?.assigned;
+    return getRoomCheck(buildingName, date, frequency, room)?.user?.email;
   }
 
   void assignUserToRoomCheck(
+    String buildingName,
     RoomCheckDate date,
     Room room,
     User user,
     TaskFrequency frequency,
   ) {
-    var roomCheck = _frequencyToRoomChecks[frequency]?[date]?[room.name];
-    roomCheck ??= RoomCheckSlot(
-      rcid: null,
-      date: date,
-      room: room,
-      frequency: frequency,
-      uid: user.uid,
-      assigned: user.email,
-      comment: null,
-      state: RoomCheckState.notStarted,
-    );
-    _roomCheckRepository.assignUserToRoomCheck(roomCheck);
+    var roomCheck = getRoomCheck(buildingName, date, frequency, room);
+    if(roomCheck == null) {
+      roomCheck = RoomCheckSlot(
+        rcid: null,
+        date: date,
+        room: room,
+        frequency: frequency,
+        user: user,
+        comment: null,
+        state: RoomCheckState.notStarted,
+      );
+    } else {
+      roomCheck = roomCheck.withUser(user);
+    }
+    _roomCheckRepository.assignUserToRoomCheck(roomCheck!);
     notifyListeners();
   }
 
@@ -173,7 +187,4 @@ class SchedulingModel extends ChangeNotifier {
       doneBy: doneBy,
     );
   }
-
-
-
 }

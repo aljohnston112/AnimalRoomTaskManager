@@ -899,7 +899,8 @@ DECLARE
     unit_warning  text;
     unit_required text;
 BEGIN
-    IF NEW.qr_id_warning IS NOT NULL AND NEW.qr_id_required IS NOT NULL THEN
+    IF NEW.qr_id_warning IS NOT NULL AND
+       NEW.qr_id_required IS NOT NULL THEN
         SELECT unit
         INTO unit_warning
         FROM quantitative_ranges
@@ -1236,27 +1237,70 @@ CREATE POLICY "RoomCheckSlotsUpdateAuth"
         AND (COALESCE(check_is_admin(), FALSE) OR
              u_id IS NULL OR
              u_id = get_my_u_id()));
-DROP VIEW IF EXISTS room_check_slots_view;
+CREATE OR REPLACE VIEW full_room_checks_view WITH (security_invoker = on) AS
+SELECT
+    rcs.rc_id,
+    rcs.date_time,
+    rcs.frequency,
+    rcs.u_id,
+    rcs.comment,
+    rcs.state,
+    r.r_id,
+    r.name AS room_name,
+    b.b_id,
+    b.name AS building_name,
+    u.name AS user_name,
+    u.ug_id
+FROM room_check_slots rcs
+         LEFT JOIN rooms r ON rcs.r_id = r.r_id
+         LEFT JOIN buildings b ON r.b_id = b.b_id
+         LEFT JOIN users u ON rcs.u_id = u.u_id;
+GRANT SELECT ON TABLE public.full_room_checks_view TO authenticated;
+
 CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS
 SELECT b.b_id,
-       b.name                AS building_name,
-       COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
-                                  'rc_id', rcs.rc_id,
-                                  'date_time', rcs.date_time,
-                                  'state', rcs.state,
-                                  'room_id', r.r_id,
-                                  'room_name', r.name,
-                                  'frequency', rcs.frequency,
-                                  'comment', rcs.comment,
-                                  'user_id', u.u_id,
-                                  'user_name', u.name
-                          ) ORDER BY rcs.date_time DESC),
-                '[]'::jsonb) AS room_check_slots
-FROM room_check_slots rcs
-         JOIN rooms r ON rcs.r_id = r.r_id
-         LEFT JOIN buildings b ON b.b_id = r.b_id
-         LEFT JOIN users u ON rcs.u_id = u.u_id
-GROUP BY b.b_id;
+       b.name         AS building_name,
+       frequency_data.data AS room_checks_by_frequency
+FROM buildings b
+         LEFT JOIN LATERAL (
+    SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+            'frequency', frequency_data.frequency,
+            'dates', date_data.days
+                     )) AS data
+    FROM (SELECT DISTINCT frequency
+          FROM room_check_slots) frequency_data
+             LEFT JOIN LATERAL (
+        SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                'date_time', date_data.date_time,
+                'slots', slot_data.slots
+                         )) AS days
+        FROM (SELECT DISTINCT date_time
+              FROM room_check_slots rcs
+                       LEFT JOIN rooms r ON rcs.r_id = r.r_id
+              WHERE r.b_id = b.b_id
+                AND rcs.frequency = frequency_data.frequency) date_data
+                 LEFT JOIN LATERAL (
+            SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                    'rc_id', rcs.rc_id,
+                    'state', rcs.state,
+                    'r_id', r.r_id,
+                    'room_name', r.name,
+                    'comment', rcs.comment,
+                    'user_id', u.u_id,
+                    'ug_id', u.ug_id,
+                    'user_name', u.name
+                             )) AS slots
+            FROM room_check_slots rcs
+                     LEFT JOIN rooms r ON rcs.r_id = r.r_id
+                     LEFT JOIN users u ON rcs.u_id = u.u_id
+            WHERE rcs.date_time = date_data.date_time
+              AND rcs.frequency = frequency_data.frequency
+              AND r.b_id = b.b_id
+            ) slot_data ON TRUE
+        ) date_data ON TRUE
+    WHERE date_data.days IS NOT NULL
+    ) frequency_data ON true
+WHERE frequency_data.data IS NOT NULL;
 GRANT SELECT ON TABLE public.room_check_slots_view TO authenticated;
 
 -- Task Records ------------------------------------------------------
@@ -1339,69 +1383,86 @@ CREATE POLICY "TaskRecordUsersInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (TRUE);
-CREATE OR REPLACE VIEW room_check_tasks_view
+CREATE OR REPLACE VIEW room_check_task_lists_view
             WITH
             (security_invoker = on)
 AS
-WITH room_task_groups AS (
-    SELECT
-        r.b_id,
-        r.r_id,
-        r.name AS room_name,
-        tl.name AS task_list_name,
-        tl.frequency,
-        JSONB_AGG(JSONB_BUILD_OBJECT(
-                          't_id', t.t_id,
-                          'task_name', t.name,
-                          'manager_only', t.manager_only,
-                          'quantitative_ranges', CASE WHEN qt.t_id IS NOT NULL THEN
-                                                          JSONB_BUILD_OBJECT(
-                                                                  'unit', COALESCE(qrw.unit, qrr.unit),
-                                                                  'warning_range',
-                                                                  CASE
-                                                                      WHEN qrw.qr_id IS NOT NULL
-                                                                          THEN
-                                                                          JSONB_BUILD_OBJECT(
-                                                                                  'min',
-                                                                                  qrw.minimum,
-                                                                                  'max',
-                                                                                  qrw.maximum)
-                                                                      END,
-                                                                  'required_range',
-                                                                  CASE
-                                                                      WHEN qrr.qr_id IS NOT NULL
-                                                                          THEN
-                                                                          JSONB_BUILD_OBJECT(
-                                                                                  'min',
-                                                                                  qrr.minimum,
-                                                                                  'max',
-                                                                                  qrr.maximum)
-                                                                      END
-                                                          )
-                              END
-                  ) ORDER BY tltm.index) AS tasks
-    FROM rooms r
-             LEFT JOIN task_list_room_memberships tlrm ON r.r_id = tlrm.r_id
-             LEFT JOIN task_lists tl ON tlrm.tl_id = tl.tl_id
-             LEFT JOIN task_list_task_memberships tltm ON tl.tl_id = tltm.tl_id
-             LEFT JOIN tasks t ON tltm.t_id = t.t_id
-             LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
-             LEFT JOIN quantitative_ranges qrw ON qt.qr_id_warning = qrw.qr_id
-             LEFT JOIN quantitative_ranges qrr ON qt.qr_id_required = qrr.qr_id
-    GROUP BY r.r_id, tl.name, tl.frequency
-)
-SELECT
-    b.b_id,
-    b.name AS building_name,
-    COALESCE(JSONB_AGG(JSONB_BUILD_OBJECT(
-            'r_id', rtg.r_id,
-            'room_name', rtg.room_name,
-            'task_list_name', rtg.task_list_name,
-            'frequency', rtg.frequency,
-            'tasks', rtg.tasks
-                       )), '[]'::jsonb) AS rooms
+SELECT b.b_id,
+       b.name                       AS building_name,
+       task_lists_by_frequency.data AS task_lists_by_frequency
 FROM buildings b
-         LEFT JOIN room_task_groups rtg ON b.b_id = rtg.b_id
-GROUP BY b.b_id, b.name;
+         LEFT JOIN LATERAL (
+    SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+            'frequency', task_list_frequency.frequency,
+            'task_lists', tl_data.lists
+                     )) AS data
+    FROM (SELECT DISTINCT frequency
+          FROM task_lists) task_list_frequency
+             LEFT JOIN LATERAL (
+        SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                'tl_id', tl.tl_id,
+                'task_list_name', tl.name,
+                'rooms', (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                        'r_id', r.r_id,
+                        'room_name', r.name
+                                           ))
+                          FROM task_list_room_memberships tlrm
+                                   RIGHT JOIN rooms r ON tlrm.r_id = r.r_id
+                          WHERE tlrm.tl_id = tl.tl_id
+                            AND r.b_id = b.b_id),
+                'tasks', (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                                                   't_id', t.t_id,
+                                                   'task_name',
+                                                   t.name,
+                                                   'manager_only',
+                                                   t.manager_only,
+                                                   'quantitative_ranges',
+                                                   CASE
+                                                       WHEN qt.t_id IS NOT NULL
+                                                           THEN
+                                                           JSONB_BUILD_OBJECT(
+                                                                   'unit',
+                                                                   COALESCE(qrw.unit, qrr.unit),
+                                                                   'warning_range',
+                                                                   CASE
+                                                                       WHEN qrw.qr_id IS NOT NULL
+                                                                           THEN
+                                                                           JSONB_BUILD_OBJECT(
+                                                                                   'min',
+                                                                                   qrw.minimum,
+                                                                                   'max',
+                                                                                   qrw.maximum)
+                                                                       END,
+                                                                   'required_range',
+                                                                   CASE
+                                                                       WHEN qrr.qr_id IS NOT NULL
+                                                                           THEN
+                                                                           JSONB_BUILD_OBJECT(
+                                                                                   'min',
+                                                                                   qrr.minimum,
+                                                                                   'max',
+                                                                                   qrr.maximum)
+                                                                       END
+                                                           )
+                                                       END
+                                           ) ORDER BY tltm.index)
+                          FROM task_list_task_memberships tltm
+                                   JOIN tasks t ON tltm.t_id = t.t_id
+                                   LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
+                                   LEFT JOIN quantitative_ranges qrw
+                                             ON qt.qr_id_warning = qrw.qr_id
+                                   LEFT JOIN quantitative_ranges qrr
+                                             ON qt.qr_id_required = qrr.qr_id
+                          WHERE tltm.tl_id = tl.tl_id)
+                         )) AS lists
+        FROM task_lists tl
+        WHERE tl.frequency = task_list_frequency.frequency
+          AND EXISTS (SELECT 1
+                      FROM task_list_room_memberships tlrm
+                               JOIN rooms r ON tlrm.r_id = r.r_id
+                      WHERE tlrm.tl_id = tl.tl_id
+                        AND r.b_id = b.b_id)
+        ) tl_data ON TRUE
+    ) task_lists_by_frequency ON TRUE;
 
-GRANT SELECT ON TABLE public.room_check_tasks_view TO authenticated;
+GRANT SELECT ON TABLE public.room_check_task_lists_view TO authenticated;

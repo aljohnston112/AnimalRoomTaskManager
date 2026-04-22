@@ -80,6 +80,7 @@ class RoomCheckScreen extends StatelessWidget {
         FilledButton(
           child: Text("Submit"),
           onPressed: () async {
+            // TODO do not allow submission if a required range is out of range
             if (!roomCheckModel.submit()) {
               if (context.mounted) {
                 showSnackBar(
