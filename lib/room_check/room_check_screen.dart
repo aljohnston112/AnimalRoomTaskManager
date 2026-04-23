@@ -81,7 +81,7 @@ class RoomCheckScreen extends StatelessWidget {
           child: Text("Submit"),
           onPressed: () async {
             // TODO do not allow submission if a required range is out of range
-            if (!roomCheckModel.submit()) {
+            if (!(await roomCheckModel.submitTaskRecord())) {
               if (context.mounted) {
                 showSnackBar(
                   context,
@@ -91,7 +91,9 @@ class RoomCheckScreen extends StatelessWidget {
                 );
               }
             }
-            Navigator.of(context).pop();
+            if(context.mounted) {
+              Navigator.of(context).pop();
+            }
           },
         ),
       ],

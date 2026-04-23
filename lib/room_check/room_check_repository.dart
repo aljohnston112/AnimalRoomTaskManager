@@ -298,4 +298,9 @@ class RoomCheckRepository {
   void updateRoomCheck(RoomCheckSlot roomCheckSlot) {
     _database.upsertRoomCheck(roomCheckSlot);
   }
+
+  Future<int> tryInsertRoomCheckAndGetRcid(RoomCheckSlot roomCheckSlot) async {
+    return (await _database.tryInsertRoomCheckAndGetID(roomCheckSlot)).key;
+  }
+
 }

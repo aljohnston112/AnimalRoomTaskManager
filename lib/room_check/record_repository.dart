@@ -116,23 +116,8 @@ class RecordRepository extends ChangeNotifier {
     return UnmodifiableMapView<Task, TaskRecord>({});
   }
 
-  bool addRecord(TaskRecord record) {
-    if (!_roomToDateToTaskRecords.containsKey(record.room)) {
-      _roomToDateToTaskRecords[record.room] = {};
-    }
-    var roomRecords = _roomToDateToTaskRecords[record.room]!;
-    var recordDate = record.dateTime;
-    final roomCheckDate = recordDate.toRoomCheckDate();
-    if (!roomRecords.containsKey(roomCheckDate)) {
-      roomRecords[roomCheckDate] = {};
-    }
-    var records = roomRecords[roomCheckDate]!;
-    if (records.containsKey(record.task)) {
-      return false;
-    }
-    records[record.task] = record;
-    notifyListeners();
-    return true;
+  Future<bool> addRecord(TaskRecord record) async {
+    return await _database.insertRecord(record);
   }
 
   /// TODO for local user testing only

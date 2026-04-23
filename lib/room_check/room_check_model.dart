@@ -162,36 +162,53 @@ class RoomCheckModel extends ChangeNotifier {
         .containsKey(task);
   }
 
-  bool submit() {
+  Future<bool> submitTaskRecord() async {
     bool allRecordsAdded = true;
     String? comment = _commentController.text;
     if (comment != _roomCheckSlot.comment) {
       _roomCheckRepository.saveComment(buildingName, _roomCheckSlot, comment);
     }
+    // Need rc_id
+    var rcid = _roomCheckSlot.rcid;
+    // Check cache
+    rcid ??= _roomCheckRepository
+        .getRoomCheck(
+          buildingName,
+          _roomCheckSlot.date,
+          _roomCheckSlot.frequency,
+          _roomCheckSlot.room,
+        )
+        ?.rcid;
+    // Check database
+    rcid ??= await _roomCheckRepository.tryInsertRoomCheckAndGetRcid(_roomCheckSlot);
+
+    // TODO these should be batched
+    // Will need to handle lists and insert errors in the shema and
+    // the realtime will need to be changed to handle multiple tasks
     for (var task in taskList.tasks) {
       String? valueText = _quantitativeValueControllers[task]?.text;
       User? loggedInUser = loginUseCase.loggedInUser;
       if (loggedInUser != null) {
         bool wasRecordAdded = true;
         if (valueText?.isNotEmpty == true) {
-          wasRecordAdded = _recordRepository.addRecord(
+          wasRecordAdded = await _recordRepository.addRecord(
             QuantitativeRecord(
               room: _roomCheckSlot.room,
               task: task,
               dateTime: DateTime.now(),
               recordedValue: double.parse(valueText!),
               doneBy: loggedInUser,
-              rcid: _roomCheckSlot.rcid
+              rcid: rcid,
             ),
           );
         } else if (_completedTasks.contains(task)) {
-          wasRecordAdded = _recordRepository.addRecord(
+          wasRecordAdded = await _recordRepository.addRecord(
             TaskRecord(
               room: _roomCheckSlot.room,
               task: task,
               dateTime: DateTime.now(),
               doneBy: loggedInUser,
-                rcid: _roomCheckSlot.rcid
+              rcid: rcid,
             ),
           );
         }
@@ -200,7 +217,7 @@ class RoomCheckModel extends ChangeNotifier {
         }
       }
     }
-    notifyListeners();
+    // TODO might want to save the comment or allow user to be added to completion
     return allRecordsAdded;
   }
 
