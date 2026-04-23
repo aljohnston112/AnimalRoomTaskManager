@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../scheduler/scheduling_model.dart';
@@ -21,12 +22,14 @@ class TaskRecord {
   final Task task;
   final DateTime dateTime;
   final User doneBy;
+  final int rcid;
 
   TaskRecord({
     required this.room,
     required this.task,
     required this.dateTime,
     required this.doneBy,
+    required this.rcid,
   });
 }
 
@@ -39,15 +42,26 @@ class QuantitativeRecord extends TaskRecord {
     required super.dateTime,
     required super.doneBy,
     required this.recordedValue,
+    required super.rcid,
   });
 }
 
 /// Holds all the task records in memory
 class RecordRepository extends ChangeNotifier {
+  final Database _database;
   final Map<Room, Map<RoomCheckDate, Map<Task, TaskRecord>>>
   _roomToDateToTaskRecords = {};
 
-  RecordRepository();
+  RecordRepository({required Database database}) : _database = database{
+    // TODO realtime
+  }
+
+  void loadRecords(){
+    // TODO after pushing tasks to db,
+    //  make sure the database view works and parse it's output
+    final data = _database.getRecords();
+    print(data);
+  }
 
   UnmodifiableMapView<Task, TaskRecord> getRecordsForRoom(
     Room room,

@@ -36,7 +36,9 @@ Future<void> main() async {
                 LoginUseCase(userRepository: userRepository);
           },
         ),
-        ChangeNotifierProvider(create: (context) => RecordRepository()),
+        ChangeNotifierProvider(
+          create: (context) => RecordRepository(database: database),
+        ),
         Provider.value(value: roomCheckRepository),
         ChangeNotifierProvider(
           create: (context) => TaskListRepository(database: database),

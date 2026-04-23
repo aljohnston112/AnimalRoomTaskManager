@@ -186,6 +186,7 @@ void testTaskEntry() {
       task: task,
       dateTime: date,
       doneBy: User(email: "me@me.io", group: UserGroup.admin, uid: null),
+      rcid: 0
     );
     TaskEntryModel taskEntry = TaskEntryModel(
       task: task,

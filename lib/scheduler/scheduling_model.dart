@@ -162,6 +162,7 @@ class SchedulingModel extends ChangeNotifier {
 
   void refreshData() {
     _taskListRepository.loadTaskLists();
+    _recordRepository.loadRecords();
     _roomCheckRepository.loadRoomChecks();
   }
 

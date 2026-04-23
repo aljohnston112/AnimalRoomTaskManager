@@ -181,6 +181,7 @@ class RoomCheckModel extends ChangeNotifier {
               dateTime: DateTime.now(),
               recordedValue: double.parse(valueText!),
               doneBy: loggedInUser,
+              rcid: _roomCheckSlot.rcid
             ),
           );
         } else if (_completedTasks.contains(task)) {
@@ -190,6 +191,7 @@ class RoomCheckModel extends ChangeNotifier {
               task: task,
               dateTime: DateTime.now(),
               doneBy: loggedInUser,
+                rcid: _roomCheckSlot.rcid
             ),
           );
         }

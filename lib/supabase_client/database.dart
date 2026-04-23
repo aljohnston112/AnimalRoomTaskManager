@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -56,11 +57,11 @@ class Database {
     _supabase
         .channel("facilities")
         .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'facilities',
-          callback: callback,
-        )
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: 'facilities',
+      callback: callback,
+    )
         .subscribe();
   }
 
@@ -68,16 +69,40 @@ class Database {
     _supabase
         .channel(roomCheckTableName)
         .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: roomCheckTableName,
-          callback: callback,
-        )
+      event: PostgresChangeEvent.all,
+      schema: 'public',
+      table: roomCheckTableName,
+      callback: callback,
+    )
         .subscribe();
+  }
+
+  void subscribeToRecords(void Function(dynamic) callback) {
+    final taskRecordChannel = _supabase.channel('task_record_channel');
+    taskRecordChannel.onBroadcast(
+      event: 'task_recorded',
+      callback: (payload) {
+        callback(payload);
+      },
+    );
   }
 
   // selectors
   // ---------------------------------------------------------------------------
+  Future<List<PostgrestMap>> getRecords() async {
+    final today = DateTime.now();
+    final startOfToday = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).toIso8601String();
+    final List<PostgrestMap> data = await _supabase.rpc(
+      'get_task_records',
+      params: {'start_date': startOfToday},
+    );
+    return data;
+  }
+
   Future<List<PostgrestMap>> getRoomCheckSlots() async {
     final today = DateTime.now();
     final startOfToday = DateTime(
@@ -85,8 +110,11 @@ class Database {
       today.month,
       today.day,
     ).toIso8601String();
-    final data = await _supabase.from('room_check_slots_view').select('''*''');
-    return data.toList();
+    final List<PostgrestMap> data = await _supabase.rpc(
+      'get_room_check_slots',
+      params: {'start_date': startOfToday},
+    );
+    return data;
   }
 
   Future<List<PostgrestMap>> getTaskLists() async {
@@ -132,11 +160,9 @@ class Database {
         .single();
   }
 
-  Future<int> getRoomCheckRCID(
-    RoomCheckDate date,
-    int rid,
-    TaskFrequency frequency,
-  ) async {
+  Future<int> getRoomCheckRCID(RoomCheckDate date,
+      int rid,
+      TaskFrequency frequency,) async {
     return (await _supabase
         .from('room_check_slots')
         .select('rc_id')
@@ -191,19 +217,56 @@ class Database {
   }
 
   Future<void> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
-    // TODO insert can throw if records are not up to date
     var rcid = roomCheckSlot.rcid;
     if (rcid != null) {
       await _supabase
           .from('room_check_slots')
           .update({
+        'state': roomCheckSlot.state.toDbString,
+        'comment': roomCheckSlot.comment,
+        'u_id': roomCheckSlot.user?.uid,
+      })
+          .eq('rc_id', rcid);
+    } else {
+      try {
+        await insertRoomCheck(roomCheckSlot);
+      } on PostgrestException catch (ex, e) {
+        if (ex.message.contains("duplicate key")) {
+          final rcid = await getRoomCheckRCID(
+            roomCheckSlot.date,
+            roomCheckSlot.room.rid,
+            roomCheckSlot.frequency,
+          );
+          await _supabase
+              .from('room_check_slots')
+              .update({
             'state': roomCheckSlot.state.toDbString,
             'comment': roomCheckSlot.comment,
             'u_id': roomCheckSlot.user?.uid,
           })
-          .eq('rc_id', rcid);
-    } else {
-      await insertRoomCheck(roomCheckSlot);
+              .eq('rc_id', rcid);
+        }
+      }
+    }
+
+    Future<void> insertRecord(TaskRecord taskRecord) async {
+      double? value;
+      if (taskRecord is QuantitativeRecord) {
+        value = taskRecord.recordedValue;
+      }
+      await _supabase.rpc(
+        'submit_task_record',
+        params: {
+          'record_data': {
+            't_id': taskRecord.task.tid,
+            'rc_id': taskRecord.rcid,
+            'date_time': taskRecord.dateTime.toIso8601String(),
+          },
+          // TODO List<USer>
+          'user_ids': [taskRecord.doneBy],
+          'recorded_value': value,
+        },
+      );
     }
   }
 }

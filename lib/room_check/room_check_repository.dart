@@ -170,7 +170,7 @@ class RoomCheckRepository {
       );
       User? user;
       var uid = updatedRow['u_id'];
-      if(uid != null) {
+      if (uid != null) {
         user = User(
           email: updatedRow['user_name'],
           group: UserGroup.values[updatedRow['ug_id']],
@@ -247,7 +247,11 @@ class RoomCheckRepository {
       room: Room(rid: map['r_id'], name: map['room_name']),
       frequency: frequency,
       comment: map['comment'],
-      user: User(email: map['user_name'], group: UserGroup.values[map['ug_id']], uid: map['user_id']),
+      user: User(
+        email: map['user_name'],
+        group: UserGroup.values[map['ug_id']],
+        uid: map['user_id'],
+      ),
       state: (map['state'] as String).toRoomCheckState,
     );
     return roomCheck;
