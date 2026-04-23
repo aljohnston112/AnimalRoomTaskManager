@@ -1447,6 +1447,7 @@ BEGIN
                          JSONB_AGG(JSONB_BUILD_OBJECT(
                                  'tr_id', tr.tr_id,
                                  't_id', tr.t_id,
+                                 'recorded_value', qtr.value,
                                  'task', (SELECT JSONB_BUILD_OBJECT(
                                                          'task_name',
                                                          t.name,
@@ -1500,6 +1501,8 @@ BEGIN
                                           WHERE t.t_id = tr.t_id)
                                    )) AS records
                   FROM task_records tr
+                           LEFT JOIN quantitative_task_records qtr
+                                     ON tr.tr_id = qtr.tr_id
                   WHERE tr.rc_id = rcs.rc_id
                   GROUP BY tr.date_time) tr_grouped
             ) slot_dates ON TRUE
@@ -1516,6 +1519,13 @@ BEGIN
             );
 END
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP POLICY IF EXISTS "Users can hear task updates" ON "realtime"."messages";
+CREATE POLICY "Users can hear task updates"
+    ON "realtime"."messages"
+    FOR SELECT
+    TO authenticated
+    USING ((select realtime.topic()) = 'task_record_channel');
 
 CREATE OR REPLACE FUNCTION get_task_records(start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL)
     RETURNS TABLE
@@ -1544,7 +1554,9 @@ $$
          FROM (SELECT tr.date_time,
                       JSONB_AGG(JSONB_BUILD_OBJECT(
                               'tr_id', tr.tr_id,
+                              'rc_id', tr.rc_id,
                               't_id', tr.t_id,
+                              'recorded_value', qtr.value,
                               'task', (SELECT JSONB_BUILD_OBJECT(
                                                       'task_name',
                                                       t.name,
@@ -1598,6 +1610,8 @@ $$
                                        WHERE t.t_id = tr.t_id)
                                 )) AS records
                FROM task_records tr
+                        LEFT JOIN quantitative_task_records qtr
+                                  ON tr.tr_id = qtr.tr_id
                WHERE tr.rc_id = rcs.rc_id
                  AND (start_date IS NOT NULL OR
                       tr.date_time >= start_date)

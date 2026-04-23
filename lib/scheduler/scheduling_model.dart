@@ -160,10 +160,10 @@ class SchedulingModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void refreshData() {
-    _taskListRepository.loadTaskLists();
-    _recordRepository.loadRecords();
-    _roomCheckRepository.loadRoomChecks();
+  Future<void> refreshData() async {
+    await _taskListRepository.loadTaskLists();
+    await _recordRepository.loadRecords();
+    await _roomCheckRepository.loadRoomChecks();
   }
 
   TaskListState getTaskListState(

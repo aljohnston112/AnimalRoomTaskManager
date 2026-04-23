@@ -85,13 +85,18 @@ class Database {
   }
 
   void subscribeToRecords(void Function(dynamic) callback) {
-    final taskRecordChannel = _supabase.channel('task_record_channel');
-    taskRecordChannel.onBroadcast(
-      event: 'task_recorded',
-      callback: (payload) {
-        callback(payload);
-      },
+    final taskRecordChannel = _supabase.channel(
+      'task_record_channel',
+      opts: const RealtimeChannelConfig(private: true),
     );
+    taskRecordChannel
+        .onBroadcast(
+          event: 'task_recorded',
+          callback: (payload) {
+            callback(payload);
+          },
+        )
+        .subscribe();
   }
 
   // selectors

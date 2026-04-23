@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../scheduler/scheduling_model.dart';
 
@@ -41,6 +42,12 @@ class Task {
     required this.tid,
     required this.frequency,
   });
+
+  @override
+  bool operator ==(Object other) => (other is Task && tid == other.tid);
+
+  @override
+  int get hashCode => tid.hashCode;
 }
 
 class QuantitativeRange<T> {
@@ -67,6 +74,13 @@ class QuantitativeTask<T> extends Task {
     required super.tid,
     required super.frequency,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      (other is QuantitativeTask && tid == other.tid);
+
+  @override
+  int get hashCode => tid.hashCode;
 }
 
 enum TaskFrequency { daily, weekly, monthly }
@@ -96,6 +110,52 @@ extension TaskFrequencyParser on String {
       default:
         throw ArgumentError('Invalid RoomCheckState string: $this');
     }
+  }
+}
+
+Task parseTask(PostgrestMap taskDB, TaskFrequency frequency, int tid) {
+  final taskName = taskDB['task_name'];
+  final isManagerTask = taskDB['manager_only'];
+  final quantitativeRangesDB = taskDB['quantitative_ranges'];
+  List<QuantitativeRange> quantitativeRanges = [];
+  if (quantitativeRangesDB != null) {
+    final unit = quantitativeRangesDB['unit'];
+    final warningRangeDB = quantitativeRangesDB['warning_range'];
+    QuantitativeRange? warningRange;
+    if (warningRangeDB != null) {
+      warningRange = QuantitativeRange(
+        min: warningRangeDB['min'],
+        max: warningRangeDB['max'],
+        units: unit,
+        isRequired: false,
+      );
+      quantitativeRanges.add(warningRange);
+    }
+    final requiredRangeDB = quantitativeRangesDB['required_range'];
+    QuantitativeRange? requiredRange;
+    if (requiredRangeDB != null) {
+      requiredRange = QuantitativeRange(
+        min: requiredRangeDB['min'],
+        max: requiredRangeDB['max'],
+        units: unit,
+        isRequired: true,
+      );
+      quantitativeRanges.add(requiredRange);
+    }
+    return QuantitativeTask(
+      description: taskName,
+      ranges: quantitativeRanges,
+      managerOnly: isManagerTask,
+      tid: tid,
+      frequency: frequency,
+    );
+  } else {
+    return Task(
+      description: taskName,
+      managerOnly: isManagerTask,
+      tid: tid,
+      frequency: frequency,
+    );
   }
 }
 
@@ -137,56 +197,9 @@ class TaskListRepository extends ChangeNotifier {
           // Tasks in the task list
           List<Task> tasks = [];
           if (tasksDB != null) {
-            for (final task in tasksDB) {
-              final tid = task['t_id'];
-              final taskName = task['task_name'];
-              final isManagerTask = task['manager_only'];
-              final quantitativeRangesDB = task['quantitative_ranges'];
-              List<QuantitativeRange> quantitativeRanges = [];
-              if (quantitativeRangesDB != null) {
-                final unit = quantitativeRangesDB['unit'];
-                final warningRangeDB = quantitativeRangesDB['warning_range'];
-                QuantitativeRange? warningRange;
-                if (warningRangeDB != null) {
-                  warningRange = QuantitativeRange(
-                    min: warningRangeDB['min'],
-                    max: warningRangeDB['max'],
-                    units: unit,
-                    isRequired: false,
-                  );
-                  quantitativeRanges.add(warningRange);
-                }
-                final requiredRangeDB = quantitativeRangesDB['required_range'];
-                QuantitativeRange? requiredRange;
-                if (requiredRangeDB != null) {
-                  requiredRange = QuantitativeRange(
-                    min: requiredRangeDB['min'],
-                    max: requiredRangeDB['max'],
-                    units: unit,
-                    isRequired: true,
-                  );
-                  quantitativeRanges.add(requiredRange);
-                }
-                tasks.add(
-                  QuantitativeTask(
-                    description: taskName,
-                    ranges: quantitativeRanges,
-                    managerOnly: isManagerTask,
-                    tid: tid,
-                    frequency: frequency,
-                  ),
-                );
-              } else {
-                tasks.add(
-                  Task(
-                    description: taskName,
-                    managerOnly: isManagerTask,
-                    tid: tid,
-                    frequency: frequency,
-                  ),
-                );
-              }
-
+            for (final taskDB in tasksDB) {
+              final tid = taskDB['t_id'];
+              tasks.add(parseTask(taskDB, frequency, tid));
               TaskList taskList = TaskList(
                 name: taskListName,
                 frequency: frequency,

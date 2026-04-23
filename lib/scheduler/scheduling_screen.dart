@@ -345,27 +345,30 @@ class SchedulingScreenCards extends StatelessWidget {
                       padding8,
                       FilledButton(
                         onPressed: () async {
+                          await schedulingModel.refreshData();
                           // TODO assign room check if unassigned
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) {
-                                return RoomCheckScreen(
-                                  roomCheckModel: RoomCheckModel(
-                                    buildingName: key.buildingName,
-                                    room: key.room,
-                                    taskList: roomTaskList,
-                                    recordRepository: context.read(),
-                                    roomCheckRepository: context.read(),
-                                    date: date,
-                                    loginUseCase: logInUseCase,
-                                  ),
-                                );
-                              },
-                            ),
-                          );
+                          if(context.mounted) {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) {
+                                  return RoomCheckScreen(
+                                    roomCheckModel: RoomCheckModel(
+                                      buildingName: key.buildingName,
+                                      room: key.room,
+                                      taskList: roomTaskList,
+                                      recordRepository: context.read(),
+                                      roomCheckRepository: context.read(),
+                                      date: date,
+                                      loginUseCase: logInUseCase,
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          }
                           // Reload after finishing, as there may be updates
-                          schedulingModel.refreshData();
+                          await schedulingModel.refreshData();
                         },
                         child: const Text("Start"),
                       ),
