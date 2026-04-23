@@ -1238,19 +1238,18 @@ CREATE POLICY "RoomCheckSlotsUpdateAuth"
              u_id IS NULL OR
              u_id = get_my_u_id()));
 CREATE OR REPLACE VIEW full_room_checks_view WITH (security_invoker = on) AS
-SELECT
-    rcs.rc_id,
-    rcs.date_time,
-    rcs.frequency,
-    rcs.u_id,
-    rcs.comment,
-    rcs.state,
-    r.r_id,
-    r.name AS room_name,
-    b.b_id,
-    b.name AS building_name,
-    u.name AS user_name,
-    u.ug_id
+SELECT rcs.rc_id,
+       rcs.date_time,
+       rcs.frequency,
+       rcs.u_id,
+       rcs.comment,
+       rcs.state,
+       r.r_id,
+       r.name AS room_name,
+       b.b_id,
+       b.name AS building_name,
+       u.name AS user_name,
+       u.ug_id
 FROM room_check_slots rcs
          LEFT JOIN rooms r ON rcs.r_id = r.r_id
          LEFT JOIN buildings b ON r.b_id = b.b_id
@@ -1259,7 +1258,7 @@ GRANT SELECT ON TABLE public.full_room_checks_view TO authenticated;
 
 CREATE OR REPLACE VIEW room_check_slots_view WITH (security_invoker = on) AS
 SELECT b.b_id,
-       b.name         AS building_name,
+       b.name              AS building_name,
        frequency_data.data AS room_checks_by_frequency
 FROM buildings b
          LEFT JOIN LATERAL (
@@ -1299,7 +1298,7 @@ FROM buildings b
             ) slot_data ON TRUE
         ) date_data ON TRUE
     WHERE date_data.days IS NOT NULL
-    ) frequency_data ON true
+    ) frequency_data ON TRUE
 WHERE frequency_data.data IS NOT NULL;
 GRANT SELECT ON TABLE public.room_check_slots_view TO authenticated;
 
@@ -1383,6 +1382,85 @@ CREATE POLICY "TaskRecordUsersInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (TRUE);
+CREATE OR REPLACE VIEW task_records_view WITH (security_invoker = on) AS
+(
+SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+        'r_id', r.r_id,
+        'room_name', r.name,
+        'records', room_records.data
+                 ))
+FROM rooms r
+         INNER JOIN LATERAL (
+    SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+            'dates', slot_dates.data
+                     )) AS data
+    FROM room_check_slots rcs
+             INNER JOIN LATERAL (
+        SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                'date_time', tr_grouped.date_time,
+                'records', tr_grouped.records
+                         )) AS data
+        FROM (SELECT tr.date_time,
+                     JSONB_AGG(JSONB_BUILD_OBJECT(
+                             'tr_id', tr.tr_id,
+                             't_id', tr.t_id,
+                             'task', (SELECT JSONB_BUILD_OBJECT(
+                                                     'task_name', t.name,
+                                                     'frequency', rcs.frequency,
+                                                     'manager_only',
+                                                     t.manager_only,
+                                                     'assigned_users',
+                                                     (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                                                             'u_id', u.u_id,
+                                                             'name', u.name,
+                                                             'ug_id', u.ug_id
+                                                                       ))
+                                                      FROM task_record_users tru
+                                                               LEFT JOIN users u ON tru.u_id = u.u_id
+                                                      WHERE tru.tr_id = tr.tr_id),
+                                                     'quantitative_ranges', CASE
+                                                                                WHEN qt.t_id IS NOT NULL
+                                                                                    THEN JSONB_BUILD_OBJECT(
+                                                                                        'unit',
+                                                                                        COALESCE(qrw.unit, qrr.unit),
+                                                                                        'warning_range',
+                                                                                        CASE
+                                                                                            WHEN qrw.qr_id IS NOT NULL
+                                                                                                THEN JSONB_BUILD_OBJECT(
+                                                                                                    'min',
+                                                                                                    qrw.minimum,
+                                                                                                    'max',
+                                                                                                    qrw.maximum) END,
+                                                                                        'required_range',
+                                                                                        CASE
+                                                                                            WHEN qrr.qr_id IS NOT NULL
+                                                                                                THEN JSONB_BUILD_OBJECT(
+                                                                                                    'min',
+                                                                                                    qrr.minimum,
+                                                                                                    'max',
+                                                                                                    qrr.maximum) END
+                                                                                         )
+                                                         END
+                                             )
+                                      FROM tasks t
+                                               LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
+                                               LEFT JOIN quantitative_ranges qrw
+                                                         ON qt.qr_id_warning = qrw.qr_id
+                                               LEFT JOIN quantitative_ranges qrr
+                                                         ON qt.qr_id_required = qrr.qr_id
+                                      WHERE t.t_id = tr.t_id)
+                               )) AS records
+              FROM task_records tr
+              WHERE tr.rc_id = rcs.rc_id
+              GROUP BY tr.date_time) tr_grouped
+        WHERE tr_grouped.date_time IS NOT NULL
+        ) slot_dates ON TRUE
+    WHERE rcs.r_id = r.r_id
+      AND slot_dates.data IS NOT NULL
+    GROUP BY r.r_id
+    ) room_records ON TRUE
+WHERE room_records.data IS NOT NULL);
+GRANT SELECT ON TABLE public.task_records_view TO authenticated;
 CREATE OR REPLACE VIEW room_check_task_lists_view
             WITH
             (security_invoker = on)
@@ -1464,5 +1542,4 @@ FROM buildings b
                         AND r.b_id = b.b_id)
         ) tl_data ON TRUE
     ) task_lists_by_frequency ON TRUE;
-
 GRANT SELECT ON TABLE public.room_check_task_lists_view TO authenticated;
