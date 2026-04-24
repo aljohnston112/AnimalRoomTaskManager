@@ -156,7 +156,7 @@ class SchedulingModel extends ChangeNotifier {
     } else {
       roomCheck = roomCheck.withUser(user);
     }
-    _roomCheckRepository.assignUserToRoomCheck(roomCheck!);
+    _roomCheckRepository.upsertRoomCheck(roomCheck!);
     notifyListeners();
   }
 

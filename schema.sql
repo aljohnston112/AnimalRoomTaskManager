@@ -10,7 +10,7 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 CREATE TABLE IF NOT EXISTS user_groups
 (
     ug_id serial PRIMARY KEY,
-    name  bpchar NOT NULL
+    name  text NOT NULL
 );
 INSERT INTO user_groups (ug_id, name)
 VALUES (0, 'Admin'),
@@ -28,17 +28,19 @@ GRANT SELECT ON TABLE public.user_groups TO authenticated;
 CREATE TABLE IF NOT EXISTS users
 (
     u_id    serial PRIMARY KEY,
-    name    bpchar                                 NOT NULL,
+    name    text                                 NOT NULL,
     ug_id   integer REFERENCES user_groups (ug_id) NOT NULL,
     auth_id uuid REFERENCES auth.users             NOT NULL UNIQUE,
-    deleted boolean                                NOT NULL
+    deleted boolean                                NOT NULL,
+    CONSTRAINT unique_user_names UNIQUE (name)
 );
 ALTER TABLE "public"."users"
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.users TO authenticated;
 REVOKE UPDATE ON public.users FROM authenticated;
-GRANT UPDATE (deleted) ON public.users TO authenticated;
+GRANT UPDATE (ug_id, deleted) ON public.users TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE users_u_id_seq TO authenticated;
+ALTER PUBLICATION supabase_realtime ADD TABLE users;
 CREATE POLICY "UsersSelectAuth"
     ON "public"."users"
     AS PERMISSIVE
@@ -58,6 +60,7 @@ SELECT EXISTS (SELECT 1
                  AND NOT deleted);
 $$ LANGUAGE sql STABLE
                 SECURITY DEFINER;
+GRANT EXECUTE ON FUNCTION public.check_is_admin() TO authenticated;
 CREATE POLICY "UserGroupsSelectAuth"
     ON "public"."user_groups"
     AS PERMISSIVE
@@ -95,12 +98,15 @@ SET search_path TO public, auth, pg_temp;
 
 CREATE TABLE IF NOT EXISTS email_whitelist
 (
-    email bpchar PRIMARY KEY,
+    email text PRIMARY KEY,
     ug_id integer REFERENCES user_groups (ug_id) NOT NULL
 );
 ALTER TABLE "public"."email_whitelist"
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, DELETE ON TABLE public.email_whitelist TO authenticated;
+REVOKE UPDATE ON public.email_whitelist FROM authenticated;
+GRANT UPDATE (ug_id) ON public.email_whitelist TO authenticated;
+ALTER PUBLICATION supabase_realtime ADD TABLE email_whitelist;
 CREATE POLICY "EmailWhitelistSelectAuth"
     ON "public"."email_whitelist"
     AS PERMISSIVE
@@ -119,6 +125,15 @@ CREATE POLICY "EmailWhitelistDeleteAuth"
     FOR DELETE
     TO authenticated
     USING (check_is_admin());
+CREATE POLICY "EmailWhitelistUpdateAuth"
+    ON "public"."email_whitelist"
+    AS PERMISSIVE
+    FOR UPDATE
+    TO authenticated
+    USING (
+    check_is_admin()
+    )
+    WITH CHECK (check_is_admin());
 CREATE OR REPLACE FUNCTION public.handle_new_user()
     RETURNS trigger
     SET search_path TO public, auth, pg_temp AS
@@ -173,7 +188,7 @@ EXECUTE FUNCTION public.on_user_deleted_purge();
 CREATE TABLE IF NOT EXISTS facilities
 (
     f_id    serial PRIMARY KEY,
-    name    bpchar  NOT NULL,
+    name    text  NOT NULL,
     deleted boolean NOT NULL
 );
 INSERT INTO facilities (f_id, name, deleted)
@@ -219,7 +234,7 @@ CREATE TABLE IF NOT EXISTS labs
 (
     l_id    serial PRIMARY KEY,
     color   integer NOT NULL,
-    name    bpchar  NOT NULL,
+    name    text  NOT NULL,
     deleted boolean NOT NULL
 );
 INSERT INTO labs (l_id, color, name, deleted)
@@ -263,7 +278,7 @@ CREATE POLICY "LabsUpdateAuth"
 CREATE TABLE IF NOT EXISTS enrichment_lists
 (
     el_id   serial PRIMARY KEY,
-    name    bpchar  NOT NULL,
+    name    text  NOT NULL,
     deleted boolean NOT NULL
 );
 ALTER TABLE "public"."enrichment_lists"
@@ -298,7 +313,7 @@ CREATE POLICY "EnrichmentListsUpdateAuth"
 CREATE TABLE buildings
 (
     b_id    serial PRIMARY KEY,
-    name    bpchar  NOT NULL,
+    name    text  NOT NULL,
     deleted boolean NOT NULL
 );
 INSERT INTO buildings(b_id, name, deleted)
@@ -339,7 +354,7 @@ CREATE TABLE IF NOT EXISTS rooms
 (
     r_id    serial PRIMARY KEY,
     b_id    integer REFERENCES buildings (b_id)  NOT NULL,
-    name    bpchar                               NOT NULL,
+    name    text                               NOT NULL,
     f_id    integer REFERENCES facilities (f_id) NOT NULL,
     l_id    integer REFERENCES labs (l_id),
     el_id   integer REFERENCES enrichment_lists (el_id),
@@ -459,7 +474,7 @@ CREATE POLICY "CensusesInsertAuth"
 CREATE TABLE IF NOT EXISTS animals
 (
     a_id    serial PRIMARY KEY,
-    name    bpchar  NOT NULL,
+    name    text  NOT NULL,
     deleted boolean NOT NULL
 );
 ALTER TABLE "public"."animals"
@@ -529,7 +544,7 @@ CREATE TYPE week_day AS ENUM (
 CREATE TABLE IF NOT EXISTS enrichment_types
 (
     et_id       serial PRIMARY KEY,
-    description bpchar  NOT NULL,
+    description text  NOT NULL,
     deleted     boolean NOT NULL
 );
 ALTER TABLE "public"."enrichment_types"
@@ -655,7 +670,7 @@ CREATE TYPE task_frequency AS ENUM (
 CREATE TABLE IF NOT EXISTS task_lists
 (
     tl_id     serial PRIMARY KEY,
-    name      bpchar         NOT NULL,
+    name      text         NOT NULL,
     frequency task_frequency NOT NULL,
     deleted   boolean        NOT NULL
 );
@@ -715,7 +730,7 @@ CREATE POLICY "TaskListsUpdateAuth"
 CREATE TABLE IF NOT EXISTS tasks
 (
     t_id         serial PRIMARY KEY,
-    name         bpchar  NOT NULL,
+    name         text  NOT NULL,
     manager_only boolean NOT NULL,
     deleted      boolean NOT NULL
 );
@@ -811,7 +826,7 @@ CREATE POLICY "TasksUpdateAuth"
 CREATE TABLE IF NOT EXISTS quantitative_ranges
 (
     qr_id   serial PRIMARY KEY,
-    unit    bpchar  NOT NULL,
+    unit    text  NOT NULL,
     maximum numeric NOT NULL,
     minimum numeric NOT NULL,
     deleted boolean NOT NULL,
@@ -1193,7 +1208,7 @@ CREATE TABLE IF NOT EXISTS room_check_slots
     r_id      integer REFERENCES rooms (r_id) NOT NULL,
     state     room_check_state                NOT NULL,
     frequency public.task_frequency           NOT NULL,
-    comment   bpchar,
+    comment   text,
     u_id      integer REFERENCES users (u_id),
     CONSTRAINT unique_room_checks UNIQUE (date_time, r_id, frequency)
 );
@@ -1263,7 +1278,7 @@ CREATE OR REPLACE FUNCTION get_room_check_slots(
     RETURNS TABLE
             (
                 b_id                     integer,
-                building_name            pg_catalog.bpchar,
+                building_name            pg_catalog.text,
                 room_checks_by_frequency JSONB
             )
     LANGUAGE sql

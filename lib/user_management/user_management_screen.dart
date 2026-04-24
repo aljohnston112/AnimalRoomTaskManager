@@ -19,9 +19,13 @@ class UserManagementScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
+          padding8,
           AdminRow(userListModel: _userListModel),
+          padding8,
           UserListWidget(userListModel: _userListModel),
+          padding8,
           _buildAddNewUserButton(context, _userListModel),
+          padding8,
         ],
       ),
     );
@@ -35,10 +39,10 @@ class UserManagementScreen extends StatelessWidget {
       onPressed: () async {
         final AddUserResult? result = await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => AddNewUserPage(null, null)),
+          MaterialPageRoute(builder: (_) => AddNewUserPage("Add New User", null, null)),
         );
         if (result != null) {
-          userListModel.addUser(
+          userListModel.addEmailToWhitelist(
             User(email: result.email, group: result.group, uid: null),
           );
         }
@@ -61,7 +65,10 @@ class AdminRow extends StatelessWidget {
         ListenableBuilder(
           listenable: userListModel,
           builder: (context, _) {
-            return Text("Admin: ${userListModel.admin}");
+            return mediumTitleText(
+              context,
+              "Current Admin: \n    Email: ${userListModel.admin.email}\n    Role: ${userGroupToString(userListModel.admin.group)}",
+            );
           },
         ),
         _buildAdminTransferButton(context),
@@ -98,20 +105,27 @@ class UserListWidget extends StatelessWidget {
       child: ListenableBuilder(
         listenable: userListModel,
         builder: (context, _) {
-          return ListView(
-            children: userListModel.users
-                .where((user) => user.group != UserGroup.admin)
-                .map((user) => _buildUserListTile(context, user))
-                .toList(),
+          return constrainToPhoneWidth(
+            ListView(
+              children: userListModel.users
+                  .where((user) => user.group != UserGroup.admin)
+                  .map((user) => _buildUserListTile(context, user))
+                  .toList(),
+            ),
           );
         },
       ),
     );
   }
 
+
+
   ListTile _buildUserListTile(BuildContext context, User user) {
     return ListTile(
-      title: Center(child: Text(user.toString())),
+      title: mediumTitleText(
+        context,
+        "Email: ${user.email}\nRole:  ${userGroupToString(user.group)}",
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -129,7 +143,7 @@ class UserListWidget extends StatelessWidget {
         final AddUserResult? result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => AddNewUserPage(user.email, user.group),
+            builder: (_) => AddNewUserPage("Edit User", user.email, user.group),
           ),
         );
         if (result != null) {

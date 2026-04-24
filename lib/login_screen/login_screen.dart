@@ -24,10 +24,8 @@ class LoginScreen extends StatelessWidget {
       child: buildScaffold(
         title: 'Login',
         child: Center(
-          child: ConstrainedBox(
-            // To prevent the list from taking up the full width of a wide screen
-            constraints: const BoxConstraints(maxWidth: widePhoneWidth),
-            child: Column(
+          child: constrainToPhoneWidth(
+            Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 buildEmailTextFormField(_emailController),
@@ -87,9 +85,8 @@ class LoginScreen extends StatelessWidget {
   }
 
   Widget _buildPasswordFormField(TextEditingController passwordController) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
-      child: TextFormField(
+    return constrainToPhoneWidth(
+      TextFormField(
         controller: passwordController,
         decoration: const InputDecoration(hintText: "Password"),
         autovalidateMode: AutovalidateMode.onUnfocus,

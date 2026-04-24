@@ -21,25 +21,46 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Admin Transfer",
-      child: Column(
-        children: [_buildDropdownForUserList(), _buildConfirmButton(context)],
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            constrainToPhoneWidth(_buildDropdownForUserList()),
+            constrainToPhoneWidth(
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildCancelButton(context),
+                  _buildConfirmButton(context),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  DropdownButtonFormField<User> _buildDropdownForUserList() {
-    return DropdownButtonFormField<User>(
-      initialValue: selectedUser,
-      items: widget.users
-          .where((u) => u.group != UserGroup.admin)
-          .map((u) => DropdownMenuItem(value: u, child: Text(u.toString())))
-          .toList(),
-      onChanged: (value) {
-        setState(() {
-          selectedUser = value;
-        });
-      },
-      validator: _validateSelectedUser,
+  Widget _buildDropdownForUserList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        largeTitleText(context, "New Admin"),
+        padding8,
+        DropdownButtonFormField<User>(
+          initialValue: selectedUser,
+          items: widget.users
+              .where((u) => u.group != UserGroup.admin)
+              .map((u) => DropdownMenuItem(value: u, child: Text(u.email)))
+              .toList(),
+          onChanged: (value) {
+            setState(() {
+              selectedUser = value;
+            });
+          },
+          validator: _validateSelectedUser,
+        ),
+      ],
     );
   }
 
@@ -54,6 +75,13 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
     return FilledButton(
       child: const Text("Confirm"),
       onPressed: () => Navigator.pop(context, selectedUser),
+    );
+  }
+
+  Widget _buildCancelButton(BuildContext context) {
+    return FilledButton(
+      child: const Text("Cancel"),
+      onPressed: () => Navigator.pop(context),
     );
   }
 }

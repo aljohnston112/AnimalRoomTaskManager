@@ -79,7 +79,7 @@ class RoomCheckModel extends ChangeNotifier {
         state: RoomCheckState.started,
       );
     }
-    roomCheckRepository.updateRoomCheck(_roomCheckSlot);
+    roomCheckRepository.upsertRoomCheck(_roomCheckSlot);
 
     // Initialize input controllers
     for (var task in taskList.tasks) {
@@ -180,7 +180,7 @@ class RoomCheckModel extends ChangeNotifier {
         )
         ?.rcid;
     // Check database
-    rcid ??= await _roomCheckRepository.tryInsertRoomCheckAndGetRcid(_roomCheckSlot);
+    rcid ??= await _roomCheckRepository.upsertRoomCheck(_roomCheckSlot);
 
     // TODO these should be batched
     // Will need to handle lists and insert errors in the shema and

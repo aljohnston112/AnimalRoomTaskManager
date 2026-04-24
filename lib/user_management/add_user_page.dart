@@ -1,27 +1,28 @@
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
-import '../user_use_case.dart';
 import 'user_repository.dart';
 
 class AddNewUserPage extends StatefulWidget {
   final String? user;
   final UserGroup? userGroup;
+  final String title;
 
-  const AddNewUserPage(this.user, this.userGroup, {super.key});
+  const AddNewUserPage(this.title, this.user, this.userGroup, {super.key});
 
   @override
   State<StatefulWidget> createState() {
-    return _AddNewUserState();
+    return _AddNewUserState(title: title);
   }
 }
 
 class _AddNewUserState extends State<AddNewUserPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
+  final String title;
   UserGroup? selectedGroup;
 
-  _AddNewUserState();
+  _AddNewUserState({required this.title});
 
   @override
   void initState() {
@@ -37,29 +38,35 @@ class _AddNewUserState extends State<AddNewUserPage> {
     return Form(
       key: _formKey,
       child: buildScaffold(
-        title: "Add User",
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            buildEmailTextFormField(_emailController),
-            _buildUserGroupDropdown(),
-            _buildAddUserButton(context),
-          ],
+        title: title,
+        child: Center(
+          child: constrainToPhoneWidth(
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextFormField(controller: _emailController, enabled: false),
+                _buildUserGroupDropdown(),
+                _buildAddUserButton(context),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-
   DropdownButtonFormField<UserGroup> _buildUserGroupDropdown() {
     return DropdownButtonFormField<UserGroup>(
-      decoration: const InputDecoration(hintText: "User Group"),
+      decoration: InputDecoration(hintText: title),
       items: UserGroup.values
           .where((group) {
             return group != UserGroup.admin;
           })
           .map((group) {
-            return DropdownMenuItem(value: group, child: Text(group.name));
+            return DropdownMenuItem(
+              value: group,
+              child: Text(userGroupToString(group)),
+            );
           })
           .toList(),
       initialValue: selectedGroup,

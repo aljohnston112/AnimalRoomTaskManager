@@ -258,7 +258,7 @@ class RoomCheckRepository {
   }
 
   void assignUserToRoomCheck(RoomCheckSlot roomCheckSlot) {
-    _database.assignUserToRoomCheck(roomCheckSlot);
+    _database.upsertRoomCheckAndGetRcid(roomCheckSlot);
   }
 
   RoomCheckSlot? getRoomCheck(
@@ -292,15 +292,11 @@ class RoomCheckRepository {
 
     // Will use the provided room check since if it is new
     withComment ??= roomCheckSlot.withComment(comment);
-    updateRoomCheck(withComment);
+    upsertRoomCheck(withComment);
   }
 
-  void updateRoomCheck(RoomCheckSlot roomCheckSlot) {
-    _database.upsertRoomCheck(roomCheckSlot);
-  }
-
-  Future<int> tryInsertRoomCheckAndGetRcid(RoomCheckSlot roomCheckSlot) async {
-    return (await _database.tryInsertRoomCheckAndGetID(roomCheckSlot)).key;
+  Future<int> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
+    return await _database.upsertRoomCheckAndGetRcid(roomCheckSlot);
   }
 
 }

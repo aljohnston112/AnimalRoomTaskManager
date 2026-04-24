@@ -11,47 +11,39 @@ class UserListModel extends ChangeNotifier {
 
   User get admin => _admin;
 
-  List<User> _users = [];
+  Set<User> _users = {};
+  Set<User> _whitelistedEmails = {};
 
-  UnmodifiableListView<User> get users => UnmodifiableListView(_users);
+  UnmodifiableListView<User> get users => UnmodifiableListView(_users.union(_whitelistedEmails));
 
   UserListModel({required UserRepository userRepository})
-      : _userRepository = userRepository {
+    : _userRepository = userRepository {
     _admin = _userRepository.getAdmin();
+    _whitelistedEmails = _userRepository.getWhitelistedEmails();
     _users = _userRepository.getUsers();
+    _userRepository.emailWhitelistNotifier.addListener(() {
+      _whitelistedEmails = _userRepository.emailWhitelistNotifier.value;
+      notifyListeners();
+    });
+    _userRepository.usersNotifier.addListener(() {
+      _users = _userRepository.usersNotifier.value;
+      notifyListeners();
+    });
   }
 
-  void addUser(User user) {
-    _users.add(user);
-    if (user.group == UserGroup.admin) {
-      _admin = user;
-    }
-    notifyListeners();
-    _users = _userRepository.getUsers();
-    _admin = _userRepository.getAdmin();
+  void addEmailToWhitelist(User user) {
+    _userRepository.addEmailToWhitelist(user);
   }
 
   void updateUser(User user) {
-    _users.removeWhere((u) {
-      return u.email == user.email;
-    });
-    addUser(user);
-    notifyListeners();
-    _userRepository.updateUser(user);
+    _userRepository.updateUserGroup(user);
   }
 
   void removeUser(User user) {
-    _users.remove(user);
-    notifyListeners();
     _userRepository.removeUser(user);
   }
 
   void changeAdmin(User newAdmin) {
-    User oldAdmin = admin;
-    _admin = newAdmin;
-    notifyListeners();
-    _userRepository.changeAdmin(oldAdmin, newAdmin);
-    _users = _userRepository.getUsers();
-    _admin = _userRepository.getAdmin();
+    _userRepository.changeAdmin(admin, newAdmin);
   }
 }

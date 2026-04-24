@@ -99,6 +99,32 @@ class Database {
         .subscribe();
   }
 
+  void subscribeToEmailWhitelist(
+    void Function(PostgresChangePayload) callback,
+  ) {
+    _supabase
+        .channel("email_whitelist")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'email_whitelist',
+          callback: callback,
+        )
+        .subscribe();
+  }
+
+  void subscribeToUsers(void Function(PostgresChangePayload) callback) {
+    _supabase
+        .channel("users")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'users',
+          callback: callback,
+        )
+        .subscribe();
+  }
+
   // selectors
   // ---------------------------------------------------------------------------
   Future<List<PostgrestMap>> getRecords() async {
@@ -136,6 +162,38 @@ class Database {
     return data.toList();
   }
 
+  Future<PostgrestMap> getRoomCheckWithId(int rcid) async {
+    return await _supabase
+        .from('full_room_checks_view')
+        .select()
+        .eq('rc_id', rcid)
+        .single();
+  }
+
+  Future<int> getRoomCheckRcid(RoomCheckSlot roomCheckSlot) async {
+    return (await _supabase
+        .from('room_check_slots')
+        .select('rc_id')
+        .eq('r_id', roomCheckSlot.room.rid)
+        .eq('date_time', roomCheckSlot.date.toSupabaseString())
+        .eq('frequency', roomCheckSlot.frequency.toDbString)
+        .single())['rc_id'];
+  }
+
+  Future<List<PostgrestMap>> getUsers() async {
+    final data = await _supabase.from('users').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
+  Future<List<PostgrestMap>> getWhitelistedEmails() async {
+    final data = await _supabase.from('email_whitelist').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
   ur.UserGroup _getUserGroup(PostgrestMap postgresMap) {
     switch (postgresMap['ug_id']) {
       case 0:
@@ -164,112 +222,86 @@ class Database {
     return null;
   }
 
-  Future<PostgrestMap> getRoomCheckWithId(int rcid) async {
-    return await _supabase
-        .from('full_room_checks_view')
-        .select()
-        .eq('rc_id', rcid)
-        .single();
+  // inserts/updates
+  // ---------------------------------------------------------------------------
+  Future<int> upsert<T>({
+    required int? id,
+    required T object,
+    required Future<void> Function(T, int) doUpdate,
+    required Future<int> Function(T) doInsert,
+    required Future<int> Function(T) doSelect,
+  }) async {
+    if (id != null) {
+      // if id is not null, then the row is already in the database
+      await doUpdate(object, id);
+      return id;
+    } else {
+      try {
+        return await doInsert(object);
+      } on PostgrestException catch (ex, e) {
+        if (ex.message.contains("duplicate key")) {
+          id = await doSelect(object);
+          await doUpdate(object, id);
+          return id;
+        } else {
+          rethrow;
+        }
+      }
+    }
   }
 
-  Future<int> getRoomCheckRCID(
-    RoomCheckDate date,
-    int rid,
-    TaskFrequency frequency,
-  ) async {
+  Future<int> insertRoomCheckAndGetRcid(RoomCheckSlot roomCheckSlot) async {
     return (await _supabase
-        .from('room_check_slots')
+        .from(roomCheckTableName)
+        .insert({
+          'date_time': roomCheckSlot.date.toSupabaseString(),
+          'r_id': roomCheckSlot.room.rid,
+          'state': roomCheckSlot.state.toDbString,
+          'frequency': roomCheckSlot.frequency.toDbString,
+          'comment': roomCheckSlot.comment,
+          'u_id': roomCheckSlot.user?.uid,
+        })
         .select('rc_id')
-        .eq('r_id', rid)
-        .eq('date_time', date.toSupabaseString())
-        .eq('frequency', frequency.toDbString)
         .single())['rc_id'];
   }
 
-  // inserts/updates
-  // ---------------------------------------------------------------------------
-  Future<InsertAndGetKeyResult> tryInsertRoomCheckAndGetID(
-    RoomCheckSlot roomCheckSlot,
-  ) async {
-    try {
-      return InsertAndGetKeyResult(
-        inserted: true,
-        key: (await _supabase
-            .from(roomCheckTableName)
-            .insert({
-              'date_time': roomCheckSlot.date.toSupabaseString(),
-              'r_id': roomCheckSlot.room.rid,
-              'state': roomCheckSlot.state.toDbString,
-              'frequency': roomCheckSlot.frequency.toDbString,
-              'comment': roomCheckSlot.comment,
-              'u_id': roomCheckSlot.user?.uid,
-            })
-            .select('rc_id')
-            .single())['rc_id'],
-      );
-    } on PostgrestException catch (ex, e) {
-      if (ex.message.contains("duplicate key")) {
-        return InsertAndGetKeyResult(
-          inserted: false,
-          key: await getRoomCheckRCID(
-            roomCheckSlot.date,
-            roomCheckSlot.room.rid,
-            roomCheckSlot.frequency,
-          ),
-        );
-      } else {
-        rethrow;
-      }
-    }
+  Future<void> updateRoomCheck(RoomCheckSlot roomCheckSlot, int id) async {
+    await _supabase
+        .from('room_check_slots')
+        .update({
+          'state': roomCheckSlot.state.toDbString,
+          'comment': roomCheckSlot.comment,
+          'u_id': roomCheckSlot.user?.uid,
+        })
+        .eq('rc_id', id);
   }
 
-  Future<void> assignUserToRoomCheck(RoomCheckSlot roomCheckSlot) async {
-    final rcid = roomCheckSlot.rcid;
-    if (rcid != null) {
-      await _supabase
-          .from(roomCheckTableName)
-          .update({'u_id': roomCheckSlot.user?.uid})
-          .eq('rc_id', rcid);
-    } else {
-      // this is needed since there may be a race condition between a
-      // room check slot getting pushed to supabase and downloaded,
-      // and when trying to insert a room check with a new assignment
-      final result = await tryInsertRoomCheckAndGetID(roomCheckSlot);
-      final rcid = result.key;
-      if (!result.inserted) {
-        await _supabase
-            .from(roomCheckTableName)
-            .update({'u_id': roomCheckSlot.user?.uid})
-            .eq('rc_id', rcid);
-      }
-    }
+  Future<int> upsertRoomCheckAndGetRcid(RoomCheckSlot roomCheckSlot) async {
+    return await upsert(
+      id: roomCheckSlot.rcid,
+      object: roomCheckSlot,
+      doUpdate: updateRoomCheck,
+      doInsert: insertRoomCheckAndGetRcid,
+      doSelect: getRoomCheckRcid,
+    );
   }
 
-  Future<void> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
-    var rcid = roomCheckSlot.rcid;
-    if (rcid != null) {
-      await _supabase
-          .from('room_check_slots')
-          .update({
-            'state': roomCheckSlot.state.toDbString,
-            'comment': roomCheckSlot.comment,
-            'u_id': roomCheckSlot.user?.uid,
-          })
-          .eq('rc_id', rcid);
-    } else {
-      final result = await tryInsertRoomCheckAndGetID(roomCheckSlot);
-      final rcid = result.key;
-      if (!result.inserted) {
-        await _supabase
-            .from('room_check_slots')
-            .update({
-              'state': roomCheckSlot.state.toDbString,
-              'comment': roomCheckSlot.comment,
-              'u_id': roomCheckSlot.user?.uid,
-            })
-            .eq('rc_id', rcid);
-      }
-    }
+  Future<void> updateUserGroup(ur.User user) async {
+    await _supabase
+        .from('email_whitelist')
+        .update({'ug_id': user.group.index})
+        .eq('email', user.email);
+    await _supabase
+        .from('users')
+        .update({'ug_id': user.group.index})
+        .eq('u_id', user.uid!);
+  }
+
+  Future<void> removeUser(ur.User user) async {
+    await _supabase
+        .from('users')
+        .update({'deleted': true})
+        .eq('u_id', user.uid!);
   }
 
   Future<bool> insertRecord(TaskRecord taskRecord) async {
@@ -292,5 +324,14 @@ class Database {
       },
     );
     return true;
+  }
+
+  Future<void> addUserToWhitelist(ur.User user) async {
+    await _supabase.from(roomCheckTableName).insert({
+      'email',
+      user.email,
+      'ug_id',
+      user.group.index,
+    });
   }
 }

@@ -14,10 +14,8 @@ class TaskListWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: ConstrainedBox(
-        // To prevent the list from taking up the full width of a wide screen
-        constraints: const BoxConstraints(maxWidth: widePhoneWidth),
-        child: ListenableBuilder(
+      child: constrainToPhoneWidth(
+        ListenableBuilder(
           listenable: roomCheckModel,
           builder: (context, _) {
             return Column(
@@ -33,11 +31,8 @@ class TaskListWidget extends StatelessWidget {
                 if (roomCheckModel.getCommentController().text.isNotEmpty ||
                     roomCheckModel.shouldCommentBeDisplayed()) ...[
                   padding8,
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: maxTextFieldWidth,
-                    ),
-                    child: _buildCommentInput(roomCheckModel.getSavedComment()?? ""),
+                  constrainTextBoxWidth(
+                    _buildCommentInput(roomCheckModel.getSavedComment()?? ""),
                   ),
                   padding8,
                 ] else ...[
@@ -86,9 +81,8 @@ class TaskListWidget extends StatelessWidget {
       // The number field or checkbox
       if (task is QuantitativeTask) ...[
         // To keep the input box from being super wide
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
-          child: _buildNumberEntryField(entry, task),
+        constrainTextBoxWidth(
+          _buildNumberEntryField(entry, task),
         ),
       ] else ...[
         _buildTaskCompleteWidget(entry, context),

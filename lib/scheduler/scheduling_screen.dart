@@ -450,9 +450,8 @@ class SchedulerListView extends StatelessWidget {
     }
 
     return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: widePhoneWidth),
-        child: Column(
+      child: constrainToPhoneWidth(
+        Column(
           children: [
             Expanded(
               child: LayoutBuilder(

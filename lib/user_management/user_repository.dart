@@ -5,6 +5,17 @@ import '../supabase_client/database.dart';
 
 enum UserGroup { admin, principalInvestigatorOrChiefOfStaff, roomChecker }
 
+String userGroupToString(UserGroup userGroup) {
+  switch (userGroup) {
+    case UserGroup.admin:
+      return "Admin";
+    case UserGroup.principalInvestigatorOrChiefOfStaff:
+      return "Principal Investigator or Chief of Staff";
+    case UserGroup.roomChecker:
+      return "Student Worker or Staff";
+  }
+}
+
 class User {
   final String email;
   final UserGroup group;
@@ -13,82 +24,74 @@ class User {
   const User({required this.email, required this.group, required this.uid});
 
   @override
-  String toString() {
-    return "$email: $group";
-  }
+  bool operator ==(Object other) => other is User && other.email == email;
+
+  @override
+  int get hashCode => email.hashCode;
 }
 
-class UserRepository extends ChangeNotifier {
-  final Database database;
+class UserRepository {
+  final Database _database;
 
-  final List<User> _users = [
-    User(
-      email: "test@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "a@uwosh.edu", group: UserGroup.admin, uid: null),
-    User(
-      email: "b@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "c@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "d@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "e@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(
-      email: "f@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "g@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "h@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "i@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "j@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(
-      email: "k@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "l@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "m@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "n@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(
-      email: "o@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "p@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "q@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "r@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(
-      email: "s@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "t@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "u@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "v@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(
-      email: "w@uwosh.edu",
-      group: UserGroup.principalInvestigatorOrChiefOfStaff,
-      uid: null,
-    ),
-    User(email: "x@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "y@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-    User(email: "z@uwosh.edu", group: UserGroup.roomChecker, uid: null),
-  ];
+  final ValueNotifier<Set<User>> emailWhitelistNotifier = ValueNotifier({});
+  final ValueNotifier<Set<User>> usersNotifier = ValueNotifier({});
 
-  UserRepository({required this.database});
+  final Set<User> _whitelistedUsers = {};
+  final Set<User> _users = {};
+
+  UserRepository({required Database database}) : _database = database {
+    _database.subscribeToEmailWhitelist((p) {
+      var map = p.newRecord;
+      var user = parseWhitelistedEmail(map);
+      _whitelistedUsers.remove(user);
+      _whitelistedUsers.add(user);
+      emailWhitelistNotifier.value = Set.from(_whitelistedUsers);
+    });
+    _database.subscribeToUsers((p) {
+      var map = p.newRecord;
+      User user = parseUser(map);
+      _whitelistedUsers.removeWhere((u) => u.email == user.email);
+      if (!map['deleted']) {
+        // add does not replace
+        _users.remove(user);
+        _users.add(user);
+      } else {
+        _users.remove(user);
+      }
+      emailWhitelistNotifier.value = Set.from(_whitelistedUsers);
+      usersNotifier.value = Set.from(_users);
+    });
+  }
+
+  User parseWhitelistedEmail(Map<String, dynamic> map) {
+    return User(
+      email: map['email'],
+      group: UserGroup.values[map['ug_id']],
+      uid: null,
+    );
+  }
+
+  User parseUser(Map<String, dynamic> map) {
+    User user = User(
+      email: map['name'],
+      group: UserGroup.values[map['ug_id']],
+      uid: map['u_id'],
+    );
+    return user;
+  }
 
   void subscribeToAuthEvents(void Function(User?) onAuthChange) {
-    database.subscribeToAuth((data) async {
+    _database.subscribeToAuth((data) async {
       switch (data.event) {
         case AuthChangeEvent.signedIn:
           var email = data.session?.user.email;
           var authId = data.session?.user.id;
           if (email != null && authId != null) {
-            var user = await database.getUserWithAuthId(authId);
+            var user = await _database.getUserWithAuthId(authId);
+            if (user != null) {
+              _users.add(user);
+              usersNotifier.value = Set.from(_users);
+            }
             onAuthChange(user);
           } else {
             onAuthChange(null);
@@ -103,54 +106,67 @@ class UserRepository extends ChangeNotifier {
     });
   }
 
-  List<User> getUsers() {
+  Future<void> loadUsers() async {
+    final whitelistedEmails = await _database.getWhitelistedEmails();
+    for (final whitelistedEmail in whitelistedEmails) {
+      _whitelistedUsers.add(parseWhitelistedEmail(whitelistedEmail));
+    }
+    emailWhitelistNotifier.value = Set.from(_whitelistedUsers);
+
+    final users = await _database.getUsers();
+    for (final user in users) {
+      _users.add(parseUser(user));
+    }
+    usersNotifier.value = Set.from(_users);
+  }
+
+  Set<User> getWhitelistedEmails(){
+    return _whitelistedUsers;
+  }
+
+  Set<User> getUsers() {
     return _users;
   }
 
   User getAdmin() {
-    getUsers();
-    return _users.singleWhere((u) {
+    return _users.firstWhere((u) {
       return u.group == UserGroup.admin;
     });
   }
 
-  void addUser(User user) {
-    _users.add(user);
+  Future<void> addEmailToWhitelist(User user) async {
+    await _database.addUserToWhitelist(user);
   }
 
-  void updateUser(User user) {
-    _users.removeWhere((u) {
-      return u.email == user.email;
-    });
-    addUser(user);
-    notifyListeners();
+  Future<void> updateUserGroup(User user) async {
+    await _database.updateUserGroup(user);
   }
 
-  void removeUser(User user) {
-    _users.remove(user);
-    notifyListeners();
+  Future<void> removeUser(User user) async {
+    await _database.removeUser(user);
   }
 
-  void changeAdmin(User admin, User newAdmin) {
-    updateUser(
+  Future<void> changeAdmin(User admin, User newAdmin) async {
+    // TODO the new admin must not be switched until the new admin logs in
+    // and the current admin must be logged out
+    await updateUserGroup(
+      User(email: newAdmin.email, group: UserGroup.admin, uid: newAdmin.uid),
+    );
+    await updateUserGroup(
       User(
         email: admin.email,
         group: UserGroup.principalInvestigatorOrChiefOfStaff,
         uid: admin.uid,
       ),
     );
-    updateUser(
-      User(email: newAdmin.email, group: UserGroup.admin, uid: newAdmin.uid),
-    );
-    notifyListeners();
   }
 
   /// Returns the user if they are authenticated, else null
   Future<bool> tryLogIn(String email, String password) async {
-    return database.login(email: email, password: password);
+    return _database.login(email: email, password: password);
   }
 
   Future<bool> trySignUp(String email, String password) async {
-    return database.signUp(email: email, password: password);
+    return _database.signUp(email: email, password: password);
   }
 }

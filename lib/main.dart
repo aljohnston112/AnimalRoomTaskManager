@@ -3,10 +3,10 @@ import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
-import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
-import 'package:animal_room_task_manager/scheduler/scheduling_screen.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
+import 'package:animal_room_task_manager/user_management/user_list_model.dart';
+import 'package:animal_room_task_manager/user_management/user_management_screen.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,9 +15,6 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   Database database = await Database.create();
-  final roomCheckRepository = RoomCheckRepository(database: database);
-  //await roomCheckRepository.loadRoomChecks();
-
   runApp(
     MultiProvider(
       providers: [
@@ -25,21 +22,17 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (context) => FacilityRepository(database: database),
         ),
+        Provider.value(value: UserRepository(database: database)),
         ChangeNotifierProvider(
-          create: (context) => UserRepository(database: database),
-        ),
-        ChangeNotifierProxyProvider<UserRepository, LoginUseCase>(
-          create: (context) =>
-              LoginUseCase(userRepository: context.read<UserRepository>()),
-          update: (context, userRepository, previousLoginUseCase) {
-            return previousLoginUseCase ??
-                LoginUseCase(userRepository: userRepository);
+          create: (context) {
+            var userRepository = context.read<UserRepository>();
+            return LoginUseCase(userRepository: userRepository);
           },
         ),
         ChangeNotifierProvider(
           create: (context) => RecordRepository(database: database),
         ),
-        Provider.value(value: roomCheckRepository),
+        Provider.value(value: RoomCheckRepository(database: database)),
         ChangeNotifierProvider(
           create: (context) => TaskListRepository(database: database),
         ),
@@ -72,28 +65,24 @@ class MyApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.light,
-      home:
-          // UserManagementScreen(
-          //   userListModel: UserListModel(
-          //       userRepository: context.read<UserRepository>()),
-          // ),
-          loginUseCase.loggedInUser == null
+      home: loginUseCase.loggedInUser == null
           ? LoginScreen(loginUseCase: loginUseCase)
           : Builder(
               builder: (context) {
-                RecordRepository recordRepository = context
-                    .read<RecordRepository>();
-                RoomCheckRepository roomCheckRepository = context
-                    .read<RoomCheckRepository>();
-                TaskListRepository taskListRepository = context
-                    .read<TaskListRepository>();
-                return SchedulingScreen(
-                  schedulingModel: SchedulingModel(
-                    recordRepository: recordRepository,
-                    roomCheckRepository: roomCheckRepository,
-                    taskListRepository: taskListRepository,
-                  ),
+                RecordRepository recordRepository = context.read();
+                RoomCheckRepository roomCheckRepository = context.read();
+                TaskListRepository taskListRepository = context.read();
+                UserRepository userRepository = context.read();
+                return UserManagementScreen(
+                  userListModel: UserListModel(userRepository: userRepository),
                 );
+                // return SchedulingScreen(
+                //   schedulingModel: SchedulingModel(
+                //     recordRepository: recordRepository,
+                //     roomCheckRepository: roomCheckRepository,
+                //     taskListRepository: taskListRepository,
+                //   ),
+                // );
               },
             ),
     );
