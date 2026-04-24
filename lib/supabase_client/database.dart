@@ -3,6 +3,7 @@ import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../facility_management/facility_repository.dart';
 import '../user_management/user_repository.dart' as ur;
 
 class InsertAndGetKeyResult {
@@ -127,6 +128,13 @@ class Database {
 
   // selectors
   // ---------------------------------------------------------------------------
+  Future<List<PostgrestMap>> getFacilities() async {
+    final data = await _supabase.from('facilities').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
   Future<List<PostgrestMap>> getRecords() async {
     final today = DateTime.now();
     final startOfToday = DateTime(
@@ -333,5 +341,35 @@ class Database {
       'ug_id',
       user.group.index,
     });
+  }
+
+  Future<void> insertFacility(String facilityName) async {
+    try {
+      return (await _supabase
+          .from('facilities')
+          .insert({'name': facilityName, 'deleted': false})
+          .select('f_id')
+          .single())['f_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        undeleteFacility(facilityName);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  Future<void> deleteFacility(Facility facility) async {
+    await _supabase
+        .from('facilities')
+        .update({'deleted': true})
+        .eq('f_id', facility.fid);
+  }
+
+  Future<void> undeleteFacility(String facilityName) async {
+    await _supabase
+        .from('facilities')
+        .update({'deleted': false})
+        .eq('name', facilityName);
   }
 }

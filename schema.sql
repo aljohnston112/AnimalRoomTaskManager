@@ -189,7 +189,8 @@ CREATE TABLE IF NOT EXISTS facilities
 (
     f_id    serial PRIMARY KEY,
     name    text  NOT NULL,
-    deleted boolean NOT NULL
+    deleted boolean NOT NULL,
+    CONSTRAINT "unique_facility_name" UNIQUE (name)
 );
 INSERT INTO facilities (f_id, name, deleted)
 VALUES (0, 'Surgery', FALSE),
@@ -207,6 +208,7 @@ GRANT SELECT, INSERT ON TABLE public.facilities TO authenticated;
 REVOKE UPDATE ON public.facilities FROM authenticated;
 GRANT UPDATE (deleted) ON public.facilities TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE facilities_f_id_seq TO authenticated;
+ALTER PUBLICATION supabase_realtime ADD TABLE facilities;
 CREATE POLICY "FacilitiesSelectAuth"
     ON "public"."facilities"
     AS PERMISSIVE

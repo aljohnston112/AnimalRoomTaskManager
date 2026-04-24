@@ -1,5 +1,5 @@
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
-import 'package:animal_room_task_manager/user_use_case.dart';
+import 'package:animal_room_task_manager/user_management/user_use_case.dart';
 import 'package:flutter/material.dart';
 
 import '../theme_data.dart';

@@ -12,17 +12,14 @@ class AddNewUserPage extends StatefulWidget {
 
   @override
   State<StatefulWidget> createState() {
-    return _AddNewUserState(title: title);
+    return _AddNewUserState();
   }
 }
 
 class _AddNewUserState extends State<AddNewUserPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final String title;
   UserGroup? selectedGroup;
-
-  _AddNewUserState({required this.title});
 
   @override
   void initState() {
@@ -38,7 +35,7 @@ class _AddNewUserState extends State<AddNewUserPage> {
     return Form(
       key: _formKey,
       child: buildScaffold(
-        title: title,
+        title: widget.title,
         child: Center(
           child: constrainToPhoneWidth(
             Column(
@@ -57,7 +54,7 @@ class _AddNewUserState extends State<AddNewUserPage> {
 
   DropdownButtonFormField<UserGroup> _buildUserGroupDropdown() {
     return DropdownButtonFormField<UserGroup>(
-      decoration: InputDecoration(hintText: title),
+      decoration: InputDecoration(hintText: widget.title),
       items: UserGroup.values
           .where((group) {
             return group != UserGroup.admin;

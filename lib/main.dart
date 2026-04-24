@@ -1,4 +1,3 @@
-import 'package:animal_room_task_manager/facility_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
@@ -10,6 +9,10 @@ import 'package:animal_room_task_manager/user_management/user_management_screen.
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import 'facility_management/facility_management_model.dart';
+import 'facility_management/facility_management_screen.dart';
+import 'facility_management/facility_repository.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -69,13 +72,19 @@ class MyApp extends StatelessWidget {
           ? LoginScreen(loginUseCase: loginUseCase)
           : Builder(
               builder: (context) {
+                FacilityRepository facilityRepository = context.read();
                 RecordRepository recordRepository = context.read();
                 RoomCheckRepository roomCheckRepository = context.read();
                 TaskListRepository taskListRepository = context.read();
                 UserRepository userRepository = context.read();
-                return UserManagementScreen(
-                  userListModel: UserListModel(userRepository: userRepository),
+                return FacilityManagementScreen(
+                  model: FacilityManagementModel(facilityRepository: facilityRepository),
                 );
+
+                // return UserManagementScreen(
+                //   userListModel: UserListModel(userRepository: userRepository),
+                // );
+
                 // return SchedulingScreen(
                 //   schedulingModel: SchedulingModel(
                 //     recordRepository: recordRepository,
