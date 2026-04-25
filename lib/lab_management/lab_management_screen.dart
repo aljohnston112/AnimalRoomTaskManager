@@ -30,6 +30,7 @@ class LabManagementScreen extends StatelessWidget {
                         for (var lab in _model.getLabs()) ...[
                           ListTile(
                             title: mediumTitleText(context, lab.name),
+                            // TODO edit color
                             trailing: _buildDeleteIconButton(context, lab),
                             leading: Icon(Icons.circle, color: lab.color),
                           ),

@@ -23,12 +23,14 @@ class FacilityRepository {
   FacilityRepository({required Database database}) : _database = database {
     _database.subscribeToFacilities((PostgresChangePayload p) {
       var newRecord = p.newRecord;
-      var facility = _parseFacility(newRecord);
-      _facilities.remove(facility);
-      if (!newRecord['deleted']) {
-        _facilities.add(facility);
+      if (newRecord.isNotEmpty) {
+        var facility = _parseFacility(newRecord);
+        _facilities.remove(facility);
+        if (!newRecord['deleted']) {
+          _facilities.add(facility);
+        }
+        facilities.value = Set.from(_facilities);
       }
-      facilities.value = Set.from(_facilities);
     });
   }
 

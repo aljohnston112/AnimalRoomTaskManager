@@ -28,7 +28,7 @@ GRANT SELECT ON TABLE public.user_groups TO authenticated;
 CREATE TABLE IF NOT EXISTS users
 (
     u_id    serial PRIMARY KEY,
-    name    text                                 NOT NULL,
+    name    text                                   NOT NULL,
     ug_id   integer REFERENCES user_groups (ug_id) NOT NULL,
     auth_id uuid REFERENCES auth.users             NOT NULL UNIQUE,
     deleted boolean                                NOT NULL,
@@ -188,7 +188,7 @@ EXECUTE FUNCTION public.on_user_deleted_purge();
 CREATE TABLE IF NOT EXISTS facilities
 (
     f_id    serial PRIMARY KEY,
-    name    text  NOT NULL,
+    name    text    NOT NULL,
     deleted boolean NOT NULL,
     CONSTRAINT "unique_facility_name" UNIQUE (name)
 );
@@ -235,8 +235,8 @@ CREATE POLICY "FacilitiesUpdateAuth"
 CREATE TABLE IF NOT EXISTS labs
 (
     l_id    serial PRIMARY KEY,
-    color   bigint NOT NULL,
-    name    text  NOT NULL,
+    color   bigint  NOT NULL,
+    name    text    NOT NULL,
     deleted boolean NOT NULL
 );
 INSERT INTO labs (l_id, color, name, deleted)
@@ -272,16 +272,14 @@ CREATE POLICY "LabsUpdateAuth"
     AS PERMISSIVE
     FOR UPDATE
     TO authenticated
-    USING (
-    check_is_admin()
-    )
+    USING (check_is_admin())
     WITH CHECK (check_is_admin());
 
 -- Enrichment Lists --------------------------------------------------
 CREATE TABLE IF NOT EXISTS enrichment_lists
 (
     el_id   serial PRIMARY KEY,
-    name    text  NOT NULL,
+    name    text    NOT NULL,
     deleted boolean NOT NULL
 );
 ALTER TABLE "public"."enrichment_lists"
@@ -316,7 +314,7 @@ CREATE POLICY "EnrichmentListsUpdateAuth"
 CREATE TABLE buildings
 (
     b_id    serial PRIMARY KEY,
-    name    text  NOT NULL,
+    name    text    NOT NULL,
     deleted boolean NOT NULL
 );
 INSERT INTO buildings(b_id, name, deleted)
@@ -332,6 +330,7 @@ GRANT SELECT, INSERT ON TABLE public.buildings TO authenticated;
 REVOKE UPDATE ON public.buildings FROM authenticated;
 GRANT UPDATE (deleted) ON public.buildings TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE buildings_b_id_seq TO authenticated;
+ALTER PUBLICATION supabase_realtime ADD TABLE buildings;
 CREATE POLICY "BuildingsSelectAuth"
     ON "public"."buildings"
     AS PERMISSIVE
@@ -357,7 +356,7 @@ CREATE TABLE IF NOT EXISTS rooms
 (
     r_id    serial PRIMARY KEY,
     b_id    integer REFERENCES buildings (b_id)  NOT NULL,
-    name    text                               NOT NULL,
+    name    text                                 NOT NULL,
     f_id    integer REFERENCES facilities (f_id) NOT NULL,
     l_id    integer REFERENCES labs (l_id),
     el_id   integer REFERENCES enrichment_lists (el_id),
@@ -477,7 +476,7 @@ CREATE POLICY "CensusesInsertAuth"
 CREATE TABLE IF NOT EXISTS animals
 (
     a_id    serial PRIMARY KEY,
-    name    text  NOT NULL,
+    name    text    NOT NULL,
     deleted boolean NOT NULL
 );
 ALTER TABLE "public"."animals"
@@ -547,7 +546,7 @@ CREATE TYPE week_day AS ENUM (
 CREATE TABLE IF NOT EXISTS enrichment_types
 (
     et_id       serial PRIMARY KEY,
-    description text  NOT NULL,
+    description text    NOT NULL,
     deleted     boolean NOT NULL
 );
 ALTER TABLE "public"."enrichment_types"
@@ -673,7 +672,7 @@ CREATE TYPE task_frequency AS ENUM (
 CREATE TABLE IF NOT EXISTS task_lists
 (
     tl_id     serial PRIMARY KEY,
-    name      text         NOT NULL,
+    name      text           NOT NULL,
     frequency task_frequency NOT NULL,
     deleted   boolean        NOT NULL
 );
@@ -733,7 +732,7 @@ CREATE POLICY "TaskListsUpdateAuth"
 CREATE TABLE IF NOT EXISTS tasks
 (
     t_id         serial PRIMARY KEY,
-    name         text  NOT NULL,
+    name         text    NOT NULL,
     manager_only boolean NOT NULL,
     deleted      boolean NOT NULL
 );
@@ -829,7 +828,7 @@ CREATE POLICY "TasksUpdateAuth"
 CREATE TABLE IF NOT EXISTS quantitative_ranges
 (
     qr_id   serial PRIMARY KEY,
-    unit    text  NOT NULL,
+    unit    text    NOT NULL,
     maximum numeric NOT NULL,
     minimum numeric NOT NULL,
     deleted boolean NOT NULL,
@@ -1543,7 +1542,7 @@ CREATE POLICY "Users can hear task updates"
     ON "realtime"."messages"
     FOR SELECT
     TO authenticated
-    USING ((select realtime.topic()) = 'task_record_channel');
+    USING ((SELECT realtime.topic()) = 'task_record_channel');
 
 CREATE OR REPLACE FUNCTION get_task_records(start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL)
     RETURNS TABLE

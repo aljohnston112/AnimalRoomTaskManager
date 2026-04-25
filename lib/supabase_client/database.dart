@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/building_management/building_repository.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
@@ -60,6 +61,18 @@ class Database {
     _supabase.auth.onAuthStateChange.listen((data) {
       onAuthChange(data);
     });
+  }
+
+  void subscribeToBuildings(Null Function(PostgresChangePayload p) callback) {
+    _supabase
+        .channel("buildings")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'buildings',
+          callback: callback,
+        )
+        .subscribe();
   }
 
   void subscribeToLabs(void Function(PostgresChangePayload p) callback) {
@@ -141,6 +154,13 @@ class Database {
 
   // selectors
   // ---------------------------------------------------------------------------
+  Future<List<PostgrestMap>> getBuildings() async {
+    final data = await _supabase.from('buildings').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
   Future<List<PostgrestMap>> getLabs() async {
     final data = await _supabase.from('labs').select('''
     *
@@ -374,7 +394,25 @@ class Database {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
-        undeleteLab(labName);
+        await undeleteLab(labName);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  Future<void> insertBuilding(String buildingName) async {
+    try {
+      return (await _supabase
+          .from('buildings')
+          .insert({'name': buildingName, 'deleted': false})
+          .select('b_id')
+          .single())['b_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // Front end does not have deleted rows
+        // therefore toggling the deleted flag
+        await undeleteBuilding(buildingName);
       } else {
         rethrow;
       }
@@ -392,7 +430,7 @@ class Database {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
-        undeleteFacility(facilityName);
+        await undeleteFacility(facilityName);
       } else {
         rethrow;
       }
@@ -401,6 +439,13 @@ class Database {
 
   Future<void> deleteLab(Lab lab) async {
     await _supabase.from('labs').update({'deleted': true}).eq('l_id', lab.lid);
+  }
+
+  Future<void> deleteBuilding(Building building) async {
+    await _supabase
+        .from('buildings')
+        .update({'deleted': true})
+        .eq('b_id', building.bid);
   }
 
   Future<void> deleteFacility(Facility facility) async {
@@ -412,6 +457,13 @@ class Database {
 
   Future<void> undeleteLab(String labName) async {
     await _supabase.from('labs').update({'deleted': false}).eq('name', labName);
+  }
+
+  Future<void> undeleteBuilding(String buildingName) async {
+    await _supabase
+        .from('buildings')
+        .update({'deleted': false})
+        .eq('name', buildingName);
   }
 
   Future<void> undeleteFacility(String facilityName) async {

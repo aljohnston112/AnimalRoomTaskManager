@@ -1,3 +1,6 @@
+import 'package:animal_room_task_manager/building_management/building_management_model.dart';
+import 'package:animal_room_task_manager/building_management/building_management_screen.dart';
+import 'package:animal_room_task_manager/building_management/building_repository.dart';
 import 'package:animal_room_task_manager/lab_management/lab_management_model.dart';
 import 'package:animal_room_task_manager/lab_management/lab_management_screen.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
@@ -25,6 +28,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider.value(value: database),
+        Provider.value(value: BuildingRepository(database: database)),
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
         Provider.value(value: RoomCheckRepository(database: database)),
@@ -74,6 +78,7 @@ class MyApp extends StatelessWidget {
           ? LoginScreen(loginUseCase: loginUseCase)
           : Builder(
               builder: (context) {
+                BuildingRepository buildingRepository = context.read();
                 LabRepository labRepository = context.read();
                 FacilityRepository facilityRepository = context.read();
                 RecordRepository recordRepository = context.read();
@@ -81,9 +86,15 @@ class MyApp extends StatelessWidget {
                 TaskListRepository taskListRepository = context.read();
                 UserRepository userRepository = context.read();
 
-                return LabManagementScreen(
-                  model: LabManagementModel(labRepository: labRepository),
+                return BuildingManagementScreen(
+                  model: BuildingManagementModel(
+                    buildingRepository: buildingRepository,
+                  ),
                 );
+
+                // return LabManagementScreen(
+                //   model: LabManagementModel(labRepository: labRepository),
+                // );
 
                 // return FacilityManagementScreen(
                 //   model: FacilityManagementModel(facilityRepository: facilityRepository),
