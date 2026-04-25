@@ -65,8 +65,8 @@ class FacilityManagementScreen extends StatelessWidget {
         _model.deleteFacility(facility);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('User deleted'),
-            duration: Duration(seconds: 2),
+            showCloseIcon: true,
+            content: Text('Facility deleted'),
             action: SnackBarAction(
               label: 'Undo deletion',
               onPressed: () {
@@ -107,28 +107,47 @@ class AddFacilityState extends State<AddFacilityPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                TextFormField(
-                  controller: _facilityController,
-                  validator: (value) {
-                    if (value == null) {
-                      return 'Please enter a facility';
-                    }
-                    if (widget._model.facilityExists(value)) {
-                      return 'There is already a facility with that name';
-                    }
-                    return null;
-                  },
+                constrainTextBoxWidth(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      mediumTitleText(context, "Facility Name"),
+                      TextFormField(
+                        controller: _facilityController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a facility';
+                          }
+                          if (widget._model.facilityExists(value)) {
+                            return 'There is already a facility with that name';
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                FilledButton(
-                  child: Text("Add Facility"),
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      await widget._model.addFacility(_facilityController.text);
-                      if(context.mounted){
-                      Navigator.pop(context);
-                      }
-                    }
-                  },
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    FilledButton(
+                      child: const Text("Cancel"),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    FilledButton(
+                      child: Text("Add Facility"),
+                      onPressed: () async {
+                        if (_formKey.currentState!.validate()) {
+                          await widget._model.addFacility(
+                            _facilityController.text,
+                          );
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),

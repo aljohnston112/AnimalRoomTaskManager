@@ -47,18 +47,20 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
       children: [
         largeTitleText(context, "New Admin"),
         padding8,
-        DropdownButtonFormField<User>(
-          initialValue: selectedUser,
-          items: widget.users
-              .where((u) => u.group != UserGroup.admin)
-              .map((u) => DropdownMenuItem(value: u, child: Text(u.email)))
-              .toList(),
-          onChanged: (value) {
-            setState(() {
-              selectedUser = value;
-            });
-          },
-          validator: _validateSelectedUser,
+        constrainTextBoxWidth(
+          DropdownButtonFormField<User>(
+            initialValue: selectedUser,
+            items: widget.users
+                .where((u) => u.group != UserGroup.admin)
+                .map((u) => DropdownMenuItem(value: u, child: Text(u.email)))
+                .toList(),
+            onChanged: (value) {
+              setState(() {
+                selectedUser = value;
+              });
+            },
+            validator: _validateSelectedUser,
+          ),
         ),
       ],
     );

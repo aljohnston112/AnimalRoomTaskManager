@@ -15,7 +15,7 @@ class Facility {
   int get hashCode => fid.hashCode;
 }
 
-class FacilityRepository extends ChangeNotifier {
+class FacilityRepository {
   final Database _database;
   final Set<Facility> _facilities = {};
   final ValueNotifier<Set<Facility>> facilities = ValueNotifier({});
@@ -40,7 +40,7 @@ class FacilityRepository extends ChangeNotifier {
     final result = await _database.getFacilities();
     for (final facilityDB in result) {
       Facility facility = _parseFacility(facilityDB);
-      if(!facilityDB['deleted']) {
+      if (!facilityDB['deleted']) {
         _facilities.add(facility);
       }
     }

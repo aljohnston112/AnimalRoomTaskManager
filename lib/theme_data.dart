@@ -35,8 +35,8 @@ InputDecoration buildInputDecoration(String hint) {
 void showSnackBar(BuildContext context, String message) {
   final snackBar = SnackBar(
     content: Text(message),
-    duration: const Duration(seconds: 2),
     behavior: SnackBarBehavior.floating,
+    showCloseIcon: true,
   );
   ScaffoldMessenger.of(context).showSnackBar(snackBar);
 }

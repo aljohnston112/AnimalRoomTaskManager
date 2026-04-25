@@ -1,3 +1,6 @@
+import 'package:animal_room_task_manager/lab_management/lab_management_model.dart';
+import 'package:animal_room_task_manager/lab_management/lab_management_screen.dart';
+import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
@@ -22,9 +25,9 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider.value(value: database),
-        ChangeNotifierProvider(
-          create: (context) => FacilityRepository(database: database),
-        ),
+        Provider.value(value: LabRepository(database: database)),
+        Provider.value(value: FacilityRepository(database: database)),
+        Provider.value(value: RoomCheckRepository(database: database)),
         Provider.value(value: UserRepository(database: database)),
         ChangeNotifierProvider(
           create: (context) {
@@ -35,7 +38,6 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (context) => RecordRepository(database: database),
         ),
-        Provider.value(value: RoomCheckRepository(database: database)),
         ChangeNotifierProvider(
           create: (context) => TaskListRepository(database: database),
         ),
@@ -72,14 +74,20 @@ class MyApp extends StatelessWidget {
           ? LoginScreen(loginUseCase: loginUseCase)
           : Builder(
               builder: (context) {
+                LabRepository labRepository = context.read();
                 FacilityRepository facilityRepository = context.read();
                 RecordRepository recordRepository = context.read();
                 RoomCheckRepository roomCheckRepository = context.read();
                 TaskListRepository taskListRepository = context.read();
                 UserRepository userRepository = context.read();
-                return FacilityManagementScreen(
-                  model: FacilityManagementModel(facilityRepository: facilityRepository),
+
+                return LabManagementScreen(
+                  model: LabManagementModel(labRepository: labRepository),
                 );
+
+                // return FacilityManagementScreen(
+                //   model: FacilityManagementModel(facilityRepository: facilityRepository),
+                // );
 
                 // return UserManagementScreen(
                 //   userListModel: UserListModel(userRepository: userRepository),

@@ -120,7 +120,7 @@ class UserRepository {
     usersNotifier.value = Set.from(_users);
   }
 
-  Set<User> getWhitelistedEmails(){
+  Set<User> getWhitelistedEmails() {
     return _whitelistedUsers;
   }
 

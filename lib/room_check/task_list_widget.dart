@@ -32,7 +32,7 @@ class TaskListWidget extends StatelessWidget {
                     roomCheckModel.shouldCommentBeDisplayed()) ...[
                   padding8,
                   constrainTextBoxWidth(
-                    _buildCommentInput(roomCheckModel.getSavedComment()?? ""),
+                    _buildCommentInput(roomCheckModel.getSavedComment() ?? ""),
                   ),
                   padding8,
                 ] else ...[
@@ -81,9 +81,7 @@ class TaskListWidget extends StatelessWidget {
       // The number field or checkbox
       if (task is QuantitativeTask) ...[
         // To keep the input box from being super wide
-        constrainTextBoxWidth(
-          _buildNumberEntryField(entry, task),
-        ),
+        constrainTextBoxWidth(_buildNumberEntryField(entry, task)),
       ] else ...[
         _buildTaskCompleteWidget(entry, context),
       ],

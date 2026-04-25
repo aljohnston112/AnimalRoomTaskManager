@@ -298,5 +298,4 @@ class RoomCheckRepository {
   Future<int> upsertRoomCheck(RoomCheckSlot roomCheckSlot) async {
     return await _database.upsertRoomCheckAndGetRcid(roomCheckSlot);
   }
-
 }

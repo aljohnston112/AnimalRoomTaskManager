@@ -39,7 +39,9 @@ class UserManagementScreen extends StatelessWidget {
       onPressed: () async {
         final AddUserResult? result = await Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => AddNewUserPage("Add New User", null, null)),
+          MaterialPageRoute(
+            builder: (_) => AddNewUserPage("Add New User", null, null),
+          ),
         );
         if (result != null) {
           userListModel.addEmailToWhitelist(
@@ -117,8 +119,6 @@ class UserListWidget extends StatelessWidget {
       ),
     );
   }
-
-
 
   ListTile _buildUserListTile(BuildContext context, User user) {
     return ListTile(

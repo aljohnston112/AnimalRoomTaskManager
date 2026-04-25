@@ -9,11 +9,11 @@ class LoginUseCase extends ChangeNotifier {
   User? _loggedInUser;
 
   LoginUseCase({required UserRepository userRepository})
-    : _userRepository = userRepository{
+    : _userRepository = userRepository {
     userRepository.subscribeToAuthEvents((user) async {
-        _loggedInUser = user;
-        await userRepository.loadUsers();
-        notifyListeners();
+      _loggedInUser = user;
+      await userRepository.loadUsers();
+      notifyListeners();
     });
   }
 

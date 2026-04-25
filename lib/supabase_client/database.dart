@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
@@ -59,6 +60,18 @@ class Database {
     _supabase.auth.onAuthStateChange.listen((data) {
       onAuthChange(data);
     });
+  }
+
+  void subscribeToLabs(void Function(PostgresChangePayload p) callback) {
+    _supabase
+        .channel("labs")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'labs',
+          callback: callback,
+        )
+        .subscribe();
   }
 
   void subscribeToFacilities(void Function(PostgresChangePayload) callback) {
@@ -128,6 +141,13 @@ class Database {
 
   // selectors
   // ---------------------------------------------------------------------------
+  Future<List<PostgrestMap>> getLabs() async {
+    final data = await _supabase.from('labs').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
   Future<List<PostgrestMap>> getFacilities() async {
     final data = await _supabase.from('facilities').select('''
     *
@@ -343,6 +363,24 @@ class Database {
     });
   }
 
+  Future<void> insertLab(String labName, int color) async {
+    try {
+      return (await _supabase
+          .from('labs')
+          .insert({'name': labName, 'color': color, 'deleted': false})
+          .select('l_id')
+          .single())['l_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // Front end does not have deleted rows
+        // therefore toggling the deleted flag
+        undeleteLab(labName);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
   Future<void> insertFacility(String facilityName) async {
     try {
       return (await _supabase
@@ -352,6 +390,8 @@ class Database {
           .single())['f_id'];
     } on PostgrestException catch (ex, e) {
       if (ex.message.contains("duplicate key")) {
+        // Front end does not have deleted rows
+        // therefore toggling the deleted flag
         undeleteFacility(facilityName);
       } else {
         rethrow;
@@ -359,11 +399,19 @@ class Database {
     }
   }
 
+  Future<void> deleteLab(Lab lab) async {
+    await _supabase.from('labs').update({'deleted': true}).eq('l_id', lab.lid);
+  }
+
   Future<void> deleteFacility(Facility facility) async {
     await _supabase
         .from('facilities')
         .update({'deleted': true})
         .eq('f_id', facility.fid);
+  }
+
+  Future<void> undeleteLab(String labName) async {
+    await _supabase.from('labs').update({'deleted': false}).eq('name', labName);
   }
 
   Future<void> undeleteFacility(String facilityName) async {

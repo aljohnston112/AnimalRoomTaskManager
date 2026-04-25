@@ -41,9 +41,29 @@ class _AddNewUserState extends State<AddNewUserPage> {
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                TextFormField(controller: _emailController, enabled: false),
-                _buildUserGroupDropdown(),
-                _buildAddUserButton(context),
+                constrainTextBoxWidth(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      mediumTitleText(context, "User Email"),
+                      TextFormField(
+                        controller: _emailController,
+                        enabled: false,
+                      ),
+                    ],
+                  ),
+                ),
+                constrainTextBoxWidth(_buildUserGroupDropdown()),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    FilledButton(
+                      child: const Text("Cancel"),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    _buildAddUserButton(context),
+                  ],
+                ),
               ],
             ),
           ),

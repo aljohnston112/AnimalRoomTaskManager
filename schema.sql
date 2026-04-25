@@ -235,15 +235,15 @@ CREATE POLICY "FacilitiesUpdateAuth"
 CREATE TABLE IF NOT EXISTS labs
 (
     l_id    serial PRIMARY KEY,
-    color   integer NOT NULL,
+    color   bigint NOT NULL,
     name    text  NOT NULL,
     deleted boolean NOT NULL
 );
 INSERT INTO labs (l_id, color, name, deleted)
-VALUES (0, 16777215, 'Merriman', FALSE),
-       (1, 16776960, 'Fauna', FALSE),
-       (2, 16711935, 'Boonpattrawong', FALSE),
-       (3, 65535, 'Kurtz', FALSE);
+VALUES (0, 4294901840, 'Merriman', FALSE),
+       (1, 4278225151, 'Fauna', FALSE),
+       (2, 4294950656, 'Boonpattrawong', FALSE),
+       (3, 4278255568, 'Kurtz', FALSE);
 SELECT SETVAL(
                PG_GET_SERIAL_SEQUENCE('labs', 'l_id'),
                COALESCE((SELECT MAX(l_id) FROM labs), 0)
@@ -254,6 +254,7 @@ GRANT SELECT, INSERT ON TABLE public.labs TO authenticated;
 REVOKE UPDATE ON public.labs FROM authenticated;
 GRANT UPDATE (color, deleted) ON public.labs TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE labs_l_id_seq TO authenticated;
+ALTER PUBLICATION supabase_realtime ADD TABLE labs;
 CREATE POLICY "LabsSelectAuth"
     ON "public"."labs"
     AS PERMISSIVE

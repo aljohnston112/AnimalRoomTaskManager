@@ -91,7 +91,7 @@ class RoomCheckScreen extends StatelessWidget {
                 );
               }
             }
-            if(context.mounted) {
+            if (context.mounted) {
               Navigator.of(context).pop();
             }
           },

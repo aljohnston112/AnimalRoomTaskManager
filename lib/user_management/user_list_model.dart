@@ -14,7 +14,8 @@ class UserListModel extends ChangeNotifier {
   Set<User> _users = {};
   Set<User> _whitelistedEmails = {};
 
-  UnmodifiableListView<User> get users => UnmodifiableListView(_users.union(_whitelistedEmails));
+  UnmodifiableListView<User> get users =>
+      UnmodifiableListView(_users.union(_whitelistedEmails));
 
   UserListModel({required UserRepository userRepository})
     : _userRepository = userRepository {
