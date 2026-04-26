@@ -203,6 +203,13 @@ class Database {
     return data;
   }
 
+  Future<List<PostgrestMap>> getTasks() async {
+    final data = await _supabase.from('all_tasks_view').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
   Future<List<PostgrestMap>> getTaskLists() async {
     final data = await _supabase.from('room_check_task_lists_view').select('''
     *
@@ -437,6 +444,46 @@ class Database {
     }
   }
 
+  Future<void> addTasksToTaskList(int tlid, Map<int, int> tidToIndex) async {
+    await _supabase.rpc(
+      'insert_task_list_memberships',
+      params: {
+        'rows': tidToIndex.entries
+            .map((e) => {'tl_id': tlid, 't_id': e.key, 'index': e.value})
+            .toList(),
+      },
+    );
+  }
+
+  Future<void> insertTaskList(
+    String taskListName,
+    TaskFrequency frequency,
+    Map<int, int> tidToIndex,
+  ) async {
+    int tlid;
+    try {
+      tlid = (await _supabase
+          .from('task_lists')
+          .insert({
+            'name': taskListName,
+            'frequency': frequency.toDbString,
+            'deleted': false,
+          })
+          .select('tl_id')
+          .single())['tl_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // Front end does not have deleted rows
+        // therefore toggling the deleted flag
+        tlid = await undeleteTaskList(taskListName);
+      } else {
+        rethrow;
+      }
+    }
+
+    addTasksToTaskList(tlid, tidToIndex);
+  }
+
   Future<void> deleteLab(Lab lab) async {
     await _supabase.from('labs').update({'deleted': true}).eq('l_id', lab.lid);
   }
@@ -455,6 +502,13 @@ class Database {
         .eq('f_id', facility.fid);
   }
 
+  Future<void> deleteTaskList(TaskList taskList) async {
+    await _supabase
+        .from('task_lists')
+        .update({'deleted': true})
+        .eq('f_id', taskList.tlid);
+  }
+
   Future<void> undeleteLab(String labName) async {
     await _supabase.from('labs').update({'deleted': false}).eq('name', labName);
   }
@@ -471,5 +525,14 @@ class Database {
         .from('facilities')
         .update({'deleted': false})
         .eq('name', facilityName);
+  }
+
+  Future<int> undeleteTaskList(String taskListName) async {
+    return (await _supabase
+        .from('task_lists')
+        .update({'deleted': false})
+        .eq('name', taskListName)
+        .select('tl_id')
+        .single())['tl_id'];
   }
 }

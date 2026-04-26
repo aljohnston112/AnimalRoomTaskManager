@@ -9,6 +9,8 @@ import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
+import 'package:animal_room_task_manager/task_lists_management/task_list_management_model.dart';
+import 'package:animal_room_task_manager/task_lists_management/task_list_management_screen.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:animal_room_task_manager/user_management/user_list_model.dart';
 import 'package:animal_room_task_manager/user_management/user_management_screen.dart';
@@ -32,6 +34,7 @@ Future<void> main() async {
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
         Provider.value(value: RoomCheckRepository(database: database)),
+        Provider.value(value: TaskListRepository(database: database)),
         Provider.value(value: UserRepository(database: database)),
         ChangeNotifierProvider(
           create: (context) {
@@ -41,9 +44,6 @@ Future<void> main() async {
         ),
         ChangeNotifierProvider(
           create: (context) => RecordRepository(database: database),
-        ),
-        ChangeNotifierProvider(
-          create: (context) => TaskListRepository(database: database),
         ),
       ],
       child: MyApp(),
@@ -86,11 +86,17 @@ class MyApp extends StatelessWidget {
                 TaskListRepository taskListRepository = context.read();
                 UserRepository userRepository = context.read();
 
-                return BuildingManagementScreen(
-                  model: BuildingManagementModel(
-                    buildingRepository: buildingRepository,
+                return TaskListManagementScreen(
+                  model: TaskListManagementModel(
+                    taskListRepository: taskListRepository,
                   ),
                 );
+
+                // return BuildingManagementScreen(
+                //   model: BuildingManagementModel(
+                //     buildingRepository: buildingRepository,
+                //   ),
+                // );
 
                 // return LabManagementScreen(
                 //   model: LabManagementModel(labRepository: labRepository),

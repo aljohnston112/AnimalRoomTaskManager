@@ -117,7 +117,7 @@ class SchedulingScreenCards extends StatelessWidget {
     BuildContext context,
   ) {
     final taskLists = Map.fromEntries(
-      context.watch<TaskListRepository>().taskLists.entries.where(
+      context.watch<TaskListRepository>().taskListMap.value.entries.where(
         (e) => e.key.frequency == TaskFrequency.daily,
       ),
     );
@@ -160,7 +160,7 @@ class SchedulingScreenCards extends StatelessWidget {
     BuildContext context,
   ) {
     final taskLists = Map.fromEntries(
-      context.watch<TaskListRepository>().taskLists.entries.where(
+      context.watch<TaskListRepository>().taskListMap.value.entries.where(
         (e) => e.key.frequency == TaskFrequency.weekly,
       ),
     );
@@ -213,7 +213,7 @@ class SchedulingScreenCards extends StatelessWidget {
     BuildContext context,
   ) {
     final taskLists = Map.fromEntries(
-      context.watch<TaskListRepository>().taskLists.entries.where(
+      context.watch<TaskListRepository>().taskListMap.value.entries.where(
         (e) => e.key.frequency == TaskFrequency.monthly,
       ),
     );

@@ -50,8 +50,8 @@ class QuantitativeRecord extends TaskRecord {
 /// Holds all the task records in memory
 class RecordRepository extends ChangeNotifier {
   final Database _database;
-  final Map<Room, Map<RoomCheckDate, Map<Task, TaskRecord>>>
-  _roomToDateToTaskRecords = {};
+  final Map<Room, Map<RoomCheckDate, Map<TaskFrequency, Map<Task, TaskRecord>>>>
+  _roomToDateToFrequencyToTaskRecords = {};
 
   RecordRepository({required Database database}) : _database = database {
     _database.subscribeToRecords((data) {
@@ -102,15 +102,18 @@ class RecordRepository extends ChangeNotifier {
             uid: userDB['u_id'],
           );
 
-          final task = parseTask(taskDB, frequency, tid);
-          if (!_roomToDateToTaskRecords.containsKey(room)) {
-            _roomToDateToTaskRecords[room] = {};
+          final task = parseTask(taskDB, tid);
+          if (!_roomToDateToFrequencyToTaskRecords.containsKey(room)) {
+            _roomToDateToFrequencyToTaskRecords[room] = {};
           }
-          if (!_roomToDateToTaskRecords[room]!.containsKey(roomCheckDate)) {
-            _roomToDateToTaskRecords[room]![roomCheckDate] = {};
+          if (!_roomToDateToFrequencyToTaskRecords[room]!.containsKey(roomCheckDate)) {
+            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate] = {};
+          }
+          if (!_roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]!.containsKey(frequency)) {
+            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency] = {};
           }
           if (task is QuantitativeTask) {
-            _roomToDateToTaskRecords[room]![roomCheckDate]![task] =
+            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
                 QuantitativeRecord(
                   room: room,
                   task: task,
@@ -120,7 +123,7 @@ class RecordRepository extends ChangeNotifier {
                   recordedValue: value!,
                 );
           } else {
-            _roomToDateToTaskRecords[room]![roomCheckDate]![task] = TaskRecord(
+            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] = TaskRecord(
               room: room,
               task: task,
               dateTime: parsedDate,
@@ -138,57 +141,24 @@ class RecordRepository extends ChangeNotifier {
     RoomCheckDate date,
     TaskFrequency frequency,
   ) {
-    if (!_roomToDateToTaskRecords.containsKey(room)) {
+    if (!_roomToDateToFrequencyToTaskRecords.containsKey(room)) {
       return UnmodifiableMapView<Task, TaskRecord>({});
     }
 
-    var dateToTaskRecord = _roomToDateToTaskRecords[room]!;
-    switch (frequency) {
-      case TaskFrequency.daily:
-        if (dateToTaskRecord.containsKey(date)) {
-          return UnmodifiableMapView<Task, TaskRecord>(
-            Map.fromEntries(
-              dateToTaskRecord[date]!.entries.where((record) {
-                return record.key.frequency == TaskFrequency.daily;
-              }),
-            ),
-          );
-        }
-      case TaskFrequency.weekly:
-        DateTime dateTime = DateTime(date.year, date.month, date.day);
-        var previousSunday = dateTime.subtract(
-          Duration(days: dateTime.weekday % 7),
-        );
-        final weekDate = previousSunday.toRoomCheckDate();
-        if (dateToTaskRecord.containsKey(weekDate)) {
-          return UnmodifiableMapView<Task, TaskRecord>(
-            Map.fromEntries(
-              dateToTaskRecord[weekDate]!.entries.where((record) {
-                return record.key.frequency == TaskFrequency.weekly;
-              }),
-            ),
-          );
-        }
-      case TaskFrequency.monthly:
-        DateTime dateTime = DateTime(date.year, date.month, 1);
-        final monthDate = dateTime.toRoomCheckDate();
-        if (dateToTaskRecord.containsKey(monthDate)) {
-          return UnmodifiableMapView<Task, TaskRecord>(
-            Map.fromEntries(
-              dateToTaskRecord[monthDate]!.entries.where((record) {
-                return record.key.frequency == TaskFrequency.monthly;
-              }),
-            ),
-          );
-        }
+    var dateToTaskRecord = _roomToDateToFrequencyToTaskRecords[room]!;
+    if (dateToTaskRecord.containsKey(date) && dateToTaskRecord[date]!.containsKey(frequency)) {
+      return UnmodifiableMapView<Task, TaskRecord>(
+        Map.fromEntries(
+            dateToTaskRecord[date]![frequency]!.entries),
+      );
     }
 
     return UnmodifiableMapView<Task, TaskRecord>({});
   }
 
-  Future<bool> addRecord(TaskRecord record) async {
-    if (_roomToDateToTaskRecords[record.room]?[record.dateTime
-            .toRoomCheckDate()]?[record.task] ==
+  Future<bool> addRecord(TaskRecord record, TaskFrequency frequency) async {
+    if (_roomToDateToFrequencyToTaskRecords[record.room]?[record.dateTime
+            .toRoomCheckDate()]?[frequency]?[record.task] ==
         null) {
       return await _database.insertRecord(record);
     }
@@ -198,7 +168,7 @@ class RecordRepository extends ChangeNotifier {
   /// TODO for local user testing only
   /// delete this once data needs to be persisted
   void clear() {
-    _roomToDateToTaskRecords.clear();
+    _roomToDateToFrequencyToTaskRecords.clear();
     notifyListeners();
   }
 }

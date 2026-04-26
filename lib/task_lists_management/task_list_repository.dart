@@ -6,41 +6,45 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../scheduler/scheduling_model.dart';
 
-class TaskListKey {
-  final String buildingName;
-  final Room room;
-  final TaskFrequency frequency;
+enum TaskFrequency { daily, weekly, monthly }
 
-  TaskListKey({
-    required this.buildingName,
-    required this.room,
-    required this.frequency,
-  });
-
-  @override
-  bool operator ==(Object other) {
-    return other is TaskListKey &&
-        other.buildingName == buildingName &&
-        other.room == room &&
-        other.frequency == frequency;
+extension TaskFrequencyExtension on TaskFrequency {
+  String get toDbString {
+    switch (this) {
+      case TaskFrequency.daily:
+        return 'Daily';
+      case TaskFrequency.weekly:
+        return 'Weekly';
+      case TaskFrequency.monthly:
+        return 'Monthly';
+    }
   }
+}
 
-  @override
-  int get hashCode =>
-      Object.hash(buildingName.hashCode, room.hashCode, frequency.hashCode);
+extension TaskFrequencyParser on String {
+  TaskFrequency get toTaskFrequency {
+    switch (this) {
+      case 'Daily':
+        return TaskFrequency.daily;
+      case 'Weekly':
+        return TaskFrequency.weekly;
+      case 'Monthly':
+        return TaskFrequency.monthly;
+      default:
+        throw ArgumentError('Invalid RoomCheckState string: $this');
+    }
+  }
 }
 
 class Task {
   final int tid;
   final String description;
   final bool managerOnly;
-  final TaskFrequency frequency;
 
   Task({
     required this.description,
     required this.managerOnly,
     required this.tid,
-    required this.frequency,
   });
 
   @override
@@ -72,7 +76,6 @@ class QuantitativeTask<T> extends Task {
     required this.ranges,
     required super.managerOnly,
     required super.tid,
-    required super.frequency,
   });
 
   @override
@@ -83,37 +86,7 @@ class QuantitativeTask<T> extends Task {
   int get hashCode => tid.hashCode;
 }
 
-enum TaskFrequency { daily, weekly, monthly }
-
-extension TaskFrequencyExtension on TaskFrequency {
-  String get toDbString {
-    switch (this) {
-      case TaskFrequency.daily:
-        return 'Daily';
-      case TaskFrequency.weekly:
-        return 'Weekly';
-      case TaskFrequency.monthly:
-        return 'Monthly';
-    }
-  }
-}
-
-extension TaskFrequencyParser on String {
-  TaskFrequency get toTaskFrequency {
-    switch (this) {
-      case 'Daily':
-        return TaskFrequency.daily;
-      case 'Weekly':
-        return TaskFrequency.weekly;
-      case 'Monthly':
-        return TaskFrequency.monthly;
-      default:
-        throw ArgumentError('Invalid RoomCheckState string: $this');
-    }
-  }
-}
-
-Task parseTask(PostgrestMap taskDB, TaskFrequency frequency, int tid) {
+Task parseTask(PostgrestMap taskDB, int tid) {
   final taskName = taskDB['task_name'];
   final isManagerTask = taskDB['manager_only'];
   final quantitativeRangesDB = taskDB['quantitative_ranges'];
@@ -147,34 +120,74 @@ Task parseTask(PostgrestMap taskDB, TaskFrequency frequency, int tid) {
       ranges: quantitativeRanges,
       managerOnly: isManagerTask,
       tid: tid,
-      frequency: frequency,
     );
   } else {
-    return Task(
-      description: taskName,
-      managerOnly: isManagerTask,
-      tid: tid,
-      frequency: frequency,
-    );
+    return Task(description: taskName, managerOnly: isManagerTask, tid: tid);
   }
 }
 
 class TaskList {
+  final int tlid;
   final String name;
   final TaskFrequency frequency;
   final UnmodifiableListView<Task> tasks;
 
-  TaskList({required this.name, required this.frequency, required this.tasks});
+  TaskList({
+    required this.tlid,
+    required this.name,
+    required this.frequency,
+    required this.tasks,
+  });
+
+  @override
+  bool operator ==(Object other) => other is TaskList && other.tlid == tlid;
+
+  @override
+  int get hashCode => tlid.hashCode;
 }
 
-class TaskListRepository extends ChangeNotifier {
+class TaskListKey {
+  final String buildingName;
+  final Room room;
+  final TaskFrequency frequency;
+
+  TaskListKey({
+    required this.buildingName,
+    required this.room,
+    required this.frequency,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return other is TaskListKey &&
+        other.buildingName == buildingName &&
+        other.room == room &&
+        other.frequency == frequency;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(buildingName.hashCode, room.hashCode, frequency.hashCode);
+}
+
+class TaskListRepository {
   final Database _database;
-  final Map<TaskListKey, TaskList> taskLists = {};
+
+  final List<Task> _tasks = [];
+  final ValueNotifier<UnmodifiableListView<Task>> tasks = ValueNotifier(
+    UnmodifiableListView([]),
+  );
+
+  final Map<TaskListKey, TaskList> _taskListMap = {};
+  final ValueNotifier<UnmodifiableMapView<TaskListKey, TaskList>> taskListMap =
+      ValueNotifier(UnmodifiableMapView({}));
+  final ValueNotifier<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
+  taskLists = ValueNotifier(UnmodifiableMapView({}));
 
   TaskListRepository({required Database database}) : _database = database;
 
   Future<void> loadTaskLists() async {
-    taskLists.clear();
+    _taskListMap.clear();
     final map = await _database.getTaskLists();
     for (final buildingMap in map) {
       final bid = buildingMap['b_id'];
@@ -199,8 +212,9 @@ class TaskListRepository extends ChangeNotifier {
           if (tasksDB != null) {
             for (final taskDB in tasksDB) {
               final tid = taskDB['t_id'];
-              tasks.add(parseTask(taskDB, frequency, tid));
+              tasks.add(parseTask(taskDB, tid));
               TaskList taskList = TaskList(
+                tlid: tlid,
                 name: taskListName,
                 frequency: frequency,
                 tasks: UnmodifiableListView(tasks),
@@ -211,12 +225,48 @@ class TaskListRepository extends ChangeNotifier {
                   room: room,
                   frequency: frequency,
                 );
-                this.taskLists[taskListKey] = taskList;
+                _taskListMap[taskListKey] = taskList;
               }
             }
           }
         }
       }
     }
+    taskListMap.value = UnmodifiableMapView(_taskListMap);
+    taskLists.value = UnmodifiableMapView(
+      _taskListMap.values.fold({}, (
+        previousValue,
+        task,
+      ) {
+        previousValue.putIfAbsent(task.frequency, () => {}).add(task);
+        return previousValue;
+      }),
+    );
+  }
+
+  Future<void> loadTasks() async {
+    final map = await _database.getTasks();
+    for (final taskMap in map) {
+      final taskMapDB = taskMap['jsonb_build_object'];
+      final tid = taskMapDB['t_id'];
+      _tasks.add(parseTask(taskMapDB, tid));
+    }
+    tasks.value = UnmodifiableListView(_tasks);
+  }
+
+  Future<void> addTaskList(
+    String taskListName,
+    TaskFrequency frequency,
+    Map<int, int> tidToIndex,
+  ) async {
+    _database.insertTaskList(taskListName, frequency, tidToIndex);
+  }
+
+  Future<void> deleteTaskList(TaskList taskList) async {
+    _database.deleteTaskList(taskList);
+  }
+
+  Future<void> undeleteTaskList(String taskListName) async {
+    _database.undeleteTaskList(taskListName);
   }
 }

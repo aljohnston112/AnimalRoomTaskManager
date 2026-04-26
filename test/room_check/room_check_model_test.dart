@@ -20,7 +20,6 @@ void testRoomCheckModel() {
     tid: 0,
     description: "A",
     managerOnly: false,
-    frequency: TaskFrequency.weekly,
   );
   final taskB = QuantitativeTask(
     tid: 0,
@@ -29,19 +28,18 @@ void testRoomCheckModel() {
       QuantitativeRange(min: 10, max: 100, units: "Bs", isRequired: false),
     ],
     managerOnly: false,
-    frequency: TaskFrequency.weekly,
   );
   final taskC = Task(
     tid: 0,
     description: "C",
     managerOnly: false,
-    frequency: TaskFrequency.weekly,
   );
   final tasks = UnmodifiableListView([taskA, taskB, taskC]);
   final taskList = TaskList(
     name: "D",
     frequency: TaskFrequency.weekly,
     tasks: tasks,
+    tlid: 1,
   );
 
   // TODO mock database
@@ -179,7 +177,6 @@ void testTaskEntry() {
       tid: 0,
       description: "A",
       managerOnly: false,
-      frequency: TaskFrequency.weekly,
     );
     final room = Room(rid: 1, name: "1");
     var record = TaskRecord(
@@ -202,7 +199,6 @@ void testTaskEntry() {
       tid: 0,
       description: "A",
       managerOnly: false,
-      frequency: TaskFrequency.weekly,
     );
     TaskEntryModel taskEntry = TaskEntryModel(
       task: task,
