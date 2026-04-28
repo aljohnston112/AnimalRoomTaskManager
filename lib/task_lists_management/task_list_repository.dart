@@ -213,20 +213,20 @@ class TaskListRepository {
             for (final taskDB in tasksDB) {
               final tid = taskDB['t_id'];
               tasks.add(parseTask(taskDB, tid));
-              TaskList taskList = TaskList(
-                tlid: tlid,
-                name: taskListName,
+            }
+            TaskList taskList = TaskList(
+              tlid: tlid,
+              name: taskListName,
+              frequency: frequency,
+              tasks: UnmodifiableListView(tasks),
+            );
+            for (final room in rooms) {
+              TaskListKey taskListKey = TaskListKey(
+                buildingName: buildingName,
+                room: room,
                 frequency: frequency,
-                tasks: UnmodifiableListView(tasks),
               );
-              for (final room in rooms) {
-                TaskListKey taskListKey = TaskListKey(
-                  buildingName: buildingName,
-                  room: room,
-                  frequency: frequency,
-                );
-                _taskListMap[taskListKey] = taskList;
-              }
+              _taskListMap[taskListKey] = taskList;
             }
           }
         }

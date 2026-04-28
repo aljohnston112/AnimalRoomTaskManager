@@ -8,6 +8,8 @@ import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_screen.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_management_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_management_screen.dart';
