@@ -184,11 +184,52 @@ class TaskListRepository {
   final ValueNotifier<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
   taskLists = ValueNotifier(UnmodifiableMapView({}));
 
-  TaskListRepository({required Database database}) : _database = database;
+  TaskListRepository({required Database database}) : _database = database {
+    _database.subscribeToTaskLists((data) {
+      final payload = data['payload'];
+      final tlid = payload['tl_id'];
+      final taskListName = payload['task_list_name'];
+      final frequency = (payload['frequency'] as String).toTaskFrequency;
+      final List<Task> tasks = [];
+      for (final task in payload['tasks']) {
+        tasks.add(parseTask(task, task['t_id']));
+      }
+      final taskList = TaskList(
+        tlid: tlid,
+        name: taskListName,
+        frequency: frequency,
+        tasks: UnmodifiableListView(tasks),
+      );
+
+      _taskListMap.removeWhere(
+        (k, v) => v.name == taskListName && v.frequency == frequency,
+      );
+      List<TaskList> unassignedTasks = [];
+      if(payload['buildings'] != null) {
+        for (final building in payload['buildings']) {
+          final bid = building['b_id'];
+          final buildingName = building['building_name'];
+          for (final roomDB in building['rooms']) {
+            final room = Room(rid: roomDB['r_id'], name: roomDB['room_name']);
+            TaskListKey key = TaskListKey(
+              buildingName: buildingName,
+              room: room,
+              frequency: frequency,
+            );
+            _taskListMap[key] = taskList;
+          }
+        }
+      } else{
+        unassignedTasks.add(taskList);
+      }
+      _updateTaskLists(unassignedTaskLists: unassignedTasks);
+    });
+  }
 
   Future<void> loadTaskLists() async {
     _taskListMap.clear();
     final map = await _database.getTaskLists();
+    List<TaskList> unassignedTaskLists = [];
     for (final buildingMap in map) {
       final bid = buildingMap['b_id'];
       final buildingName = buildingMap['building_name'];
@@ -197,16 +238,11 @@ class TaskListRepository {
         final frequency =
             (taskListsWithFrequency['frequency'] as String).toTaskFrequency;
         final taskLists = taskListsWithFrequency['task_lists'];
-        for (final taskList in taskLists) {
-          final tlid = taskList['tl_id'];
-          final taskListName = taskList['task_list_name'];
-          final roomsDB = taskList['rooms'];
-          final tasksDB = taskList['tasks'];
-          // Rooms with the task list
-          List<Room> rooms = [];
-          for (final roomDB in roomsDB) {
-            rooms.add(Room(rid: roomDB['r_id'], name: roomDB['room_name']));
-          }
+        for (final taskListDB in taskLists) {
+          final tlid = taskListDB['tl_id'];
+          final taskListName = taskListDB['task_list_name'];
+          final tasksDB = taskListDB['tasks'];
+
           // Tasks in the task list
           List<Task> tasks = [];
           if (tasksDB != null) {
@@ -220,28 +256,47 @@ class TaskListRepository {
               frequency: frequency,
               tasks: UnmodifiableListView(tasks),
             );
-            for (final room in rooms) {
-              TaskListKey taskListKey = TaskListKey(
-                buildingName: buildingName,
-                room: room,
-                frequency: frequency,
-              );
-              _taskListMap[taskListKey] = taskList;
+
+            final roomsDB = taskListDB['rooms'];
+            // Rooms with the task list
+            List<Room> rooms = [];
+            if (roomsDB != null) {
+              for (final roomDB in roomsDB) {
+                rooms.add(Room(rid: roomDB['r_id'], name: roomDB['room_name']));
+              }
+              for (final room in rooms) {
+                TaskListKey taskListKey = TaskListKey(
+                  buildingName: buildingName,
+                  room: room,
+                  frequency: frequency,
+                );
+                _taskListMap[taskListKey] = taskList;
+              }
+            } else {
+              unassignedTaskLists.add(taskList);
             }
           }
         }
       }
     }
+    _updateTaskLists(unassignedTaskLists: unassignedTaskLists);
+  }
+
+  void _updateTaskLists({List<TaskList>? unassignedTaskLists}) {
     taskListMap.value = UnmodifiableMapView(_taskListMap);
-    taskLists.value = UnmodifiableMapView(
-      _taskListMap.values.fold({}, (
-        previousValue,
-        task,
-      ) {
-        previousValue.putIfAbsent(task.frequency, () => {}).add(task);
+    Map<TaskFrequency, Set<TaskList>> newTaskLists = _taskListMap.values.fold(
+      {},
+      (previousValue, taskList) {
+        previousValue.putIfAbsent(taskList.frequency, () => {}).add(taskList);
         return previousValue;
-      }),
+      },
     );
+    if (unassignedTaskLists != null) {
+      for (final taskList in unassignedTaskLists) {
+        newTaskLists.putIfAbsent(taskList.frequency, () => {}).add(taskList);
+      }
+    }
+    taskLists.value = UnmodifiableMapView(newTaskLists);
   }
 
   Future<void> loadTasks() async {
@@ -259,14 +314,27 @@ class TaskListRepository {
     TaskFrequency frequency,
     Map<int, int> tidToIndex,
   ) async {
-    _database.insertTaskList(taskListName, frequency, tidToIndex);
+    await _database.insertTaskList(taskListName, frequency, tidToIndex);
+  }
+
+  Future<void> editTaskList(
+    int tlid,
+    String taskListName,
+    TaskFrequency taskFrequency,
+    Map<int, int> tidToIndex,
+  ) async {
+    await _database.editTaskList(tlid, taskListName, taskFrequency, tidToIndex);
+  }
+
+  Future<void> reorderTasks(int tlid, Map<int, int> tidToIndex) async {
+    await _database.reorderTasks(tlid, tidToIndex);
   }
 
   Future<void> deleteTaskList(TaskList taskList) async {
-    _database.deleteTaskList(taskList);
+    await _database.deleteTaskList(taskList);
   }
 
   Future<void> undeleteTaskList(String taskListName) async {
-    _database.undeleteTaskList(taskListName);
+    await _database.undeleteTaskList(taskListName);
   }
 }

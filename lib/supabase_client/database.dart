@@ -126,6 +126,21 @@ class Database {
         .subscribe();
   }
 
+  void subscribeToTaskLists(void Function(dynamic) callback) {
+    final taskRecordChannel = _supabase.channel(
+      'task_list_channel',
+      opts: const RealtimeChannelConfig(private: true),
+    );
+    taskRecordChannel
+        .onBroadcast(
+          event: 'task_list_update',
+          callback: (payload) {
+            callback(payload);
+          },
+        )
+        .subscribe();
+  }
+
   void subscribeToEmailWhitelist(
     void Function(PostgresChangePayload) callback,
   ) {
@@ -444,44 +459,51 @@ class Database {
     }
   }
 
-  Future<void> addTasksToTaskList(int tlid, Map<int, int> tidToIndex) async {
-    await _supabase.rpc(
-      'insert_task_list_memberships',
-      params: {
-        'rows': tidToIndex.entries
-            .map((e) => {'tl_id': tlid, 't_id': e.key, 'index': e.value})
-            .toList(),
-      },
-    );
-  }
-
   Future<void> insertTaskList(
     String taskListName,
     TaskFrequency frequency,
     Map<int, int> tidToIndex,
   ) async {
-    int tlid;
-    try {
-      tlid = (await _supabase
-          .from('task_lists')
-          .insert({
-            'name': taskListName,
-            'frequency': frequency.toDbString,
-            'deleted': false,
-          })
-          .select('tl_id')
-          .single())['tl_id'];
-    } on PostgrestException catch (ex, e) {
-      if (ex.message.contains("duplicate key")) {
-        // Front end does not have deleted rows
-        // therefore toggling the deleted flag
-        tlid = await undeleteTaskList(taskListName);
-      } else {
-        rethrow;
-      }
-    }
+    await _supabase.rpc(
+      'insert_task_list',
+      params: {
+        'name_in': taskListName,
+        'frequency': frequency.toDbString,
+        'task_list_task_membership_rows': tidToIndex.entries.map((e) {
+          return {'t_id': e.key, 'index': e.value};
+        }).toList(),
+      },
+    );
+  }
 
-    addTasksToTaskList(tlid, tidToIndex);
+  Future<void> editTaskList(
+    int tlid,
+    String taskListName,
+    TaskFrequency frequency,
+    Map<int, int> tidToIndex,
+  ) async {
+    await _supabase.rpc(
+      'edit_task_list',
+      params: {
+        'old_tl_id': tlid,
+        'name': taskListName,
+        'frequency': frequency.toDbString,
+        'task_list_task_membership_rows': tidToIndex.entries.map((e) {
+          return {'t_id': e.key, 'index': e.value};
+        }).toList(),
+      },
+    );
+  }
+
+  Future<void> reorderTasks(int tlid, Map<int, int> tidToIndex) async {
+    await _supabase.rpc(
+      'reorder_tasks',
+      params: {
+        'payload': tidToIndex.entries.map((e) {
+          return {'tl_id': tlid, 't_id': e.key, 'new_index': e.value};
+        }).toList(),
+      },
+    );
   }
 
   Future<void> deleteLab(Lab lab) async {
@@ -506,7 +528,7 @@ class Database {
     await _supabase
         .from('task_lists')
         .update({'deleted': true})
-        .eq('f_id', taskList.tlid);
+        .eq('tl_id', taskList.tlid);
   }
 
   Future<void> undeleteLab(String labName) async {

@@ -509,7 +509,9 @@ CREATE TABLE IF NOT EXISTS task_lists
     tl_id     serial PRIMARY KEY,
     name      text           NOT NULL,
     frequency task_frequency NOT NULL,
-    deleted   boolean        NOT NULL
+    deleted   boolean        NOT NULL,
+    CONSTRAINT distinct_task_lists UNIQUE (name, frequency)
+
 );
 INSERT INTO task_lists (tl_id, name, frequency, deleted)
 VALUES (0, 'Empty/Idle Room Daily Tasks', 'Daily', FALSE),
@@ -804,9 +806,9 @@ VALUES (0, 0, 0),
        (4, 0, 0),
        (4, 40, 1),
        (4, 41, 2),
-       (4, 42, 3),
-       (4, 43, 4),
-       (4, 2, 5),
+       (4, 2, 3),
+       (4, 42, 4),
+       (4, 43, 5),
        (4, 7, 6),
        (4, 8, 7),
        (4, 4, 8),
@@ -920,13 +922,13 @@ CREATE POLICY "askListTaskMembershipsUpdateAuth"
     USING (check_is_admin())
     WITH CHECK (check_is_admin());
 
-CREATE OR REPLACE FUNCTION insert_task_list_memberships(rows jsonb)
+CREATE OR REPLACE FUNCTION insert_task_list_memberships(tlid integer, rows jsonb)
     RETURNS void
     SET search_path TO public, auth, pg_temp AS
 $$
 BEGIN
     INSERT INTO task_list_task_memberships (tl_id, t_id, index)
-    SELECT (r ->> 'tl_id')::int,
+    SELECT tlid,
            (r ->> 't_id')::int,
            (r ->> 'index')::int
     FROM JSONB_ARRAY_ELEMENTS(rows) AS r
@@ -935,9 +937,85 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
 
+
+
+CREATE OR REPLACE FUNCTION insert_task_list(
+    name_in text,
+    frequency public.task_frequency,
+    task_list_task_membership_rows jsonb -- Expecting map {'t_id':, 'index':}
+) RETURNS int
+    SET search_path TO public, auth, pg_temp AS
+$$
+DECLARE
+    tlid    int;
+    payload jsonb;
+BEGIN
+    INSERT INTO task_lists (name, frequency, deleted)
+    VALUES (name_in, frequency, FALSE)
+    RETURNING tl_id INTO tlid;
+    PERFORM insert_task_list_memberships(tlid, task_list_task_membership_rows);
+
+    payload := get_task_list(tlid);
+    PERFORM realtime.send(
+            payload => payload::jsonb,
+            event => 'task_list_update'::text,
+            topic => 'task_list_channel'::text
+            );
+    return tlid;
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
+
+DROP POLICY IF EXISTS "Users can hear task list updates" ON "realtime"."messages";
+CREATE POLICY "Users can hear task list updates"
+    ON "realtime"."messages"
+    FOR SELECT
+    TO authenticated
+    USING ((SELECT realtime.topic()) = 'task_list_channel');
+
+CREATE OR REPLACE FUNCTION edit_task_list(
+    old_tl_id int,
+    name text,
+    frequency public.task_frequency,
+    task_list_task_membership_rows jsonb
+) RETURNS VOID
+    SET search_path TO public, auth, pg_temp AS
+$$
+DECLARE
+    new_tlid int;
+    payload  json;
+BEGIN
+    -- Soft delete old list
+    UPDATE task_lists
+    SET deleted = TRUE
+    WHERE tl_id = old_tl_id;
+
+    -- Insert new list
+    SELECT insert_task_list(
+                   name,
+                   frequency,
+                   task_list_task_membership_rows
+           )
+    INTO new_tlid;
+
+    -- Reassign room task lists
+    UPDATE task_list_room_memberships
+    SET tl_id = new_tlid
+    WHERE tl_id = old_tl_id;
+
+    payload := get_task_list(new_tlid);
+    PERFORM realtime.send(
+            payload => payload::jsonb,
+            event => 'task_list_update'::text,
+            topic => 'task_list_channel'::text
+            );
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
+
 CREATE OR REPLACE FUNCTION reorder_tasks(payload jsonb)
     RETURNS void AS
 $$
+DECLARE
+    payload_out jsonb;
 BEGIN
     SET CONSTRAINTS unique_task_order DEFERRED;
 
@@ -947,7 +1025,107 @@ BEGIN
     WHERE tltm.t_id = (new_task ->> 't_id')::int
       AND tltm.tl_id = (new_task ->> 'tl_id')::int;
     SET CONSTRAINTS unique_task_order IMMEDIATE;
+
+    payload_out := get_task_list((payload -> 0 ->> 'tl_id')::int);
+    PERFORM realtime.send(
+            payload => payload_out::jsonb,
+            event => 'task_list_update'::text,
+            topic => 'task_list_channel'::text
+            );
 END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
+
+CREATE OR REPLACE VIEW all_tasks_view
+            WITH
+            (security_invoker = on)
+AS
+(
+SELECT t.t_id,
+       JSONB_BUILD_OBJECT(
+               't_id', t.t_id,
+               'task_name',
+               t.name,
+               'manager_only',
+               t.manager_only,
+               'quantitative_ranges',
+               CASE
+                   WHEN qt.t_id IS NOT NULL
+                       THEN JSONB_BUILD_OBJECT(
+                           'unit',
+                           COALESCE(qrw.unit, qrr.unit),
+                           'warning_range',
+                           CASE
+                               WHEN qrw.qr_id IS NOT NULL
+                                   THEN JSONB_BUILD_OBJECT(
+                                       'min',
+                                       qrw.minimum,
+                                       'max',
+                                       qrw.maximum) END,
+                           'required_range',
+                           CASE
+                               WHEN qrr.qr_id IS NOT NULL
+                                   THEN JSONB_BUILD_OBJECT(
+                                       'min',
+                                       qrr.minimum,
+                                       'max',
+                                       qrr.maximum) END
+                            )
+                   END
+       )
+FROM tasks t
+         LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
+         LEFT JOIN quantitative_ranges qrw
+                   ON qt.qr_id_warning = qrw.qr_id
+         LEFT JOIN quantitative_ranges qrr
+                   ON qt.qr_id_required = qrr.qr_id);
+GRANT SELECT ON TABLE public.all_tasks_view TO authenticated;
+
+
+CREATE OR REPLACE FUNCTION get_task_list(tlid integer)
+    RETURNS jsonb
+    SET search_path TO public, auth, pg_temp AS
+$$
+DECLARE
+    result jsonb;
+BEGIN
+    SELECT JSONB_BUILD_OBJECT(
+                   'tl_id', tl.tl_id,
+                   'task_list_name', tl.name,
+                   'frequency', tl.frequency,
+                   'tasks', task_list_tasks.tasks,
+                   'buildings', building_data.agg_buildings
+           )
+    INTO result
+    FROM task_lists tl
+             LEFT JOIN LATERAL (
+        SELECT JSONB_AGG(
+                       atv.JSONB_BUILD_OBJECT ||
+                       JSONB_BUILD_OBJECT('index', tltm.index)
+                       ORDER BY tltm.index
+               ) AS tasks
+        FROM task_list_task_memberships tltm
+                 LEFT JOIN all_tasks_view atv ON atv.t_id = tltm.t_id
+        WHERE tltm.tl_id = tl.tl_id
+        ) task_list_tasks ON TRUE
+             LEFT JOIN LATERAL (
+        SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                'b_id', b.b_id,
+                'building_name', b.name,
+                'rooms', room_data.JSONB_AGG
+                         )) AS agg_buildings
+        FROM (SELECT DISTINCT r.b_id,
+                              JSONB_AGG(JSONB_BUILD_OBJECT(
+                                      'r_id', r.r_id,
+                                      'room_name', r.name))
+              FROM task_list_room_memberships tlrm
+                       LEFT JOIN rooms r ON tlrm.r_id = r.r_id
+              WHERE tlrm.tl_id = tl.tl_id
+              GROUP BY r.r_id) room_data
+                 LEFT JOIN buildings b ON b.b_id = room_data.b_id
+        ) building_data ON TRUE
+    WHERE tl.tl_id = tlid;
+    RETURN result;
+END
 $$ LANGUAGE plpgsql SECURITY INVOKER;
 
 -- Task List Room Memberships ----------------------------------------
@@ -1040,6 +1218,7 @@ VALUES (4, 0),
 ALTER TABLE public.task_list_room_memberships
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.task_list_room_memberships TO authenticated;
+GRANT UPDATE (tl_id) ON public.task_list_room_memberships TO authenticated;
 CREATE POLICY "TaskListRoomMembershipsSelectAuth"
     ON public.task_list_room_memberships
     AS PERMISSIVE
@@ -1048,6 +1227,12 @@ CREATE POLICY "TaskListRoomMembershipsSelectAuth"
     USING (TRUE);
 CREATE POLICY "TaskListRoomMembershipsInsertAuth"
     ON public.task_list_room_memberships
+    AS PERMISSIVE
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (check_is_admin());
+CREATE POLICY "TaskListRoomMembershipsUpdateAuth"
+    ON "public"."task_list_room_memberships"
     AS PERMISSIVE
     FOR INSERT
     TO authenticated
@@ -1152,7 +1337,8 @@ CREATE OR REPLACE FUNCTION get_room_check_slots(
                 building_name            pg_catalog.text,
                 room_checks_by_frequency JSONB
             )
-    SET search_path TO public, auth, pg_temp AS
+    SET search_path TO public, auth, pg_temp
+AS
 $$
 SELECT b.b_id,
        b.name              AS building_name,
@@ -1201,7 +1387,7 @@ FROM buildings b
     ) frequency_data ON TRUE
 WHERE frequency_data.data IS NOT NULL
 $$ LANGUAGE sql STABLE
-   SECURITY INVOKER;
+                SECURITY INVOKER;
 
 -- Task Records ------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_records
@@ -1282,49 +1468,6 @@ CREATE POLICY "TaskRecordUsersInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (TRUE);
-
-CREATE OR REPLACE VIEW all_tasks_view
-            WITH
-            (security_invoker = on)
-AS
-(SELECT JSONB_BUILD_OBJECT(
-                't_id', t.t_id,
-                'task_name',
-                t.name,
-                'manager_only',
-                t.manager_only,
-                'quantitative_ranges',
-                CASE
-                    WHEN qt.t_id IS NOT NULL
-                        THEN JSONB_BUILD_OBJECT(
-                            'unit',
-                            COALESCE(qrw.unit, qrr.unit),
-                            'warning_range',
-                            CASE
-                                WHEN qrw.qr_id IS NOT NULL
-                                    THEN JSONB_BUILD_OBJECT(
-                                        'min',
-                                        qrw.minimum,
-                                        'max',
-                                        qrw.maximum) END,
-                            'required_range',
-                            CASE
-                                WHEN qrr.qr_id IS NOT NULL
-                                    THEN JSONB_BUILD_OBJECT(
-                                        'min',
-                                        qrr.minimum,
-                                        'max',
-                                        qrr.maximum) END
-                             )
-                    END
-        )
-FROM tasks t
-         LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
-         LEFT JOIN quantitative_ranges qrw
-                   ON qt.qr_id_warning = qrw.qr_id
-         LEFT JOIN quantitative_ranges qrr
-                   ON qt.qr_id_required = qrr.qr_id);
-GRANT SELECT ON TABLE public.all_tasks_view TO authenticated;
 
 CREATE OR REPLACE FUNCTION submit_task_record(
     record_data JSONB,
@@ -1441,9 +1584,9 @@ BEGIN
     WHERE room_records.data IS NOT NULL;
 
     PERFORM realtime.send(
-            payload => payload,
-            event => 'task_recorded',
-            topic => 'task_record_channel'
+            payload => payload::jsonb,
+            event => 'task_recorded'::text,
+            topic => 'task_record_channel'::text
             );
 END
 $$ LANGUAGE plpgsql SECURITY INVOKER;
@@ -1482,49 +1625,9 @@ FROM buildings b
                                    RIGHT JOIN rooms r ON tlrm.r_id = r.r_id
                           WHERE tlrm.tl_id = tl.tl_id
                             AND r.b_id = b.b_id),
-                'tasks', (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
-                                                   't_id', t.t_id,
-                                                   'task_name',
-                                                   t.name,
-                                                   'manager_only',
-                                                   t.manager_only,
-                                                   'quantitative_ranges',
-                                                   CASE
-                                                       WHEN qt.t_id IS NOT NULL
-                                                           THEN
-                                                           JSONB_BUILD_OBJECT(
-                                                                   'unit',
-                                                                   COALESCE(qrw.unit, qrr.unit),
-                                                                   'warning_range',
-                                                                   CASE
-                                                                       WHEN qrw.qr_id IS NOT NULL
-                                                                           THEN
-                                                                           JSONB_BUILD_OBJECT(
-                                                                                   'min',
-                                                                                   qrw.minimum,
-                                                                                   'max',
-                                                                                   qrw.maximum)
-                                                                       END,
-                                                                   'required_range',
-                                                                   CASE
-                                                                       WHEN qrr.qr_id IS NOT NULL
-                                                                           THEN
-                                                                           JSONB_BUILD_OBJECT(
-                                                                                   'min',
-                                                                                   qrr.minimum,
-                                                                                   'max',
-                                                                                   qrr.maximum)
-                                                                       END
-                                                           )
-                                                       END
-                                           ) ORDER BY tltm.index)
+                'tasks', (SELECT JSONB_AGG(atv.JSONB_BUILD_OBJECT || JSONB_BUILD_OBJECT('index', tltm.index) ORDER BY tltm.index)
                           FROM task_list_task_memberships tltm
-                                   JOIN tasks t ON tltm.t_id = t.t_id
-                                   LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
-                                   LEFT JOIN quantitative_ranges qrw
-                                             ON qt.qr_id_warning = qrw.qr_id
-                                   LEFT JOIN quantitative_ranges qrr
-                                             ON qt.qr_id_required = qrr.qr_id
+                                   LEFT JOIN all_tasks_view atv ON atv.t_id = tltm.t_id
                           WHERE tltm.tl_id = tl.tl_id)
                          )) AS lists
         FROM task_lists tl
@@ -1535,16 +1638,48 @@ FROM buildings b
                       WHERE tlrm.tl_id = tl.tl_id
                         AND r.b_id = b.b_id)
         ) tl_data ON TRUE
-    ) task_lists_by_frequency ON TRUE;
+    ) task_lists_by_frequency ON TRUE
+UNION all
+SELECT -1 as b_id,
+       'Unassigned' as building_name,
+       (
+           SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                   'frequency', task_list_frequency.frequency,
+                   'task_lists', lists
+                            ))
+           FROM (SELECT DISTINCT frequency
+                 FROM task_lists) task_list_frequency
+                    INNER JOIN LATERAL (
+               SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                       'tl_id', tl.tl_id,
+                       'task_list_name', tl.name,
+                       'rooms', null,
+                       'tasks', (SELECT JSONB_AGG(atv.JSONB_BUILD_OBJECT ||
+                                                  JSONB_BUILD_OBJECT('index', tltm.index)
+                                                  ORDER BY tltm.index)
+                                 FROM task_list_task_memberships tltm
+                                          LEFT JOIN all_tasks_view atv ON atv.t_id = tltm.t_id
+                                 WHERE tltm.tl_id = tl.tl_id)
+                                )) AS lists
+               FROM task_lists tl
+               WHERE tl.frequency = task_list_frequency.frequency
+                 AND tl.deleted = FALSE
+                 AND NOT EXISTS (SELECT 1
+                                 FROM task_list_room_memberships tlrm
+                                          JOIN rooms r ON tlrm.r_id = r.r_id
+                                 WHERE tlrm.tl_id = tl.tl_id)
+               ) tl_data ON TRUE
+           WHERE tl_data.lists is not null
+       );
 GRANT SELECT ON TABLE public.room_check_task_lists_view TO authenticated;
-
 
 CREATE OR REPLACE FUNCTION get_task_records(start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL)
     RETURNS TABLE
             (
                 result JSONB
             )
-    SET search_path TO public, auth, pg_temp AS
+    SET search_path TO public, auth, pg_temp
+AS
 $$
 (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
         'r_id', r.r_id,
@@ -1634,5 +1769,5 @@ $$
      ) room_records ON TRUE
  WHERE room_records.data IS NOT NULL);
 $$ LANGUAGE sql STABLE
-   SECURITY INVOKER;
+                SECURITY INVOKER;
 

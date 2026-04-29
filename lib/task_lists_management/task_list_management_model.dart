@@ -23,14 +23,14 @@ class TaskListManagementModel extends ChangeNotifier {
     return _taskListRepository.taskLists.value;
   }
 
-  UnmodifiableListView<Task> getTasks() {
+  UnmodifiableListView<Task> getAllTasks() {
     return _taskListRepository.tasks.value;
   }
 
-  bool taskListExists(String taskListName) {
+  bool taskListExists(String taskListName, TaskFrequency frequency) {
     return getTaskLists().values.any((v) {
       return v.any((v) {
-        return v.name == taskListName;
+        return v.name == taskListName && v.frequency == frequency;
       });
     });
   }
@@ -43,6 +43,27 @@ class TaskListManagementModel extends ChangeNotifier {
     await _taskListRepository.addTaskList(taskListName, frequency, tidToIndex);
   }
 
+  Future<void> editTaskList(
+    int tlid,
+    String taskListName,
+    TaskFrequency taskFrequency,
+    Map<int, int> tidToIndex,
+  ) async {
+    await _taskListRepository.editTaskList(
+      tlid,
+      taskListName,
+      taskFrequency,
+      tidToIndex,
+    );
+  }
+
+  Future<void> reorderTasks(
+      int tlid,
+      Map<int, int> tidToIndex,
+      ) async {
+    await _taskListRepository.reorderTasks(tlid, tidToIndex);
+  }
+
   Future<void> deleteTaskList(TaskList taskList) async {
     await _taskListRepository.deleteTaskList(taskList);
   }
@@ -50,4 +71,5 @@ class TaskListManagementModel extends ChangeNotifier {
   Future<void> undeleteTaskList(String taskListName) async {
     await _taskListRepository.undeleteTaskList(taskListName);
   }
+
 }
