@@ -250,42 +250,45 @@ class TaskListRepository {
         final frequency =
             (taskListsWithFrequency['frequency'] as String).toTaskFrequency;
         final taskLists = taskListsWithFrequency['task_lists'];
-        for (final taskListDB in taskLists) {
-          final tlid = taskListDB['tl_id'];
-          final taskListName = taskListDB['task_list_name'];
-          final tasksDB = taskListDB['tasks'];
+        if(taskLists != null) {
+          for (final taskListDB in taskLists) {
+            final tlid = taskListDB['tl_id'];
+            final taskListName = taskListDB['task_list_name'];
+            final tasksDB = taskListDB['tasks'];
 
-          // Tasks in the task list
-          List<Task> tasks = [];
-          if (tasksDB != null) {
-            for (final taskDB in tasksDB) {
-              final tid = taskDB['t_id'];
-              tasks.add(parseTask(taskDB, tid));
-            }
-            TaskList taskList = TaskList(
-              tlid: tlid,
-              name: taskListName,
-              frequency: frequency,
-              tasks: UnmodifiableListView(tasks),
-            );
+            // Tasks in the task list
+            List<Task> tasks = [];
+            if (tasksDB != null) {
+              for (final taskDB in tasksDB) {
+                final tid = taskDB['t_id'];
+                tasks.add(parseTask(taskDB, tid));
+              }
+              TaskList taskList = TaskList(
+                tlid: tlid,
+                name: taskListName,
+                frequency: frequency,
+                tasks: UnmodifiableListView(tasks),
+              );
 
-            final roomsDB = taskListDB['rooms'];
-            // Rooms with the task list
-            List<Room> rooms = [];
-            if (roomsDB != null) {
-              for (final roomDB in roomsDB) {
-                rooms.add(Room(rid: roomDB['r_id'], name: roomDB['room_name']));
+              final roomsDB = taskListDB['rooms'];
+              // Rooms with the task list
+              List<Room> rooms = [];
+              if (roomsDB != null) {
+                for (final roomDB in roomsDB) {
+                  rooms.add(
+                      Room(rid: roomDB['r_id'], name: roomDB['room_name']));
+                }
+                for (final room in rooms) {
+                  TaskListKey taskListKey = TaskListKey(
+                    buildingName: buildingName,
+                    room: room,
+                    frequency: frequency,
+                  );
+                  _taskListMap[taskListKey] = taskList;
+                }
+              } else {
+                unassignedTaskLists.add(taskList);
               }
-              for (final room in rooms) {
-                TaskListKey taskListKey = TaskListKey(
-                  buildingName: buildingName,
-                  room: room,
-                  frequency: frequency,
-                );
-                _taskListMap[taskListKey] = taskList;
-              }
-            } else {
-              unassignedTaskLists.add(taskList);
             }
           }
         }
