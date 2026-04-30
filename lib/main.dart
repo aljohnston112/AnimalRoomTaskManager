@@ -88,11 +88,11 @@ class MyApp extends StatelessWidget {
                 TaskListRepository taskListRepository = context.read();
                 UserRepository userRepository = context.read();
 
-                return TaskListManagementScreen(
-                  model: TaskListManagementModel(
-                    taskListRepository: taskListRepository,
-                  ),
-                );
+                // return TaskListManagementScreen(
+                //   model: TaskListManagementModel(
+                //     taskListRepository: taskListRepository,
+                //   ),
+                // );
 
                 // return BuildingManagementScreen(
                 //   model: BuildingManagementModel(
@@ -112,13 +112,13 @@ class MyApp extends StatelessWidget {
                 //   userListModel: UserListModel(userRepository: userRepository),
                 // );
 
-                // return SchedulingScreen(
-                //   schedulingModel: SchedulingModel(
-                //     recordRepository: recordRepository,
-                //     roomCheckRepository: roomCheckRepository,
-                //     taskListRepository: taskListRepository,
-                //   ),
-                // );
+                return SchedulingScreen(
+                  schedulingModel: SchedulingModel(
+                    recordRepository: recordRepository,
+                    roomCheckRepository: roomCheckRepository,
+                    taskListRepository: taskListRepository,
+                  ),
+                );
               },
             ),
     );
