@@ -95,7 +95,7 @@ class TaskListManagementScreen extends StatelessWidget {
             action: SnackBarAction(
               label: 'Undo deletion',
               onPressed: () {
-                _model.undeleteTaskList(taskList.name);
+                _model.undeleteTaskList(taskList);
               },
             ),
           ),
@@ -146,11 +146,9 @@ class AddTaskListState extends State<AddTaskListPage> {
   final _taskListController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
   TaskFrequency? selectedFrequency;
-  late List<Task> allTasks;
+  late Set<Task> allTasks;
   List<Task> selectedTasks = [];
   String searchQuery = "";
-  bool changed = false;
-  bool reorderedOnly = true;
 
   List<Task> get _unselectedTasks => allTasks
       .where((t) => !selectedTasks.contains(t))
@@ -175,7 +173,7 @@ class AddTaskListState extends State<AddTaskListPage> {
   @override
   Widget build(BuildContext context) {
     return buildScaffold(
-      title: "Add New Task List",
+      title: widget.title,
       child: Center(
         child: constrainToPhoneWidth(
           Form(
@@ -191,17 +189,13 @@ class AddTaskListState extends State<AddTaskListPage> {
                       mediumTitleText(context, "Task List Name"),
                       TextFormField(
                         controller: _taskListController,
-                        onChanged: (_) {
-                          changed = true;
-                          reorderedOnly = false;
-                        },
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter a task list name';
                           }
-                          if (widget.taskList == null &&
-                              !reorderedOnly &&
-                              selectedFrequency != null &&
+                          var taskList = widget.taskList;
+                          bool changed = _taskListChanged(taskList);
+                          if ((taskList == null || changed) &&
                               widget._model.taskListExists(
                                 value,
                                 selectedFrequency!,
@@ -233,16 +227,18 @@ class AddTaskListState extends State<AddTaskListPage> {
                       onPressed: () => Navigator.pop(context),
                     ),
                     FilledButton(
-                      child: Text("Add Task List"),
+                      child: Text(widget.title),
                       onPressed: () async {
                         if (_formKey.currentState!.validate()) {
+                          var taskList = widget.taskList;
+                          bool changed = _taskListChanged(taskList);
                           if (changed) {
                             var tidToIndex = {
                               for (int i = 0; i < selectedTasks.length; i++)
                                 selectedTasks[i].tid: i,
                             };
-                            if (!reorderedOnly) {
-                              if (widget.taskList == null) {
+                            if (changed) {
+                              if (taskList == null) {
                                 await widget._model.addTaskList(
                                   _taskListController.text,
                                   selectedFrequency!,
@@ -250,7 +246,7 @@ class AddTaskListState extends State<AddTaskListPage> {
                                 );
                               } else {
                                 await widget._model.editTaskList(
-                                  widget.taskList!.tlid,
+                                  taskList.tlid,
                                   _taskListController.text,
                                   selectedFrequency!,
                                   tidToIndex,
@@ -258,7 +254,7 @@ class AddTaskListState extends State<AddTaskListPage> {
                               }
                             } else {
                               await widget._model.reorderTasks(
-                                widget.taskList!.tlid,
+                                taskList!.tlid,
                                 tidToIndex,
                               );
                             }
@@ -280,6 +276,11 @@ class AddTaskListState extends State<AddTaskListPage> {
     );
   }
 
+  bool _taskListChanged(TaskList? taskList) {
+    return taskList?.name != _taskListController.text ||
+        selectedFrequency != taskList?.frequency;
+  }
+
   Widget _buildDropdownForTaskListFrequency() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,8 +299,6 @@ class AddTaskListState extends State<AddTaskListPage> {
                 )
                 .toList(),
             onChanged: (value) {
-              changed = true;
-              reorderedOnly = false;
               setState(() {
                 selectedFrequency = value?.toTaskFrequency;
               });
@@ -324,7 +323,6 @@ class AddTaskListState extends State<AddTaskListPage> {
           child: ReorderableListView(
             onReorder: (oldIndex, newIndex) {
               setState(() {
-                changed = true;
                 if (newIndex > oldIndex) {
                   newIndex -= 1;
                 }
@@ -337,12 +335,10 @@ class AddTaskListState extends State<AddTaskListPage> {
                   (task) => ListTile(
                     key: ValueKey("${task.tid}"),
                     leading: const Icon(Icons.drag_handle),
-                    title: Text(task.description),
+                    title: _buildTaskTile(task),
                     trailing: IconButton(
                       icon: const Icon(Icons.remove_circle, color: Colors.red),
                       onPressed: () {
-                        changed = true;
-                        reorderedOnly = false;
                         setState(() => selectedTasks.remove(task));
                       },
                     ),
@@ -377,14 +373,12 @@ class AddTaskListState extends State<AddTaskListPage> {
             itemBuilder: (context, index) {
               final task = _unselectedTasks[index];
               return ListTile(
-                title: Text(task.description),
+                title: _buildTaskTile(task),
                 trailing: const Icon(
                   Icons.add_circle_outline,
                   color: Colors.green,
                 ),
                 onTap: () {
-                  changed = true;
-                  reorderedOnly = false;
                   setState(() {
                     selectedTasks.add(task);
                   });
@@ -395,5 +389,41 @@ class AddTaskListState extends State<AddTaskListPage> {
         ),
       ],
     );
+  }
+
+  Column _buildTaskTile(Task task) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(task.description),
+        Center(
+          child: Column(
+            children: [if (task is QuantitativeTask) ..._buildRangeTexts(task)],
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildRangeTexts(QuantitativeTask task) {
+    List<Widget> texts = [
+      if (task.warningRange != null) ...[
+        Text(
+          "Warning range: "
+          "${task.warningRange!.min} to "
+          "${task.warningRange!.max} "
+          "${task.warningRange!.units}",
+        ),
+      ],
+      if (task.requiredRange != null) ...[
+        Text(
+          "Required range: "
+          "${task.requiredRange!.min} to "
+          "${task.requiredRange!.max} "
+          "${task.requiredRange!.units}",
+        ),
+      ],
+    ];
+    return texts;
   }
 }

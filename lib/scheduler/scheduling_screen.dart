@@ -174,7 +174,7 @@ class SchedulingScreenCards extends StatelessWidget {
     for (final building in uniqueBuildings) {
       cards[building] = [];
     }
-    var previousSunday = now.subtract(Duration(days: now.weekday % 7));
+    var previousSunday = normalizeDate(now, TaskFrequency.weekly);
     for (int i = 0; i < 4; i++) {
       previousSunday = previousSunday.add(Duration(days: i * 7));
       final previousMonth = previousSunday.month;
@@ -197,9 +197,9 @@ class SchedulingScreenCards extends StatelessWidget {
         );
         cards[building]!.add(
           _buildRoomAssignmentCards(context, tasksInBuilding, dateKey, i == 0, (
-            year: nextYear,
-            month: nextMonth,
-            day: nextDay,
+            year: previousYear,
+            month: previousMonth,
+            day: previousDay,
           )),
         );
       }

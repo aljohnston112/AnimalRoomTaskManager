@@ -80,12 +80,7 @@ class RecordRepository extends ChangeNotifier {
     for (final records in result['records']) {
       final recordsForDates = records['dates'];
       for (final recordsForDate in recordsForDates) {
-        DateTime parsedDate = DateTime.parse(recordsForDate['date_time']);
-        RoomCheckDate roomCheckDate = (
-          year: parsedDate.year,
-          month: parsedDate.month,
-          day: parsedDate.day,
-        );
+        DateTime date = DateTime.parse(recordsForDate['date_time']);
         final records = recordsForDate['records'];
         for (final record in records) {
           final trid = record['tr_id'];
@@ -94,6 +89,13 @@ class RecordRepository extends ChangeNotifier {
           final tid = record['t_id'];
           double? value = record['recorded_value'];
           final frequency = (taskDB['frequency'] as String).toTaskFrequency;
+          date = normalizeDate(date, frequency);
+          RoomCheckDate roomCheckDate = (
+            year: date.year,
+            month: date.month,
+            day: date.day,
+          );
+
           // TODO multiple users
           var userDB = taskDB['assigned_users'][0];
           final doneBy = User(
@@ -106,30 +108,35 @@ class RecordRepository extends ChangeNotifier {
           if (!_roomToDateToFrequencyToTaskRecords.containsKey(room)) {
             _roomToDateToFrequencyToTaskRecords[room] = {};
           }
-          if (!_roomToDateToFrequencyToTaskRecords[room]!.containsKey(roomCheckDate)) {
+          if (!_roomToDateToFrequencyToTaskRecords[room]!.containsKey(
+            roomCheckDate,
+          )) {
             _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate] = {};
           }
-          if (!_roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]!.containsKey(frequency)) {
-            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency] = {};
+          if (!_roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]!
+              .containsKey(frequency)) {
+            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency] =
+                {};
           }
           if (task is QuantitativeTask) {
             _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
                 QuantitativeRecord(
                   room: room,
                   task: task,
-                  dateTime: parsedDate,
+                  dateTime: date,
                   doneBy: doneBy,
                   rcid: rcid,
                   recordedValue: value!,
                 );
           } else {
-            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] = TaskRecord(
-              room: room,
-              task: task,
-              dateTime: parsedDate,
-              doneBy: doneBy,
-              rcid: rcid,
-            );
+            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
+                TaskRecord(
+                  room: room,
+                  task: task,
+                  dateTime: date,
+                  doneBy: doneBy,
+                  rcid: rcid,
+                );
           }
         }
       }
@@ -145,11 +152,12 @@ class RecordRepository extends ChangeNotifier {
       return UnmodifiableMapView<Task, TaskRecord>({});
     }
 
+    date = normalizeRoomCheckDate(date, frequency);
     var dateToTaskRecord = _roomToDateToFrequencyToTaskRecords[room]!;
-    if (dateToTaskRecord.containsKey(date) && dateToTaskRecord[date]!.containsKey(frequency)) {
+    if (dateToTaskRecord.containsKey(date) &&
+        dateToTaskRecord[date]!.containsKey(frequency)) {
       return UnmodifiableMapView<Task, TaskRecord>(
-        Map.fromEntries(
-            dateToTaskRecord[date]![frequency]!.entries),
+        Map.fromEntries(dateToTaskRecord[date]![frequency]!.entries),
       );
     }
 
@@ -157,18 +165,12 @@ class RecordRepository extends ChangeNotifier {
   }
 
   Future<bool> addRecord(TaskRecord record, TaskFrequency frequency) async {
-    if (_roomToDateToFrequencyToTaskRecords[record.room]?[record.dateTime
-            .toRoomCheckDate()]?[frequency]?[record.task] ==
+    var date = normalizeDate(record.dateTime, frequency).toRoomCheckDate();
+    if (_roomToDateToFrequencyToTaskRecords[record
+            .room]?[date]?[frequency]?[record.task] ==
         null) {
       return await _database.insertRecord(record);
     }
     return true;
-  }
-
-  /// TODO for local user testing only
-  /// delete this once data needs to be persisted
-  void clear() {
-    _roomToDateToFrequencyToTaskRecords.clear();
-    notifyListeners();
   }
 }

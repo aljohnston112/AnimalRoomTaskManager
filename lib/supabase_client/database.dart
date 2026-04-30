@@ -126,7 +126,7 @@ class Database {
         .subscribe();
   }
 
-  void subscribeToTaskLists(void Function(dynamic) callback) {
+  void subscribeToTaskListsFull(void Function(dynamic) callback) {
     final taskRecordChannel = _supabase.channel(
       'task_list_channel',
       opts: const RealtimeChannelConfig(private: true),
@@ -137,6 +137,18 @@ class Database {
           callback: (payload) {
             callback(payload);
           },
+        )
+        .subscribe();
+  }
+
+  void subscribeToTaskLists(void Function(PostgresChangePayload) callback) {
+    _supabase
+        .channel("task_lists")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'task_lists',
+          callback: callback,
         )
         .subscribe();
   }
@@ -468,7 +480,7 @@ class Database {
       'insert_task_list',
       params: {
         'name_in': taskListName,
-        'frequency': frequency.toDbString,
+        'frequency_in': frequency.toDbString,
         'task_list_task_membership_rows': tidToIndex.entries.map((e) {
           return {'t_id': e.key, 'index': e.value};
         }).toList(),
@@ -549,12 +561,19 @@ class Database {
         .eq('name', facilityName);
   }
 
-  Future<int> undeleteTaskList(String taskListName) async {
-    return (await _supabase
-        .from('task_lists')
-        .update({'deleted': false})
-        .eq('name', taskListName)
-        .select('tl_id')
-        .single())['tl_id'];
+  Future<void> undeleteTaskList(TaskList taskList) async {
+    var tidToIndex = {
+      for (int i = 0; i < taskList.tasks.length; i++) taskList.tasks[i].tid: i,
+    };
+    await _supabase.rpc(
+      'insert_task_list',
+      params: {
+        'name_in': taskList.name,
+        'frequency_in': taskList.frequency.toDbString,
+        'task_list_task_membership_rows': tidToIndex.entries.map((e) {
+          return {'t_id': e.key, 'index': e.value};
+        }).toList(),
+      },
+    );
   }
 }

@@ -164,27 +164,26 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
         _errorText = null;
       });
     } else {
-      for (final range in widget.task.ranges) {
-        if (value < range.min || value > range.max) {
-          if (range.isRequired) {
-            setState(() {
-              _errorText =
-                  'Value must be between '
-                  '(${range.min} to ${range.max})';
-            });
-            break;
-          } else {
-            setState(() {
-              _errorText =
-                  'Value out of range '
-                  '(${range.min} to ${range.max})';
-            });
-          }
-        } else {
-          setState(() {
-            _errorText = null;
-          });
-        }
+      final warningRange = widget.task.warningRange;
+      final requiredRange = widget.task.requiredRange;
+      if (warningRange != null &&
+          (value < warningRange.min || value > warningRange.max)) {
+        setState(() {
+          _errorText =
+              'Value must be between '
+              '(${warningRange.min} to ${warningRange.max})';
+        });
+      } else if (requiredRange != null &&
+          (value < requiredRange.min || value > requiredRange.max)) {
+        setState(() {
+          _errorText =
+              'Value out of range '
+              '(${requiredRange.min} to ${requiredRange.max})';
+        });
+      } else {
+        setState(() {
+          _errorText = null;
+        });
       }
     }
   }
@@ -192,6 +191,16 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
   @override
   Widget build(BuildContext context) {
     var taskUnrecorded = widget.entry.record == null;
+    String units;
+    final warningRange = widget.task.warningRange;
+    final requiredRange = widget.task.requiredRange;
+    if (warningRange != null) {
+      units = warningRange.units;
+    } else if (requiredRange != null) {
+      units = requiredRange.units;
+    } else {
+      units = '';
+    }
     return TextField(
       enabled: taskUnrecorded,
       controller: widget.controller,
@@ -202,9 +211,7 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
       inputFormatters: [
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
       ],
-      decoration: buildInputDecoration(
-        widget.task.ranges.first.units,
-      ).copyWith(errorText: _errorText),
+      decoration: buildInputDecoration(units).copyWith(errorText: _errorText),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +19,23 @@ extension RoomCheckDateSupabase on RoomCheckDate {
     final d = day.toString().padLeft(2, '0');
     return '$y-$m-$d';
   }
+}
+
+RoomCheckDate normalizeRoomCheckDate(
+  RoomCheckDate roomCheckDate,
+  TaskFrequency frequency,
+) {
+  DateTime date = DateTime.parse(roomCheckDate.toSupabaseString());
+  return normalizeDate(date, frequency).toRoomCheckDate();
+}
+
+DateTime normalizeDate(DateTime date, TaskFrequency frequency) {
+  if (frequency == TaskFrequency.weekly) {
+    return date.subtract(Duration(days: date.weekday % 7));
+  } else if (frequency == TaskFrequency.monthly) {
+    return DateTime(date.year, date.month, 1);
+  }
+  return date;
 }
 
 enum RoomCheckState { notStarted, started, done }

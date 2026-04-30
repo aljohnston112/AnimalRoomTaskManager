@@ -200,7 +200,7 @@ class RoomCheckModel extends ChangeNotifier {
               doneBy: loggedInUser,
               rcid: rcid,
             ),
-            _roomCheckSlot.frequency
+            _roomCheckSlot.frequency,
           );
         } else if (_completedTasks.contains(task)) {
           wasRecordAdded = await _recordRepository.addRecord(
@@ -211,7 +211,7 @@ class RoomCheckModel extends ChangeNotifier {
               doneBy: loggedInUser,
               rcid: rcid,
             ),
-            _roomCheckSlot.frequency
+            _roomCheckSlot.frequency,
           );
         }
         if (!wasRecordAdded) {

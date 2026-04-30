@@ -23,7 +23,7 @@ class TaskListManagementModel extends ChangeNotifier {
     return _taskListRepository.taskLists.value;
   }
 
-  UnmodifiableListView<Task> getAllTasks() {
+  UnmodifiableSetView<Task> getAllTasks() {
     return _taskListRepository.tasks.value;
   }
 
@@ -57,10 +57,7 @@ class TaskListManagementModel extends ChangeNotifier {
     );
   }
 
-  Future<void> reorderTasks(
-      int tlid,
-      Map<int, int> tidToIndex,
-      ) async {
+  Future<void> reorderTasks(int tlid, Map<int, int> tidToIndex) async {
     await _taskListRepository.reorderTasks(tlid, tidToIndex);
   }
 
@@ -68,8 +65,7 @@ class TaskListManagementModel extends ChangeNotifier {
     await _taskListRepository.deleteTaskList(taskList);
   }
 
-  Future<void> undeleteTaskList(String taskListName) async {
-    await _taskListRepository.undeleteTaskList(taskListName);
+  Future<void> undeleteTaskList(TaskList taskList) async {
+    await _taskListRepository.undeleteTaskList(taskList);
   }
-
 }

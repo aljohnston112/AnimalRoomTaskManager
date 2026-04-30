@@ -506,33 +506,110 @@ CREATE TYPE task_frequency AS ENUM (
 -- Task Lists --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_lists
 (
-    tl_id     serial PRIMARY KEY,
-    name      text           NOT NULL,
-    frequency task_frequency NOT NULL,
-    deleted   boolean        NOT NULL,
-    CONSTRAINT distinct_task_lists UNIQUE (name, frequency)
-
+    tl_id        serial PRIMARY KEY,
+    name         text           NOT NULL,
+    frequency    task_frequency NOT NULL,
+    deleted      boolean        NOT NULL,
+    content_hash text           NOT NULL,
+    CONSTRAINT distinct_task_lists UNIQUE (name, frequency, deleted, content_hash)
 );
-INSERT INTO task_lists (tl_id, name, frequency, deleted)
-VALUES (0, 'Empty/Idle Room Daily Tasks', 'Daily', FALSE),
-       (1, 'Surgery Room Daily Tasks', 'Daily', FALSE),
-       (2, 'Storage Room Daily Tasks', 'Daily', FALSE),
-       (3, 'Cagewash Room Daily Tasks', 'Daily', FALSE),
-       (4, 'Housing Daily Tasks', 'Daily', FALSE),
-       (5, 'Hibernaculum Daily Tasks', 'Daily', FALSE),
+ALTER PUBLICATION supabase_realtime ADD TABLE task_lists;
+CREATE OR REPLACE FUNCTION generate_task_list_hash(rows jsonb)
+    RETURNS text
+    SET search_path TO public, auth, pg_temp AS
+$$
+BEGIN
+    RETURN MD5(COALESCE(
+            (SELECT JSONB_AGG(
+                            task_list
+                            ORDER BY (
+                                task_list ->> 'index')::int,
+                                (task_list ->> 't_id')::INT
+                    )
+             FROM JSONB_ARRAY_ELEMENTS(rows) AS task_list)::text,
+            '[]'
+               ));
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+WITH seed_data (tl_id, name, frequency, deleted) AS
+         (VALUES (0,
+                  'Empty/Idle Room Daily Tasks',
+                  'Daily',
+                  FALSE),
+                 (1,
+                  'Surgery Room Daily Tasks',
+                  'Daily',
+                  FALSE),
+                 (2,
+                  'Storage Room Daily Tasks',
+                  'Daily',
+                  FALSE),
+                 (3,
+                  'Cagewash Room Daily Tasks',
+                  'Daily',
+                  FALSE),
+                 (4,
+                  'Housing Daily Tasks',
+                  'Daily',
+                  FALSE),
+                 (5,
+                  'Hibernaculum Daily Tasks',
+                  'Daily',
+                  FALSE),
 
-       (6, 'Empty/Idle Room Weekly Tasks', 'Weekly', FALSE),
-       (7, 'Surgery Room Weekly Tasks', 'Weekly', FALSE),
-       (8, 'Storage Room Weekly Tasks', 'Weekly', FALSE),
-       (9, 'Cagewash Room Weekly Tasks', 'Weekly', FALSE),
-       (10, 'Housing Weekly Tasks', 'Weekly', FALSE),
-       (11, 'Hibernaculum Weekly Tasks', 'Weekly', FALSE),
+                 (6,
+                  'Empty/Idle Room Weekly Tasks',
+                  'Weekly',
+                  FALSE),
+                 (7,
+                  'Surgery Room Weekly Tasks',
+                  'Weekly',
+                  FALSE),
+                 (8,
+                  'Storage Room Weekly Tasks',
+                  'Weekly',
+                  FALSE),
+                 (9,
+                  'Cagewash Room Weekly Tasks',
+                  'Weekly',
+                  FALSE),
+                 (10,
+                  'Housing Weekly Tasks',
+                  'Weekly',
+                  FALSE),
+                 (11,
+                  'Hibernaculum Weekly Tasks',
+                  'Weekly',
+                  FALSE),
 
-       (12, 'Surgery Room Monthly Tasks', 'Monthly', FALSE),
-       (13, 'Storage Room Monthly Tasks', 'Monthly', FALSE),
-       (14, 'Cagewash Room Monthly Tasks', 'Monthly', FALSE),
-       (15, 'Housing Monthly Tasks', 'Monthly', FALSE),
-       (16, 'Hibernaculum Monthly Tasks', 'Monthly', FALSE);
+                 (12,
+                  'Surgery Room Monthly Tasks',
+                  'Monthly',
+                  FALSE),
+                 (13,
+                  'Storage Room Monthly Tasks',
+                  'Monthly',
+                  FALSE),
+                 (14,
+                  'Cagewash Room Monthly Tasks',
+                  'Monthly',
+                  FALSE),
+                 (15,
+                  'Housing Monthly Tasks',
+                  'Monthly',
+                  FALSE),
+                 (16,
+                  'Hibernaculum Monthly Tasks',
+                  'Monthly',
+                  FALSE))
+INSERT
+INTO task_lists (tl_id, name, frequency, deleted, content_hash)
+SELECT tl_id,
+       name,
+       frequency::task_frequency,
+       deleted,
+       generate_task_list_hash('[]'::jsonb)
+FROM seed_data;;
 SELECT SETVAL(
                PG_GET_SERIAL_SEQUENCE('task_lists', 'tl_id'),
                COALESCE((SELECT MAX(tl_id) FROM task_lists), 0)
@@ -540,7 +617,7 @@ SELECT SETVAL(
 ALTER TABLE public.task_lists
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.task_lists TO authenticated;
-GRANT UPDATE (deleted) ON public.task_lists TO authenticated;
+GRANT UPDATE (deleted, content_hash) ON public.task_lists TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE task_lists_tl_id_seq TO authenticated;
 CREATE POLICY "Task_ListsSelectAuth"
     ON public.task_lists
@@ -561,7 +638,6 @@ CREATE POLICY "TaskListsUpdateAuth"
     TO authenticated
     USING (check_is_admin())
     WITH CHECK (check_is_admin());
-
 -- Tasks -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS tasks
 (
@@ -898,6 +974,15 @@ VALUES (0, 0, 0),
        (15, 21, 4),
        (15, 22, 5),
        (15, 26, 6);
+UPDATE task_lists tl
+SET content_hash =
+        generate_task_list_hash(
+                (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                        't_id', t_id,
+                        'index', index))
+                 FROM task_list_task_memberships tltm
+                 WHERE tltm.tl_id = tl.tl_id)
+        );
 ALTER TABLE public.task_list_task_memberships
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.task_list_task_memberships TO authenticated;
@@ -937,11 +1022,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
 
-
+GRANT EXECUTE ON FUNCTION public.insert_task_list_memberships(integer, jsonb) TO authenticated;
 
 CREATE OR REPLACE FUNCTION insert_task_list(
     name_in text,
-    frequency public.task_frequency,
+    frequency_in task_frequency,
     task_list_task_membership_rows jsonb -- Expecting map {'t_id':, 'index':}
 ) RETURNS int
     SET search_path TO public, auth, pg_temp AS
@@ -949,25 +1034,52 @@ $$
 DECLARE
     tlid    int;
     payload jsonb;
+    hash    text;
 BEGIN
-    INSERT INTO task_lists (name, frequency, deleted)
-    VALUES (name_in, frequency, FALSE)
-    RETURNING tl_id INTO tlid;
-    PERFORM insert_task_list_memberships(tlid, task_list_task_membership_rows);
+    hash := generate_task_list_hash(task_list_task_membership_rows);
+    SELECT tl_id
+    INTO tlid
+    FROM task_lists
+    WHERE name = name_in
+      AND frequency = frequency_in
+      AND content_hash = hash;
+
+    IF tlid IS NULL THEN
+        INSERT INTO task_lists (name, frequency, deleted, content_hash)
+        VALUES (name_in, frequency_in, FALSE, hash)
+        RETURNING tl_id INTO tlid;
+        PERFORM insert_task_list_memberships(
+                tlid,
+                task_list_task_membership_rows
+                );
+    ELSE
+        UPDATE task_lists
+        SET deleted = FALSE
+        WHERE tl_id = tlid;
+    END IF;
 
     payload := get_task_list(tlid);
+    RAISE NOTICE 'payload: %', payload;
     PERFORM realtime.send(
             payload => payload::jsonb,
             event => 'task_list_update'::text,
             topic => 'task_list_channel'::text
             );
-    return tlid;
+    RETURN tlid;
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.insert_task_list(text, task_frequency, jsonb) TO authenticated;
 
-DROP POLICY IF EXISTS "Users can hear task list updates" ON "realtime"."messages";
+DROP POLICY IF EXISTS "Allow sending task list updates" ON realtime.messages;
+CREATE POLICY "Allow sending task list updates"
+    ON realtime.messages
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (realtime.topic() = 'task_list_channel');
+
+DROP POLICY IF EXISTS "Users can hear task list updates" ON realtime.messages;
 CREATE POLICY "Users can hear task list updates"
-    ON "realtime"."messages"
+    ON realtime.messages
     FOR SELECT
     TO authenticated
     USING ((SELECT realtime.topic()) = 'task_list_channel');
@@ -1010,11 +1122,14 @@ BEGIN
             );
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.edit_task_list(integer, text, task_frequency, jsonb) TO authenticated;
+
 
 CREATE OR REPLACE FUNCTION reorder_tasks(payload jsonb)
     RETURNS void AS
 $$
 DECLARE
+    tlid        int;
     payload_out jsonb;
 BEGIN
     SET CONSTRAINTS unique_task_order DEFERRED;
@@ -1026,7 +1141,17 @@ BEGIN
       AND tltm.tl_id = (new_task ->> 'tl_id')::int;
     SET CONSTRAINTS unique_task_order IMMEDIATE;
 
-    payload_out := get_task_list((payload -> 0 ->> 'tl_id')::int);
+    tlid := (payload -> 0 ->> 'tl_id')::int;
+    UPDATE task_lists
+    SET content_hash = generate_task_list_hash(
+            (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                    't_id', t_id,
+                    'index', index))
+             FROM task_list_task_memberships
+             WHERE tl_id = tlid))
+    WHERE tl_id = tlid;
+
+    payload_out := get_task_list(tlid);
     PERFORM realtime.send(
             payload => payload_out::jsonb,
             event => 'task_list_update'::text,
@@ -1034,6 +1159,8 @@ BEGIN
             );
 END;
 $$ LANGUAGE plpgsql SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.reorder_tasks(jsonb) TO authenticated;
+
 
 CREATE OR REPLACE VIEW all_tasks_view
             WITH
@@ -1127,6 +1254,7 @@ BEGIN
     RETURN result;
 END
 $$ LANGUAGE plpgsql SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.get_task_list(integer) TO authenticated;
 
 -- Task List Room Memberships ----------------------------------------
 CREATE TABLE IF NOT EXISTS task_list_room_memberships
@@ -1275,6 +1403,7 @@ FROM public.users
 WHERE auth_id = auth.uid();
 $$ LANGUAGE sql STABLE
                 SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.get_my_u_id() TO authenticated;
 
 CREATE POLICY "RoomCheckSlotsInsertAuth"
     ON public.room_check_slots
@@ -1388,6 +1517,7 @@ FROM buildings b
 WHERE frequency_data.data IS NOT NULL
 $$ LANGUAGE sql STABLE
                 SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.get_room_check_slots(timestamptz) TO authenticated;
 
 -- Task Records ------------------------------------------------------
 CREATE TABLE IF NOT EXISTS task_records
@@ -1516,6 +1646,7 @@ BEGIN
                              )) AS data
             FROM (SELECT tr.date_time,
                          JSONB_AGG(JSONB_BUILD_OBJECT(
+                                 'rc_id', rcs.rc_id,
                                  'tr_id', tr.tr_id,
                                  't_id', tr.t_id,
                                  'recorded_value', qtr.value,
@@ -1590,13 +1721,21 @@ BEGIN
             );
 END
 $$ LANGUAGE plpgsql SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.submit_task_record(jsonb, integer[], numeric) TO authenticated;
 
-DROP POLICY IF EXISTS "Users can hear task updates" ON "realtime"."messages";
+DROP POLICY IF EXISTS "Users can hear task updates" ON realtime.messages;
 CREATE POLICY "Users can hear task updates"
-    ON "realtime"."messages"
+    ON realtime.messages
     FOR SELECT
     TO authenticated
     USING ((SELECT realtime.topic()) = 'task_record_channel');
+
+DROP POLICY IF EXISTS "Allow sending task record updates" ON realtime.messages;
+CREATE POLICY "Allow sending task record updates"
+    ON realtime.messages
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (realtime.topic() = 'task_record_channel');
 
 CREATE OR REPLACE VIEW room_check_task_lists_view
             WITH
@@ -1625,7 +1764,9 @@ FROM buildings b
                                    RIGHT JOIN rooms r ON tlrm.r_id = r.r_id
                           WHERE tlrm.tl_id = tl.tl_id
                             AND r.b_id = b.b_id),
-                'tasks', (SELECT JSONB_AGG(atv.JSONB_BUILD_OBJECT || JSONB_BUILD_OBJECT('index', tltm.index) ORDER BY tltm.index)
+                'tasks', (SELECT JSONB_AGG(atv.JSONB_BUILD_OBJECT ||
+                                           JSONB_BUILD_OBJECT('index', tltm.index)
+                                           ORDER BY tltm.index)
                           FROM task_list_task_memberships tltm
                                    LEFT JOIN all_tasks_view atv ON atv.t_id = tltm.t_id
                           WHERE tltm.tl_id = tl.tl_id)
@@ -1639,38 +1780,37 @@ FROM buildings b
                         AND r.b_id = b.b_id)
         ) tl_data ON TRUE
     ) task_lists_by_frequency ON TRUE
-UNION all
-SELECT -1 as b_id,
-       'Unassigned' as building_name,
-       (
-           SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
-                   'frequency', task_list_frequency.frequency,
-                   'task_lists', lists
-                            ))
-           FROM (SELECT DISTINCT frequency
-                 FROM task_lists) task_list_frequency
-                    INNER JOIN LATERAL (
-               SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
-                       'tl_id', tl.tl_id,
-                       'task_list_name', tl.name,
-                       'rooms', null,
-                       'tasks', (SELECT JSONB_AGG(atv.JSONB_BUILD_OBJECT ||
-                                                  JSONB_BUILD_OBJECT('index', tltm.index)
-                                                  ORDER BY tltm.index)
-                                 FROM task_list_task_memberships tltm
-                                          LEFT JOIN all_tasks_view atv ON atv.t_id = tltm.t_id
-                                 WHERE tltm.tl_id = tl.tl_id)
-                                )) AS lists
-               FROM task_lists tl
-               WHERE tl.frequency = task_list_frequency.frequency
-                 AND tl.deleted = FALSE
-                 AND NOT EXISTS (SELECT 1
-                                 FROM task_list_room_memberships tlrm
-                                          JOIN rooms r ON tlrm.r_id = r.r_id
-                                 WHERE tlrm.tl_id = tl.tl_id)
-               ) tl_data ON TRUE
-           WHERE tl_data.lists is not null
-       );
+UNION ALL
+SELECT -1           AS b_id,
+       'Unassigned' AS building_name,
+       (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+               'frequency', task_list_frequency.frequency,
+               'task_lists', lists
+                         ))
+        FROM (SELECT DISTINCT frequency
+              FROM task_lists) task_list_frequency
+                 INNER JOIN LATERAL (
+            SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+                    'tl_id', tl.tl_id,
+                    'task_list_name', tl.name,
+                    'rooms', NULL,
+                    'tasks',
+                    (SELECT JSONB_AGG(atv.JSONB_BUILD_OBJECT ||
+                                      JSONB_BUILD_OBJECT('index', tltm.index)
+                                      ORDER BY tltm.index)
+                     FROM task_list_task_memberships tltm
+                              LEFT JOIN all_tasks_view atv ON atv.t_id = tltm.t_id
+                     WHERE tltm.tl_id = tl.tl_id)
+                             )) AS lists
+            FROM task_lists tl
+            WHERE tl.frequency = task_list_frequency.frequency
+              AND tl.deleted = FALSE
+              AND NOT EXISTS (SELECT 1
+                              FROM task_list_room_memberships tlrm
+                                       JOIN rooms r ON tlrm.r_id = r.r_id
+                              WHERE tlrm.tl_id = tl.tl_id)
+            ) tl_data ON TRUE
+        WHERE tl_data.lists IS NOT NULL);
 GRANT SELECT ON TABLE public.room_check_task_lists_view TO authenticated;
 
 CREATE OR REPLACE FUNCTION get_task_records(start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL)
@@ -1770,4 +1910,5 @@ $$
  WHERE room_records.data IS NOT NULL);
 $$ LANGUAGE sql STABLE
                 SECURITY INVOKER;
+GRANT EXECUTE ON FUNCTION public.get_task_records(timestamptz) TO authenticated;
 

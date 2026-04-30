@@ -1,11 +1,8 @@
 import 'dart:collection';
 
-import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_model.dart';
-import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
-import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,24 +13,20 @@ void main() {
 }
 
 void testRoomCheckModel() {
-  final taskA = Task(
-    tid: 0,
-    description: "A",
-    managerOnly: false,
-  );
+  final taskA = Task(tid: 0, description: "A", managerOnly: false);
   final taskB = QuantitativeTask(
     tid: 0,
     description: "B",
-    ranges: [
-      QuantitativeRange(min: 10, max: 100, units: "Bs", isRequired: false),
-    ],
+    warningRange: QuantitativeRange(
+      min: 10,
+      max: 100,
+      units: "Bs",
+      isRequired: false,
+    ),
+    requiredRange: null,
     managerOnly: false,
   );
-  final taskC = Task(
-    tid: 0,
-    description: "C",
-    managerOnly: false,
-  );
+  final taskC = Task(tid: 0, description: "C", managerOnly: false);
   final tasks = UnmodifiableListView([taskA, taskB, taskC]);
   final taskList = TaskList(
     name: "D",
@@ -173,11 +166,7 @@ void testRoomCheckModel() {
 void testTaskEntry() {
   var date = DateTime.fromMicrosecondsSinceEpoch(3);
   test("TaskEntry completed when set up with record", () {
-    var task = Task(
-      tid: 0,
-      description: "A",
-      managerOnly: false,
-    );
+    var task = Task(tid: 0, description: "A", managerOnly: false);
     final room = Room(rid: 1, name: "1");
     var record = TaskRecord(
       room: room,
@@ -195,11 +184,7 @@ void testTaskEntry() {
   });
 
   test("TaskEntry not completed when set up without record", () {
-    var task = Task(
-      tid: 0,
-      description: "A",
-      managerOnly: false,
-    );
+    var task = Task(tid: 0, description: "A", managerOnly: false);
     TaskEntryModel taskEntry = TaskEntryModel(
       task: task,
       record: null,

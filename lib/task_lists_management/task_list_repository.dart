@@ -69,13 +69,15 @@ class QuantitativeRange<T> {
 }
 
 class QuantitativeTask<T> extends Task {
-  final List<QuantitativeRange<T>> ranges;
+  final QuantitativeRange<T>? warningRange;
+  final QuantitativeRange<T>? requiredRange;
 
   QuantitativeTask({
     required super.description,
-    required this.ranges,
     required super.managerOnly,
     required super.tid,
+    required this.warningRange,
+    required this.requiredRange,
   });
 
   @override
@@ -90,11 +92,11 @@ Task parseTask(PostgrestMap taskDB, int tid) {
   final taskName = taskDB['task_name'];
   final isManagerTask = taskDB['manager_only'];
   final quantitativeRangesDB = taskDB['quantitative_ranges'];
-  List<QuantitativeRange> quantitativeRanges = [];
+  QuantitativeRange? warningRange;
+  QuantitativeRange? requiredRange;
   if (quantitativeRangesDB != null) {
     final unit = quantitativeRangesDB['unit'];
     final warningRangeDB = quantitativeRangesDB['warning_range'];
-    QuantitativeRange? warningRange;
     if (warningRangeDB != null) {
       warningRange = QuantitativeRange(
         min: warningRangeDB['min'],
@@ -102,10 +104,8 @@ Task parseTask(PostgrestMap taskDB, int tid) {
         units: unit,
         isRequired: false,
       );
-      quantitativeRanges.add(warningRange);
     }
     final requiredRangeDB = quantitativeRangesDB['required_range'];
-    QuantitativeRange? requiredRange;
     if (requiredRangeDB != null) {
       requiredRange = QuantitativeRange(
         min: requiredRangeDB['min'],
@@ -113,13 +113,13 @@ Task parseTask(PostgrestMap taskDB, int tid) {
         units: unit,
         isRequired: true,
       );
-      quantitativeRanges.add(requiredRange);
     }
     return QuantitativeTask(
       description: taskName,
-      ranges: quantitativeRanges,
       managerOnly: isManagerTask,
       tid: tid,
+      warningRange: warningRange,
+      requiredRange: requiredRange,
     );
   } else {
     return Task(description: taskName, managerOnly: isManagerTask, tid: tid);
@@ -173,19 +173,30 @@ class TaskListKey {
 class TaskListRepository {
   final Database _database;
 
-  final List<Task> _tasks = [];
-  final ValueNotifier<UnmodifiableListView<Task>> tasks = ValueNotifier(
-    UnmodifiableListView([]),
+  final Set<Task> _tasks = {};
+  final ValueNotifier<UnmodifiableSetView<Task>> tasks = ValueNotifier(
+    UnmodifiableSetView({}),
   );
 
   final Map<TaskListKey, TaskList> _taskListMap = {};
   final ValueNotifier<UnmodifiableMapView<TaskListKey, TaskList>> taskListMap =
       ValueNotifier(UnmodifiableMapView({}));
+  final Map<TaskFrequency, Set<TaskList>> _taskLists = {};
   final ValueNotifier<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
   taskLists = ValueNotifier(UnmodifiableMapView({}));
 
   TaskListRepository({required Database database}) : _database = database {
     _database.subscribeToTaskLists((data) {
+      bool? deleted = data.newRecord['deleted'];
+      if (deleted == true) {
+        _taskListMap.removeWhere((k, v) => v.tlid == data.newRecord['tl_id']);
+        _taskLists.forEach(
+          (k, v) => v.removeWhere((v) => v.tlid == data.newRecord['tl_id']),
+        );
+      }
+      _updateTaskLists();
+    });
+    _database.subscribeToTaskListsFull((data) {
       final payload = data['payload'];
       final tlid = payload['tl_id'];
       final taskListName = payload['task_list_name'];
@@ -205,7 +216,7 @@ class TaskListRepository {
         (k, v) => v.name == taskListName && v.frequency == frequency,
       );
       List<TaskList> unassignedTasks = [];
-      if(payload['buildings'] != null) {
+      if (payload['buildings'] != null) {
         for (final building in payload['buildings']) {
           final bid = building['b_id'];
           final buildingName = building['building_name'];
@@ -219,7 +230,7 @@ class TaskListRepository {
             _taskListMap[key] = taskList;
           }
         }
-      } else{
+      } else {
         unassignedTasks.add(taskList);
       }
       _updateTaskLists(unassignedTaskLists: unassignedTasks);
@@ -228,6 +239,7 @@ class TaskListRepository {
 
   Future<void> loadTaskLists() async {
     _taskListMap.clear();
+    taskLists.value = UnmodifiableMapView({});
     final map = await _database.getTaskLists();
     List<TaskList> unassignedTaskLists = [];
     for (final buildingMap in map) {
@@ -283,20 +295,20 @@ class TaskListRepository {
   }
 
   void _updateTaskLists({List<TaskList>? unassignedTaskLists}) {
+    unassignedTaskLists ??= [];
     taskListMap.value = UnmodifiableMapView(_taskListMap);
-    Map<TaskFrequency, Set<TaskList>> newTaskLists = _taskListMap.values.fold(
-      {},
-      (previousValue, taskList) {
+    Map<TaskFrequency, Set<TaskList>> newTaskLists = Map.from(_taskLists);
+    newTaskLists.addAll(
+      _taskListMap.values.fold(newTaskLists, (previousValue, taskList) {
         previousValue.putIfAbsent(taskList.frequency, () => {}).add(taskList);
         return previousValue;
-      },
+      }),
     );
-    if (unassignedTaskLists != null) {
-      for (final taskList in unassignedTaskLists) {
-        newTaskLists.putIfAbsent(taskList.frequency, () => {}).add(taskList);
-      }
+    for (final taskList in unassignedTaskLists) {
+      newTaskLists.putIfAbsent(taskList.frequency, () => {}).add(taskList);
     }
-    taskLists.value = UnmodifiableMapView(newTaskLists);
+    _taskLists.addAll(newTaskLists);
+    taskLists.value = UnmodifiableMapView(_taskLists);
   }
 
   Future<void> loadTasks() async {
@@ -306,7 +318,7 @@ class TaskListRepository {
       final tid = taskMapDB['t_id'];
       _tasks.add(parseTask(taskMapDB, tid));
     }
-    tasks.value = UnmodifiableListView(_tasks);
+    tasks.value = UnmodifiableSetView(_tasks);
   }
 
   Future<void> addTaskList(
@@ -334,7 +346,7 @@ class TaskListRepository {
     await _database.deleteTaskList(taskList);
   }
 
-  Future<void> undeleteTaskList(String taskListName) async {
-    await _database.undeleteTaskList(taskListName);
+  Future<void> undeleteTaskList(TaskList taskList) async {
+    await _database.undeleteTaskList(taskList);
   }
 }
