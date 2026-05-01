@@ -7,7 +7,7 @@ import 'facility_repository.dart';
 class FacilityManagementScreen extends StatelessWidget {
   final FacilityManagementModel _model;
 
-  const FacilityManagementScreen({super.key, model}) : _model = model;
+  const FacilityManagementScreen({super.key, required model}) : _model = model;
 
   @override
   Widget build(BuildContext context) {

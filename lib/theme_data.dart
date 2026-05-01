@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
+final String appName = 'ACF Chex';
+
 const double widePhoneWidth = 450;
 const double maxTextFieldWidth = 320;
 
 const EdgeInsets insets8 = EdgeInsets.all(8);
 const Padding padding8 = Padding(padding: EdgeInsetsGeometry.all(8));
 const Padding padding16 = Padding(padding: EdgeInsetsGeometry.all(16));
+const Padding padding32 = Padding(padding: EdgeInsetsGeometry.all(32));
 
 Text largeTitleText(BuildContext context, String text) =>
     Text(text, style: Theme.of(context).textTheme.titleLarge);
@@ -19,7 +22,9 @@ Text smallTitleText(BuildContext context, String text) =>
 Scaffold buildScaffold({required String title, required Widget child}) {
   return Scaffold(
     appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
-    body: SafeArea(child: child),
+    body: SafeArea(
+      child: Padding(padding: EdgeInsetsGeometry.all(32), child: child),
+    ),
   );
 }
 
@@ -69,4 +74,16 @@ extension LoadingExtension on BuildContext {
       Navigator.pop(this);
     }
   }
+}
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+Future<T?> navigate<T>(Widget screen) async {
+  return await navigatorKey.currentState?.push(
+    MaterialPageRoute(builder: (_) => screen),
+  );
+}
+
+void unNavigate<T>([T? result]) {
+  navigatorKey.currentState?.pop<T>(result);
 }

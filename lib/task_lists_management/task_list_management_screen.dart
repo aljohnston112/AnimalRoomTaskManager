@@ -7,7 +7,7 @@ import '../theme_data.dart';
 class TaskListManagementScreen extends StatelessWidget {
   final TaskListManagementModel _model;
 
-  const TaskListManagementScreen({super.key, model}) : _model = model;
+  const TaskListManagementScreen({super.key, required model}) : _model = model;
 
   @override
   Widget build(BuildContext context) {
@@ -60,20 +60,28 @@ class TaskListManagementScreen extends StatelessWidget {
                 },
               ),
               padding8,
-              FilledButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddTaskListPage(
-                        model: _model,
-                        title: "Add New Task List",
-                        taskList: null,
-                      ),
-                    ),
-                  );
-                },
-                child: Text("Add New Task List"),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  FilledButton(
+                    onPressed: () async {
+                      unNavigate();
+                    },
+                    child: Text("Go Back"),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      await navigate(
+                        AddTaskListPage(
+                          model: _model,
+                          title: "Add New Task List",
+                          taskList: null,
+                        ),
+                      );
+                    },
+                    child: Text("Add New Task List"),
+                  ),
+                ],
               ),
               padding8,
             ],
@@ -175,56 +183,38 @@ class AddTaskListState extends State<AddTaskListPage> {
     return buildScaffold(
       title: widget.title,
       child: Center(
-        child: constrainToPhoneWidth(
-          Form(
-            key: _formKey,
+        child: Form(
+          key: _formKey,
+          child: Padding(
+            padding: EdgeInsetsGeometry.all(32),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                constrainTextBoxWidth(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildTaskListNameField(),
+                    _buildDropdownForTaskListFrequency(),
+                  ],
+                ),
+                padding32,
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      mediumTitleText(context, "Task List Name"),
-                      TextFormField(
-                        controller: _taskListController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a task list name';
-                          }
-                          var taskList = widget.taskList;
-                          bool changed = _taskListChanged(taskList);
-                          if ((taskList == null || changed) &&
-                              widget._model.taskListExists(
-                                value,
-                                selectedFrequency!,
-                              )) {
-                            return 'There is already a task list with that name';
-                          }
-                          return null;
-                        },
-                      ),
+                      _buildCurrentListOfTasks(),
+                      padding32,
+                      _buildListOfUnselectedTasks(),
                     ],
                   ),
                 ),
-                padding8,
-                _buildDropdownForTaskListFrequency(),
-                padding8,
-                Align(
-                  alignment: AlignmentGeometry.centerLeft,
-                  child: mediumTitleText(context, "Tasks in List"),
-                ),
-                padding8,
-                Expanded(flex: 2, child: _buildCurrentListOfTasks()),
-                Expanded(flex: 2, child: _buildListOfUnselectedTasks()),
-                padding8,
+                padding32,
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     FilledButton(
                       child: const Text("Cancel"),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => unNavigate(),
                     ),
                     FilledButton(
                       child: Text(widget.title),
@@ -260,7 +250,7 @@ class AddTaskListState extends State<AddTaskListPage> {
                             }
                           }
                           if (context.mounted) {
-                            Navigator.pop(context);
+                            unNavigate();
                           }
                         }
                       },
@@ -281,11 +271,37 @@ class AddTaskListState extends State<AddTaskListPage> {
         selectedFrequency != taskList?.frequency;
   }
 
+  Widget _buildTaskListNameField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        largeTitleText(context, "Task List Name"),
+        constrainTextBoxWidth(
+          TextFormField(
+            controller: _taskListController,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a task list name';
+              }
+              var taskList = widget.taskList;
+              bool changed = _taskListChanged(taskList);
+              if ((taskList == null || changed) &&
+                  widget._model.taskListExists(value, selectedFrequency!)) {
+                return 'There is already a task list with that name';
+              }
+              return null;
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDropdownForTaskListFrequency() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        mediumTitleText(context, "Task Frequency"),
+        largeTitleText(context, "Task Frequency"),
         padding8,
         constrainTextBoxWidth(
           DropdownButtonFormField<String>(
@@ -316,78 +332,86 @@ class AddTaskListState extends State<AddTaskListPage> {
   }
 
   Widget _buildCurrentListOfTasks() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: ReorderableListView(
-            onReorder: (oldIndex, newIndex) {
-              setState(() {
-                if (newIndex > oldIndex) {
-                  newIndex -= 1;
-                }
-                final task = selectedTasks.removeAt(oldIndex);
-                selectedTasks.insert(newIndex, task);
-              });
-            },
-            children: selectedTasks
-                .map(
-                  (task) => ListTile(
-                    key: ValueKey("${task.tid}"),
-                    leading: const Icon(Icons.drag_handle),
-                    title: _buildTaskTile(task),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle, color: Colors.red),
-                      onPressed: () {
-                        setState(() => selectedTasks.remove(task));
-                      },
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          largeTitleText(context, "Tasks in List"),
+          Expanded(
+            child: ReorderableListView(
+              onReorder: (oldIndex, newIndex) {
+                setState(() {
+                  if (newIndex > oldIndex) {
+                    newIndex -= 1;
+                  }
+                  final task = selectedTasks.removeAt(oldIndex);
+                  selectedTasks.insert(newIndex, task);
+                });
+              },
+              children: selectedTasks
+                  .map(
+                    (task) => ListTile(
+                      key: ValueKey("${task.tid}"),
+                      leading: const Icon(Icons.drag_handle),
+                      title: _buildTaskTile(task),
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.remove_circle,
+                          color: Colors.red,
+                        ),
+                        onPressed: () {
+                          setState(() => selectedTasks.remove(task));
+                        },
+                      ),
                     ),
-                  ),
-                )
-                .toList(),
+                  )
+                  .toList(),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildListOfUnselectedTasks() {
-    return Column(
-      children: [
-        Align(
-          alignment: AlignmentGeometry.centerStart,
-          child: constrainTextBoxWidth(
-            TextFormField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: "Search tasks",
-                prefixIcon: Icon(Icons.search),
+    return Expanded(
+      child: Column(
+        children: [
+          Align(
+            alignment: AlignmentGeometry.centerStart,
+            child: constrainTextBoxWidth(
+              TextFormField(
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: "Search tasks",
+                  prefixIcon: Icon(Icons.search),
+                ),
+                onChanged: (v) => setState(() => searchQuery = v),
               ),
-              onChanged: (v) => setState(() => searchQuery = v),
             ),
           ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: _unselectedTasks.length,
-            itemBuilder: (context, index) {
-              final task = _unselectedTasks[index];
-              return ListTile(
-                title: _buildTaskTile(task),
-                trailing: const Icon(
-                  Icons.add_circle_outline,
-                  color: Colors.green,
-                ),
-                onTap: () {
-                  setState(() {
-                    selectedTasks.add(task);
-                  });
-                },
-              );
-            },
+          Expanded(
+            child: ListView.builder(
+              itemCount: _unselectedTasks.length,
+              itemBuilder: (context, index) {
+                final task = _unselectedTasks[index];
+                return ListTile(
+                  title: _buildTaskTile(task),
+                  trailing: const Icon(
+                    Icons.add_circle_outline,
+                    color: Colors.green,
+                  ),
+                  onTap: () {
+                    setState(() {
+                      selectedTasks.add(task);
+                    });
+                  },
+                );
+              },
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -396,10 +420,10 @@ class AddTaskListState extends State<AddTaskListPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(task.description),
-        Center(
-          child: Column(
-            children: [if (task is QuantitativeTask) ..._buildRangeTexts(task)],
-          ),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [if (task is QuantitativeTask) ..._buildRangeTexts(task)],
         ),
       ],
     );
@@ -408,19 +432,25 @@ class AddTaskListState extends State<AddTaskListPage> {
   List<Widget> _buildRangeTexts(QuantitativeTask task) {
     List<Widget> texts = [
       if (task.warningRange != null) ...[
-        Text(
-          "Warning range: "
-          "${task.warningRange!.min} to "
-          "${task.warningRange!.max} "
-          "${task.warningRange!.units}",
+        Padding(
+          padding: EdgeInsets.only(left: 32),
+          child: Text(
+            "Warning range: "
+            "${task.warningRange!.min} to "
+            "${task.warningRange!.max} "
+            "${task.warningRange!.units}",
+          ),
         ),
       ],
       if (task.requiredRange != null) ...[
-        Text(
-          "Required range: "
-          "${task.requiredRange!.min} to "
-          "${task.requiredRange!.max} "
-          "${task.requiredRange!.units}",
+        Padding(
+          padding: EdgeInsets.only(left: 32),
+          child: Text(
+            "Required range: "
+            "${task.requiredRange!.min} to "
+            "${task.requiredRange!.max} "
+            "${task.requiredRange!.units}",
+          ),
         ),
       ],
     ];

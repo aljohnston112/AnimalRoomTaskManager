@@ -8,7 +8,7 @@ import 'lab_repository.dart';
 class LabManagementScreen extends StatelessWidget {
   final LabManagementModel _model;
 
-  const LabManagementScreen({super.key, model}) : _model = model;
+  const LabManagementScreen({super.key, required model}) : _model = model;
 
   @override
   Widget build(BuildContext context) {
