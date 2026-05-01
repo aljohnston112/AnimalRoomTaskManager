@@ -55,3 +55,18 @@ ConstrainedBox constrainTextBoxWidth(Widget child) {
     child: child,
   );
 }
+
+extension LoadingExtension on BuildContext {
+  Future<T> showLoading<T>(Future<T> future) async {
+    showDialog(
+      context: this,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      return await future;
+    } finally {
+      Navigator.pop(this);
+    }
+  }
+}
