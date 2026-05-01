@@ -1627,11 +1627,11 @@ BEGIN
         VALUES (tr_id_out, recorded_value);
     END IF;
 
-    SELECT JSONB_BUILD_OBJECT(
+    SELECT JSONB_BUILD_OBJECT('rooms', JSONB_AGG(JSONB_BUILD_OBJECT(
                    'r_id', r.r_id,
                    'room_name', r.name,
                    'records', room_records.data
-           )
+           )))
     INTO payload
     FROM rooms r
              INNER JOIN LATERAL (

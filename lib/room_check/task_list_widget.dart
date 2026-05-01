@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_model.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,12 +19,13 @@ class TaskListWidget extends StatelessWidget {
         ListenableBuilder(
           listenable: roomCheckModel,
           builder: (context, _) {
+            var taskEntries = roomCheckModel.getTaskEntries();
             return Column(
               children: [
                 Expanded(
                   child: ListView(
                     // A card per task record
-                    children: roomCheckModel.getTaskEntries().map((record) {
+                    children: taskEntries.map((record) {
                       return _buildTaskCard(context, roomCheckModel, record);
                     }).toList(),
                   ),
@@ -157,13 +159,22 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
     widget.controller.addListener(_validate);
   }
 
+  @override
+  void dispose() {
+    widget.controller.removeListener(_validate);
+    super.dispose();
+  }
+
   void _validate() {
+    if (!mounted) {
+      return;
+    }
     final value = double.tryParse(widget.controller.text);
     if (value == null) {
       setState(() {
         _errorText = null;
       });
-    } else {
+    } else if (!widget.entry.isCompleted) {
       final warningRange = widget.task.warningRange;
       final requiredRange = widget.task.requiredRange;
       if (warningRange != null &&
@@ -200,6 +211,10 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
       units = requiredRange.units;
     } else {
       units = '';
+    }
+    final record = widget.entry.record;
+    if (record is QuantitativeRecord) {
+      widget.controller.text = record.recordedValue.toString();
     }
     return TextField(
       enabled: taskUnrecorded,

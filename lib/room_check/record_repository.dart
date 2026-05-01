@@ -2,7 +2,7 @@ import 'dart:collection';
 
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 
 import '../scheduler/scheduling_model.dart';
@@ -48,16 +48,25 @@ class QuantitativeRecord extends TaskRecord {
 }
 
 /// Holds all the task records in memory
-class RecordRepository extends ChangeNotifier {
+class RecordRepository {
   final Database _database;
   final Map<Room, Map<RoomCheckDate, Map<TaskFrequency, Map<Task, TaskRecord>>>>
   _roomToDateToFrequencyToTaskRecords = {};
+  final ValueNotifier<
+    Map<Room, Map<RoomCheckDate, Map<TaskFrequency, Map<Task, TaskRecord>>>>
+  >
+  roomToDateToFrequencyToTaskRecords = ValueNotifier({});
 
   RecordRepository({required Database database}) : _database = database {
-    _database.subscribeToRecords((data) {
-      final payload = data['payload'];
-      _parseTasks(payload);
-      notifyListeners();
+    _database.subscribeToRecords((data) async {
+      data = data['payload'];
+      data = data['rooms'];
+      for (final d in data) {
+        _parseTasks(d);
+      }
+      roomToDateToFrequencyToTaskRecords.value = Map.from(
+        _roomToDateToFrequencyToTaskRecords,
+      );
     });
   }
 
@@ -71,6 +80,9 @@ class RecordRepository extends ChangeNotifier {
         }
       }
     }
+    roomToDateToFrequencyToTaskRecords.value = Map.from(
+      _roomToDateToFrequencyToTaskRecords,
+    );
   }
 
   void _parseTasks(PostgrestMap result) {

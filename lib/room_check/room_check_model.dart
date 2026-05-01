@@ -25,10 +25,10 @@ class TaskEntryModel {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is TaskEntryModel && task == other.task && record == other.record;
+      other is TaskEntryModel && task.tid == other.task.tid;
 
   @override
-  int get hashCode => task.hashCode ^ record.hashCode;
+  int get hashCode => task.tid.hashCode;
 }
 
 enum RoomCheckStatus { notStarted, started, done }
@@ -59,6 +59,10 @@ class RoomCheckModel extends ChangeNotifier {
   }) : _recordRepository = recordRepository,
        _roomCheckRepository = roomCheckRepository,
        _commentController = TextEditingController() {
+    _recordRepository.roomToDateToFrequencyToTaskRecords.addListener(() {
+      _refreshTasks(recordRepository, room);
+    });
+
     final roomCheckSlot = _roomCheckRepository.getRoomCheck(
       buildingName,
       date,
@@ -93,16 +97,20 @@ class RoomCheckModel extends ChangeNotifier {
     }
 
     // Add recorded tasks
-    recordRepository.getRecordsForRoom(room, date, taskList.frequency).forEach((
-      task,
-      record,
-    ) {
-      if (record is QuantitativeRecord) {
-        _quantitativeValueControllers[task]?.text = record.recordedValue
-            .toString();
-      }
+    _refreshTasks(recordRepository, room);
+  }
+
+  void _refreshTasks(RecordRepository recordRepository, Room room) {
+    _completedTasks.clear();
+    var recordsForRoom = recordRepository.getRecordsForRoom(
+      room,
+      date,
+      taskList.frequency,
+    );
+    recordsForRoom.forEach((task, record) {
       _completedTasks.add(task);
     });
+    notifyListeners();
   }
 
   /// Gets the tasks for the room check this model represents including
@@ -113,12 +121,9 @@ class RoomCheckModel extends ChangeNotifier {
       date,
       taskList.frequency,
     );
-    return taskList.tasks
-        .map(
-          (task) =>
-              TaskEntryModel(task: task, record: records[task], date: date),
-        )
-        .toList();
+    return taskList.tasks.map((task) {
+      return TaskEntryModel(task: task, record: records[task], date: date);
+    }).toList();
   }
 
   TextEditingController getCommentController() {

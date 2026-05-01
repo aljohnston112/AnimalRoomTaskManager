@@ -14,8 +14,7 @@ class Room {
   Room({required this.rid, required this.name});
 
   @override
-  bool operator ==(Object other) =>
-      other is Room && name == other.name && rid == other.rid;
+  bool operator ==(Object other) => other is Room && rid == other.rid;
 
   @override
   int get hashCode => rid.hashCode;

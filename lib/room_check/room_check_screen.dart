@@ -30,15 +30,20 @@ class RoomCheckScreen extends StatelessWidget {
 
   Widget _buildTaskList() {
     // Expanded needed since this is nested in a Column
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // To stop the task list from having an unbounded height
-          Expanded(child: TaskListWidget(roomCheckModel: roomCheckModel)),
-          padding8,
-        ],
-      ),
+    return ListenableBuilder(
+      listenable: roomCheckModel,
+      builder: (context, child) {
+        return Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              // To stop the task list from having an unbounded height
+              Expanded(child: TaskListWidget(roomCheckModel: roomCheckModel)),
+              padding8,
+            ],
+          ),
+        );
+      },
     );
   }
 

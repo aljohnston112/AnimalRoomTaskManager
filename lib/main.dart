@@ -1,8 +1,4 @@
-import 'package:animal_room_task_manager/building_management/building_management_model.dart';
-import 'package:animal_room_task_manager/building_management/building_management_screen.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
-import 'package:animal_room_task_manager/lab_management/lab_management_model.dart';
-import 'package:animal_room_task_manager/lab_management/lab_management_screen.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
@@ -11,17 +7,11 @@ import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_screen.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
-import 'package:animal_room_task_manager/task_lists_management/task_list_management_model.dart';
-import 'package:animal_room_task_manager/task_lists_management/task_list_management_screen.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
-import 'package:animal_room_task_manager/user_management/user_list_model.dart';
-import 'package:animal_room_task_manager/user_management/user_management_screen.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'facility_management/facility_management_model.dart';
-import 'facility_management/facility_management_screen.dart';
 import 'facility_management/facility_repository.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -35,6 +25,7 @@ Future<void> main() async {
         Provider.value(value: BuildingRepository(database: database)),
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
+        Provider.value(value: RecordRepository(database: database)),
         Provider.value(value: RoomCheckRepository(database: database)),
         Provider.value(value: TaskListRepository(database: database)),
         Provider.value(value: UserRepository(database: database)),
@@ -43,9 +34,6 @@ Future<void> main() async {
             var userRepository = context.read<UserRepository>();
             return LoginUseCase(userRepository: userRepository);
           },
-        ),
-        ChangeNotifierProvider(
-          create: (context) => RecordRepository(database: database),
         ),
       ],
       child: MyApp(),

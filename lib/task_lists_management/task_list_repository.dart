@@ -250,7 +250,7 @@ class TaskListRepository {
         final frequency =
             (taskListsWithFrequency['frequency'] as String).toTaskFrequency;
         final taskLists = taskListsWithFrequency['task_lists'];
-        if(taskLists != null) {
+        if (taskLists != null) {
           for (final taskListDB in taskLists) {
             final tlid = taskListDB['tl_id'];
             final taskListName = taskListDB['task_list_name'];
@@ -276,7 +276,8 @@ class TaskListRepository {
               if (roomsDB != null) {
                 for (final roomDB in roomsDB) {
                   rooms.add(
-                      Room(rid: roomDB['r_id'], name: roomDB['room_name']));
+                    Room(rid: roomDB['r_id'], name: roomDB['room_name']),
+                  );
                 }
                 for (final room in rooms) {
                   TaskListKey taskListKey = TaskListKey(
