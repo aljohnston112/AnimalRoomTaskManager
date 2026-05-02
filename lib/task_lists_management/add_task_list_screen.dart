@@ -77,7 +77,6 @@ class AddTaskListState extends State<AddTaskListPage> {
                         ],
                       ),
                       padding32,
-
                       Expanded(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -272,44 +271,49 @@ class AddTaskListState extends State<AddTaskListPage> {
 
   // TODO deletable
   Widget _buildListOfUnselectedTasks() {
-    return Expanded(
-      child: Column(
-        children: [
-          Align(
-            alignment: AlignmentGeometry.centerStart,
-            child: constrainTextBoxWidth(
-              TextFormField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: "Search tasks",
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: (v) => setState(() => searchQuery = v),
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _unselectedTasks.length,
-              itemBuilder: (context, index) {
-                final task = _unselectedTasks[index];
-                return ListTile(
-                  title: _buildTaskTile(task),
-                  trailing: const Icon(
-                    Icons.add_circle_outline,
-                    color: Colors.green,
+    return ListenableBuilder(
+      listenable: widget._model,
+      builder: (context, _) {
+        return Expanded(
+          child: Column(
+            children: [
+              Align(
+                alignment: AlignmentGeometry.centerStart,
+                child: constrainTextBoxWidth(
+                  TextFormField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      hintText: "Search tasks",
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (v) => setState(() => searchQuery = v),
                   ),
-                  onTap: () {
-                    setState(() {
-                      selectedTasks.add(task);
-                    });
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: _unselectedTasks.length,
+                  itemBuilder: (context, index) {
+                    final task = _unselectedTasks[index];
+                    return ListTile(
+                      title: _buildTaskTile(task),
+                      trailing: const Icon(
+                        Icons.add_circle_outline,
+                        color: Colors.green,
+                      ),
+                      onTap: () {
+                        setState(() {
+                          selectedTasks.add(task);
+                        });
+                      },
+                    );
                   },
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

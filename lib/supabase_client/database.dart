@@ -2,6 +2,7 @@ import 'package:animal_room_task_manager/building_management/building_repository
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -104,6 +105,16 @@ class Database {
           table: 'facilities',
           callback: callback,
         )
+        .subscribe();
+  }
+
+  void subscribeToRooms(void Function(dynamic) callback) {
+    _supabase
+        .channel(
+          'room_channel',
+          opts: const RealtimeChannelConfig(private: true),
+        )
+        .onBroadcast(event: 'room_update', callback: callback)
         .subscribe();
   }
 
@@ -222,6 +233,10 @@ class Database {
       params: {'start_date': startOfToday},
     );
     return data;
+  }
+
+  Future<List<PostgrestMap>> getRooms() async {
+    return await _supabase.rpc('get_rooms_full');
   }
 
   Future<List<PostgrestMap>> getRoomCheckSlots() async {
@@ -571,6 +586,25 @@ class Database {
     }
   }
 
+  Future<void> insertRoom({
+    required String roomName,
+    required int lid,
+    required int fid,
+    required int bid,
+    required List<int> tlids,
+  }) async {
+    await _supabase.rpc(
+      'insert_room',
+      params: {
+        'room_name': roomName,
+        'lid': lid,
+        'fid': fid,
+        'bid': bid,
+        'tlids': tlids,
+      },
+    );
+  }
+
   Future<void> insertTaskList(
     String taskListName,
     TaskFrequency frequency,
@@ -636,6 +670,10 @@ class Database {
         .eq('f_id', facility.fid);
   }
 
+  Future<void> deleteRoom(int rid) async {
+    await _supabase.from('rooms').update({'deleted': true}).eq('r_id', rid);
+  }
+
   Future<void> deleteTaskList(TaskList taskList) async {
     await _supabase
         .from('task_lists')
@@ -659,6 +697,13 @@ class Database {
         .from('facilities')
         .update({'deleted': false})
         .eq('name', facilityName);
+  }
+
+  Future<void> undeleteRoom(String roomName) async {
+    await _supabase
+        .from('rooms')
+        .update({'deleted': false})
+        .eq('name', roomName);
   }
 
   Future<void> undeleteTaskList(TaskList taskList) async {

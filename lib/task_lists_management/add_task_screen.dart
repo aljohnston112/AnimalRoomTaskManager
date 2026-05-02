@@ -248,6 +248,8 @@ class AddTaskScreen extends StatelessWidget {
                               await _model.addTask(description, isManagerOnly);
                             }
                             if (context.mounted) {
+                              // TODO this is a quick hack to save time
+                              _model.refreshTasks();
                               unNavigate();
                             }
                           }
@@ -325,5 +327,9 @@ class TaskModel extends ChangeNotifier {
 
   Future<void> addTask(String description, bool isManagerOnly) async {
     _taskListRepository.addTask(description, isManagerOnly);
+  }
+
+  void refreshTasks() {
+    _taskListRepository.loadTasks();
   }
 }

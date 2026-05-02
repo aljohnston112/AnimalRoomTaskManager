@@ -252,38 +252,6 @@ CREATE POLICY "LabsUpdateAuth"
     USING (check_is_admin())
     WITH CHECK (check_is_admin());
 
--- Enrichment Lists --------------------------------------------------
-CREATE TABLE IF NOT EXISTS enrichment_lists
-(
-    el_id   serial PRIMARY KEY,
-    name    text    NOT NULL,
-    deleted boolean NOT NULL
-);
-ALTER TABLE public.enrichment_lists
-    ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT ON TABLE public.enrichment_lists TO authenticated;
-GRANT UPDATE (deleted) ON public.enrichment_lists TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE enrichment_lists_el_id_seq TO authenticated;
-CREATE POLICY "EnrichmentListsSelectAuth"
-    ON public.enrichment_lists
-    AS PERMISSIVE
-    FOR SELECT
-    TO authenticated
-    USING (TRUE);
-CREATE POLICY "EnrichmentListsInsertAuth"
-    ON public.enrichment_lists
-    AS PERMISSIVE
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (check_is_admin());
-CREATE POLICY "EnrichmentListsUpdateAuth"
-    ON public.enrichment_lists
-    AS PERMISSIVE
-    FOR UPDATE
-    TO authenticated
-    USING (check_is_admin())
-    WITH CHECK (check_is_admin());
-
 -- Buildings ---------------------------------------------------------
 CREATE TABLE buildings
 (
@@ -332,38 +300,38 @@ CREATE TABLE IF NOT EXISTS rooms
     name    text                                 NOT NULL,
     f_id    integer REFERENCES facilities (f_id) NOT NULL,
     l_id    integer REFERENCES labs (l_id),
-    el_id   integer REFERENCES enrichment_lists (el_id),
     deleted boolean                              NOT NULL
 );
-INSERT INTO rooms(r_id, name, f_id, l_id, el_id, deleted, b_id)
-VALUES (0, '36B', 3, 0, NULL, FALSE, 1),
-       (1, '36C', 3, 0, NULL, FALSE, 1),
-       (2, '36D', 3, 0, NULL, FALSE, 1),
-       (3, '36E', 3, 0, NULL, FALSE, 1),
-       (4, '36F', 3, 0, NULL, FALSE, 1),
-       (5, '36G', 1, 0, NULL, FALSE, 1),
-       (6, '36H', 3, 0, NULL, FALSE, 1),
-       (7, '36J', 0, 0, NULL, FALSE, 1),
-       (8, '36K', 0, 0, NULL, FALSE, 1),
-       (9, '36L', 2, 0, NULL, FALSE, 1),
-       (10, '17', 1, 3, NULL, FALSE, 0),
-       (11, '19A', 3, 3, NULL, FALSE, 0),
-       (12, '19B', 3, 0, NULL, FALSE, 0),
-       (13, '19C', 3, 3, NULL, FALSE, 0),
-       (14, '19D', 4, 0, NULL, FALSE, 0),
-       (15, '19E/F', 2, 3, NULL, FALSE, 0),
-       (16, '19G', 0, 3, NULL, FALSE, 0),
-       (17, '19H', 3, 3, NULL, FALSE, 0),
-       (18, '19J', 3, 3, NULL, FALSE, 0),
-       (19, '56A', 4, NULL, NULL, FALSE, 0);
+INSERT INTO rooms(r_id, name, f_id, l_id, deleted, b_id)
+VALUES (0, '36B', 3, 0, FALSE, 1),
+       (1, '36C', 3, 0, FALSE, 1),
+       (2, '36D', 3, 0, FALSE, 1),
+       (3, '36E', 3, 0, FALSE, 1),
+       (4, '36F', 3, 0, FALSE, 1),
+       (5, '36G', 1, 0, FALSE, 1),
+       (6, '36H', 3, 0, FALSE, 1),
+       (7, '36J', 0, 0, FALSE, 1),
+       (8, '36K', 0, 0, FALSE, 1),
+       (9, '36L', 2, 0, FALSE, 1),
+       (10, '17', 1, 3, FALSE, 0),
+       (11, '19A', 3, 3, FALSE, 0),
+       (12, '19B', 3, 0, FALSE, 0),
+       (13, '19C', 3, 3, FALSE, 0),
+       (14, '19D', 4, 0, FALSE, 0),
+       (15, '19E/F', 2, 3, FALSE, 0),
+       (16, '19G', 0, 3, FALSE, 0),
+       (17, '19H', 3, 3, FALSE, 0),
+       (18, '19J', 3, 3, FALSE, 0),
+       (19, '56A', 4, 3, FALSE, 0);
 SELECT SETVAL(
                PG_GET_SERIAL_SEQUENCE('rooms', 'r_id'),
                COALESCE((SELECT MAX(r_id) FROM rooms), 0)
        );
 ALTER TABLE public.rooms
     ENABLE ROW LEVEL SECURITY;
+ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
 GRANT SELECT, INSERT ON TABLE public.rooms TO authenticated;
-GRANT UPDATE (deleted) ON public.rooms TO authenticated;
+GRANT UPDATE (l_id, deleted) ON public.rooms TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE rooms_r_id_seq TO authenticated;
 CREATE POLICY "RoomsSelectAuth"
     ON public.rooms
@@ -384,6 +352,117 @@ CREATE POLICY "RoomsUpdateAuth"
     TO authenticated
     USING (check_is_admin())
     WITH CHECK (check_is_admin());
+
+CREATE OR REPLACE FUNCTION get_rooms_full()
+    RETURNS SETOF jsonb
+    SET search_path TO public, auth, pg_temp AS
+$$
+BEGIN
+    RETURN QUERY
+        SELECT JSONB_BUILD_OBJECT(
+                       'room', TO_JSONB(r),
+                       'tl_ids', COALESCE(ARRAY_AGG(tlrm.tl_id)
+                                          FILTER (WHERE tlrm.tl_id IS NOT NULL),
+                                          '{}'::integer[])
+               )
+        FROM rooms r
+                 LEFT JOIN task_list_room_memberships tlrm ON r.r_id = tlrm.r_id
+        WHERE r.deleted = FALSE
+        GROUP BY r.r_id;
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
+
+CREATE OR REPLACE FUNCTION insert_room(
+    room_name text,
+    lid integer,
+    fid integer,
+    bid integer,
+    tlids integer[]
+)
+    RETURNS jsonb
+    SET search_path TO public, auth, pg_temp AS
+$$
+DECLARE
+    new_r_id    integer;
+    payload_out jsonb;
+BEGIN
+    INSERT INTO rooms (name, f_id, l_id, deleted, b_id)
+    VALUES (room_name, fid, lid, FALSE, bid)
+    RETURNING r_id INTO new_r_id;
+
+    IF tlids IS NOT NULL THEN
+        INSERT INTO task_list_room_memberships (tl_id, r_id)
+        SELECT UNNEST(tlids), new_r_id;
+
+    END IF;
+
+    SELECT JSONB_BUILD_OBJECT(
+                   'room', TO_JSONB(r),
+                   'tl_ids', COALESCE(tlids, '{}'::integer[])
+           )
+    INTO payload_out
+    FROM rooms r
+    WHERE r.r_id = new_r_id;
+
+    PERFORM realtime.send(
+            payload => payload_out,
+            event => 'room_update',
+            topic => 'room_channel'
+            );
+
+    RETURN payload_out;
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
+
+DROP POLICY IF EXISTS "Allow sending room updates" ON realtime.messages;
+CREATE POLICY "Allow sending room updates"
+    ON realtime.messages
+    FOR INSERT
+    TO authenticated
+    WITH CHECK (realtime.topic() = 'room_channel');
+
+DROP POLICY IF EXISTS "Users can hear room updates" ON realtime.messages;
+CREATE POLICY "Users can hear room updates"
+    ON realtime.messages
+    FOR SELECT
+    TO authenticated
+    USING ((SELECT realtime.topic()) = 'room_channel');
+
+CREATE OR REPLACE FUNCTION edit_room(
+    rid integer,
+    lid integer,
+    tlids integer[]
+)
+    RETURNS jsonb
+    SET search_path TO public, auth, pg_temp AS
+$$
+DECLARE
+    payload_out jsonb;
+BEGIN
+    UPDATE rooms SET l_id = lid WHERE r_id = rid;
+    DELETE FROM task_list_room_memberships tlrm WHERE tlrm.r_id = rid;
+    IF tlids IS NOT NULL THEN
+        INSERT INTO task_list_room_memberships (tl_id, r_id)
+        SELECT UNNEST(tlids), rid;
+    END IF;
+
+    SELECT JSONB_BUILD_OBJECT(
+                   'room', TO_JSONB(r),
+                   'tl_ids', COALESCE(tlids, '{}'::integer[])
+           )
+    INTO payload_out
+    FROM rooms r
+    WHERE r.r_id = rid;
+
+    PERFORM realtime.send(
+            payload => payload_out,
+            event => 'room_update',
+            topic => 'room_channel'
+            );
+
+    RETURN payload_out;
+END;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 
 -- Lab Group Memberships ---------------------------------------------
 CREATE TABLE IF NOT EXISTS lab_group_memberships
@@ -1346,7 +1425,7 @@ VALUES (4, 0),
 ALTER TABLE public.task_list_room_memberships
     ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT ON TABLE public.task_list_room_memberships TO authenticated;
-GRANT UPDATE (tl_id) ON public.task_list_room_memberships TO authenticated;
+GRANT DELETE ON public.task_list_room_memberships TO authenticated;
 CREATE POLICY "TaskListRoomMembershipsSelectAuth"
     ON public.task_list_room_memberships
     AS PERMISSIVE
@@ -1359,12 +1438,12 @@ CREATE POLICY "TaskListRoomMembershipsInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (check_is_admin());
-CREATE POLICY "TaskListRoomMembershipsUpdateAuth"
+CREATE POLICY "TaskListRoomMembershipsDeleteAuth"
     ON "public"."task_list_room_memberships"
     AS PERMISSIVE
-    FOR INSERT
+    FOR DELETE
     TO authenticated
-    WITH CHECK (check_is_admin());
+    USING (check_is_admin());
 
 -- Room Check State --------------------------------------------------
 CREATE TYPE room_check_state AS ENUM ('not_started', 'started', 'done');
@@ -1628,10 +1707,10 @@ BEGIN
     END IF;
 
     SELECT JSONB_BUILD_OBJECT('rooms', JSONB_AGG(JSONB_BUILD_OBJECT(
-                   'r_id', r.r_id,
-                   'room_name', r.name,
-                   'records', room_records.data
-           )))
+            'r_id', r.r_id,
+            'room_name', r.name,
+            'records', room_records.data
+                                                 )))
     INTO payload
     FROM rooms r
              INNER JOIN LATERAL (

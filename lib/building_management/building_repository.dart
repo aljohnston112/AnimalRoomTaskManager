@@ -34,8 +34,8 @@ class BuildingRepository {
     });
   }
 
-  Building _parseBuilding(PostgrestMap facility) {
-    return Building(bid: facility['b_id'], name: facility['name']);
+  Building _parseBuilding(PostgrestMap building) {
+    return Building(bid: building['b_id'], name: building['name']);
   }
 
   Future<void> loadBuildings() async {
@@ -53,7 +53,7 @@ class BuildingRepository {
     return _database.insertBuilding(buildingName);
   }
 
-  Future<void> deleteFacility(Building building) async {
+  Future<void> deleteBuilding(Building building) async {
     await _database.deleteBuilding(building);
   }
 

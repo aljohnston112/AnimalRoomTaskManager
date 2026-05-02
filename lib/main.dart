@@ -10,6 +10,9 @@ import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/room_management/room_management_model.dart';
+import 'package:animal_room_task_manager/room_management/room_management_screen.dart';
+import 'package:animal_room_task_manager/room_management/room_repository.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_screen.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
@@ -35,6 +38,7 @@ Future<void> main() async {
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
         Provider.value(value: RecordRepository(database: database)),
+        Provider.value(value: RoomRepository(database: database)),
         Provider.value(value: RoomCheckRepository(database: database)),
         Provider.value(value: TaskListRepository(database: database)),
         Provider.value(value: UserRepository(database: database)),
@@ -105,6 +109,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
     BuildingRepository buildingRepository = context.read();
     LabRepository labRepository = context.read();
     FacilityRepository facilityRepository = context.read();
+    RoomRepository roomRepository = context.read();
     TaskListRepository taskListRepository = context.read();
     UserRepository userRepository = context.read();
     return [
@@ -143,6 +148,23 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           );
         },
         child: Text("Lab Editor"),
+      ),
+      padding8,
+      FilledButton(
+        onPressed: () async {
+          await navigate(
+            RoomManagementScreen(
+              model: RoomManagementModel(
+                roomRepository: roomRepository,
+                buildingRepository: buildingRepository,
+                facilityRepository: facilityRepository,
+                labRepository: labRepository,
+                taskListRepository: taskListRepository,
+              ),
+            ),
+          );
+        },
+        child: Text("Room Editor"),
       ),
       padding8,
       FilledButton(

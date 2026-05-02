@@ -26,7 +26,7 @@ class BuildingManagementModel extends ChangeNotifier {
   }
 
   Future<void> deleteBuilding(Building building) async {
-    await _buildingRepository.deleteFacility(building);
+    await _buildingRepository.deleteBuilding(building);
   }
 
   Future<void> undeleteBuilding(String buildingName) async {
