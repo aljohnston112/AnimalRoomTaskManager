@@ -13,47 +13,54 @@ class BuildingManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Building Editor",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Column(
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ListenableBuilder(
+            listenable: _model,
+            builder: (context, _) {
+              return Center(
+                child: constrainToPhoneWidth(
+                  ListView(
+                    shrinkWrap: true,
+                    children: [
+                      Divider(),
+                      for (var building in _model.getBuildings()) ...[
+                        ListTile(
+                          title: mediumTitleText(context, building.name),
+                          trailing: _buildDeleteIconButton(context, building),
+                        ),
+                        const Divider(),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          padding8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              ListenableBuilder(
-                listenable: _model,
-                builder: (context, _) {
-                  return Expanded(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        Divider(),
-                        for (var building in _model.getBuildings()) ...[
-                          ListTile(
-                            title: mediumTitleText(context, building.name),
-                            trailing: _buildDeleteIconButton(context, building),
-                          ),
-                          const Divider(),
-                        ],
-                      ],
-                    ),
-                  );
-                },
-              ),
-              padding8,
               FilledButton(
                 onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddBuildingPage(model: _model),
-                    ),
-                  );
+                  unNavigate();
                 },
-                child: mediumTitleText(context, "Add New Building"),
+                child: Text("Go Back"),
               ),
-              padding8,
+              FilledButton(
+                onPressed: () async {
+                  await navigate(AddBuildingPage(model: _model));
+                },
+                child: Text("Add New Building"),
+              ),
             ],
           ),
-        ),
+          padding8,
+        ],
       ),
     );
   }
@@ -100,58 +107,53 @@ class AddBuildingState extends State<AddBuildingPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Add New Building",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Form(
-            key: _formKey,
-            child: Column(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            constrainTextBoxWidth(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  mediumTitleText(context, "Building Name"),
+                  TextFormField(
+                    controller: _buildingController,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a building';
+                      }
+                      if (widget._model.buildingExists(value)) {
+                        return 'There is already a building with that name';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                constrainTextBoxWidth(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      mediumTitleText(context, "Building Name"),
-                      TextFormField(
-                        controller: _buildingController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a building';
-                          }
-                          if (widget._model.buildingExists(value)) {
-                            return 'There is already a building with that name';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
+                FilledButton(
+                  child: const Text("Cancel"),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FilledButton(
-                      child: const Text("Cancel"),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    FilledButton(
-                      child: Text("Add Building"),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          await widget._model.addBuilding(
-                            _buildingController.text,
-                          );
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        }
-                      },
-                    ),
-                  ],
+                FilledButton(
+                  child: Text("Add Building"),
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      await widget._model.addBuilding(_buildingController.text);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
+                  },
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

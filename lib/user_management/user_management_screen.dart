@@ -24,7 +24,16 @@ class UserManagementScreen extends StatelessWidget {
           padding8,
           UserListWidget(userListModel: _userListModel),
           padding8,
-          _buildAddNewUserButton(context, _userListModel),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              FilledButton(
+                child: const Text("Cancel"),
+                onPressed: () => Navigator.pop(context),
+              ),
+              _buildAddNewUserButton(context, _userListModel),
+            ],
+          ),
           padding8,
         ],
       ),
@@ -103,20 +112,19 @@ class UserListWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: ListenableBuilder(
-        listenable: userListModel,
-        builder: (context, _) {
-          return constrainToPhoneWidth(
-            ListView(
-              children: userListModel.users
-                  .where((user) => user.group != UserGroup.admin)
-                  .map((user) => _buildUserListTile(context, user))
-                  .toList(),
-            ),
-          );
-        },
-      ),
+    return ListenableBuilder(
+      listenable: userListModel,
+      builder: (context, _) {
+        return constrainToPhoneWidth(
+          ListView(
+            shrinkWrap: true,
+            children: userListModel.users
+                .where((user) => user.group != UserGroup.admin)
+                .map((user) => _buildUserListTile(context, user))
+                .toList(),
+          ),
+        );
+      },
     );
   }
 

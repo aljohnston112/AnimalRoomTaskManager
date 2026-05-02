@@ -1,4 +1,3 @@
-import 'package:animal_room_task_manager/main.dart';
 import 'package:animal_room_task_manager/room_check/room_check_model.dart';
 import 'package:animal_room_task_manager/room_check/task_list_widget.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +16,7 @@ class RoomCheckScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return buildScaffold(
+      makeScrollable: false,
       title: roomCheckModel.taskList.name,
       child: Column(
         children: [

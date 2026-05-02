@@ -88,16 +88,15 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
   Scaffold _buildHomeScreen(BuildContext context, LoginUseCase loginUseCase) {
     return buildScaffold(
       title: appName,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (loginUseCase.loggedInUser?.group == UserGroup.admin)
-              ..._buildAdminButtons(context),
-            _buildSchedulerButton(context),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (loginUseCase.loggedInUser?.group == UserGroup.admin)
+            ..._buildAdminButtons(context),
+          padding8,
+          _buildSchedulerButton(context),
+        ],
       ),
     );
   }
@@ -121,6 +120,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         },
         child: Text("Building Editor"),
       ),
+      padding8,
       FilledButton(
         onPressed: () async {
           await navigate(
@@ -133,6 +133,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         },
         child: Text("Facility Editor"),
       ),
+      padding8,
       FilledButton(
         onPressed: () async {
           await navigate(
@@ -143,6 +144,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         },
         child: Text("Lab Editor"),
       ),
+      padding8,
       FilledButton(
         onPressed: () async {
           await navigate(
@@ -155,6 +157,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         },
         child: Text("Task List Editor"),
       ),
+      padding8,
       FilledButton(
         onPressed: () async {
           await navigate(

@@ -19,12 +19,43 @@ Text mediumTitleText(BuildContext context, String text) =>
 Text smallTitleText(BuildContext context, String text) =>
     Text(text, style: Theme.of(context).textTheme.titleSmall);
 
-Scaffold buildScaffold({required String title, required Widget child}) {
+Scaffold buildScaffold({
+  required String title,
+  required Widget child,
+  bool makeScrollable = true,
+}) {
   return Scaffold(
     appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
     body: SafeArea(
-      child: Padding(padding: EdgeInsetsGeometry.all(32), child: child),
+      child: Padding(
+        padding: EdgeInsetsGeometry.all(64),
+        child: makeScrollable ? buildScrollable(child) : child,
+      ),
     ),
+  );
+}
+
+Scaffold oldBuildScaffold({required String title, required Widget child}) {
+  return Scaffold(
+    appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
+    body: SafeArea(child: child),
+  );
+}
+
+Widget buildScrollable(Widget child) {
+  return LayoutBuilder(
+    builder: (context, constraints) {
+      return SingleChildScrollView(
+        padding: insets8,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: constraints.maxHeight,
+            minWidth: constraints.maxWidth,
+          ),
+          child: child,
+        ),
+      );
+    },
   );
 }
 

@@ -21,184 +21,244 @@ class AddTaskScreen extends StatelessWidget {
       title: "Add Task",
       child: Form(
         key: _formKey,
-        child: Column(
-          children: [
-            mediumTitleText(context, "Task Description"),
-            TextFormField(
-              controller: _descriptionController,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a task description';
-                }
-                if (_model.taskDescriptionExists(value)) {
-                  return 'There is already a task with that description';
-                }
-                return null;
-              },
-            ),
-            ListenableBuilder(
-              listenable: _model,
-              builder: (context, _) {
-                return Column(
+        child: ListenableBuilder(
+          listenable: _model,
+          builder: (context, _) {
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _model.isManagerOnly,
-                          onChanged: (val) {
-                            if (val != null) {
-                              _model.toggleManagerOnly(val);
-                            }
-                          },
-                        ),
-                        smallTitleText(
-                          context,
-                          "Only the admin can complete this task",
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _model.isQuantitative,
-                          onChanged: (val) {
-                            if (val != null) {
-                              _model.toggleQuantitative(val);
-                            }
-                          },
-                        ),
-                        smallTitleText(
-                          context,
-                          "Requires recording a variable",
-                        ),
-                      ],
-                    ),
-                    if (_model._isQuantitative) ...[
-                      mediumTitleText(context, "Unit"),
+                    mediumTitleText(context, "Task Description"),
+                    constrainTextBoxWidth(
                       TextFormField(
-                        controller: _unitController,
+                        controller: _descriptionController,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter a unit';
+                            return 'Please enter a task description';
+                          }
+                          if (_model.taskDescriptionExists(value)) {
+                            return 'There is already a task with that description';
                           }
                           return null;
                         },
                       ),
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _model.needsWarningRange,
-                            onChanged: (val) {
-                              if (val != null) {
-                                _model.toggleNeedsWarningRange(val);
-                              }
-                            },
-                          ),
-                          smallTitleText(context, "Range for warning"),
-                        ],
-                      ),
-                      if (_model.needsWarningRange) ...[
-                        // TODO number only
-                        mediumTitleText(context, "Minimum Value"),
-                        TextFormField(
-                          controller: _minWarningController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a minimum value';
-                            }
-                            return null;
-                          },
-                        ),
-                        mediumTitleText(context, "Maximum Value"),
-                        TextFormField(
-                          controller: _maxWarningController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a maximum value';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _model.needsRequiredRange,
-                            onChanged: (val) {
-                              if (val != null) {
-                                _model.toggleNeedsRequiredRange(val);
-                              }
-                            },
-                          ),
-                          smallTitleText(
-                            context,
-                            "Value recorded must be in range",
-                          ),
-                        ],
-                      ),
-                      if (_model._needsRequiredRange) ...[
-                        // TODO number only
-                        mediumTitleText(context, "Minimum Value"),
-                        TextFormField(
-                          controller: _minRequiredController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a minimum value';
-                            }
-                            return null;
-                          },
-                        ),
-                        mediumTitleText(context, "Maximum Value"),
-                        TextFormField(
-                          controller: _maxRequiredController,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a maximum value';
-                            }
-                            return null;
-                          },
-                        ),
-                      ],
-                    ],
-                    FilledButton(
-                      child: Text("Add Task"),
-                      onPressed: () async {
-                        // TODO min < max
-                        if (_formKey.currentState!.validate()) {
-                          String description = _descriptionController.text;
-                          bool isManagerOnly = _model._isManagerOnly;
-                          if (_model._isQuantitative) {
-                            final warningRange = QuantitativeRange(
-                              min: _minWarningController.text as double,
-                              max: _minWarningController.text as double,
-                              units: _unitController.text,
-                              isRequired: false,
-                            );
-                            final requiredRange = QuantitativeRange(
-                              min: _minRequiredController.text as double,
-                              max: _maxRequiredController.text as double,
-                              units: _unitController.text,
-                              isRequired: true,
-                            );
-                            await _model.addQuantitativeTask(
-                              description,
-                              warningRange,
-                              requiredRange,
-                            );
-                          } else {
-                            await _model.addTask(description, isManagerOnly);
-                          }
-                          if (context.mounted) {
-                            unNavigate();
-                          }
+                    ),
+                  ],
+                ),
+
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _model.isManagerOnly,
+                      onChanged: (val) {
+                        if (val != null) {
+                          _model.toggleManagerOnly(val);
                         }
                       },
                     ),
+                    smallTitleText(
+                      context,
+                      "Only the admin can complete this task",
+                    ),
                   ],
-                );
-              },
-            ),
-          ],
+                ),
+                Row(
+                  children: [
+                    Checkbox(
+                      value: _model.isQuantitative,
+                      onChanged: (val) {
+                        if (val != null) {
+                          _model.toggleQuantitative(val);
+                        }
+                      },
+                    ),
+                    smallTitleText(context, "Requires recording a variable"),
+                  ],
+                ),
+                if (_model._isQuantitative) ...[
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      mediumTitleText(context, "Unit"),
+                      constrainTextBoxWidth(
+                        TextFormField(
+                          controller: _unitController,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Please enter a unit';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _model.needsWarningRange,
+                        onChanged: (val) {
+                          if (val != null) {
+                            _model.toggleNeedsWarningRange(val);
+                          }
+                        },
+                      ),
+                      smallTitleText(context, "Range for warning"),
+                    ],
+                  ),
+                  if (_model.needsWarningRange) ...[
+                    // TODO number only
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        mediumTitleText(context, "Minimum Value"),
+                        constrainTextBoxWidth(
+                          TextFormField(
+                            keyboardType: TextInputType.numberWithOptions(
+                              signed: true,
+                            ),
+                            controller: _minWarningController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a minimum value';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        mediumTitleText(context, "Maximum Value"),
+                        constrainTextBoxWidth(
+                          TextFormField(
+                            keyboardType: TextInputType.numberWithOptions(
+                              signed: true,
+                            ),
+                            controller: _maxWarningController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a maximum value';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _model.needsRequiredRange,
+                        onChanged: (val) {
+                          if (val != null) {
+                            _model.toggleNeedsRequiredRange(val);
+                          }
+                        },
+                      ),
+                      smallTitleText(
+                        context,
+                        "Value recorded must be in range",
+                      ),
+                    ],
+                  ),
+                  if (_model._needsRequiredRange) ...[
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        mediumTitleText(context, "Minimum Value"),
+                        constrainTextBoxWidth(
+                          TextFormField(
+                            keyboardType: TextInputType.numberWithOptions(
+                              signed: true,
+                            ),
+                            controller: _minRequiredController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a minimum value';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        mediumTitleText(context, "Maximum Value"),
+                        constrainTextBoxWidth(
+                          TextFormField(
+                            keyboardType: TextInputType.numberWithOptions(
+                              signed: true,
+                            ),
+                            controller: _maxRequiredController,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a maximum value';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    FilledButton(
+                      child: const Text("Cancel"),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    Center(
+                      child: FilledButton(
+                        child: Text("Add Task"),
+                        onPressed: () async {
+                          // TODO min < max
+                          if (_formKey.currentState!.validate()) {
+                            String description = _descriptionController.text;
+                            bool isManagerOnly = _model._isManagerOnly;
+                            if (_model._isQuantitative) {
+                              final warningRange = QuantitativeRange(
+                                min: double.parse(_minWarningController.text),
+                                max: double.parse(_maxWarningController.text),
+                                units: _unitController.text,
+                                isRequired: false,
+                              );
+                              final requiredRange = QuantitativeRange(
+                                min: double.parse(_minRequiredController.text),
+                                max: double.parse(_maxRequiredController.text),
+                                units: _unitController.text,
+                                isRequired: true,
+                              );
+                              await _model.addQuantitativeTask(
+                                description,
+                                warningRange,
+                                requiredRange,
+                              );
+                            } else {
+                              await _model.addTask(description, isManagerOnly);
+                            }
+                            if (context.mounted) {
+                              unNavigate();
+                            }
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

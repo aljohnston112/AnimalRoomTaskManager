@@ -56,97 +56,109 @@ class AddTaskListState extends State<AddTaskListPage> {
   @override
   Widget build(BuildContext context) {
     return buildScaffold(
+      makeScrollable: false,
       title: widget.title,
-      child: Center(
-        child: Form(
-          key: _formKey,
-          child: Padding(
-            padding: EdgeInsetsGeometry.all(32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildTaskListNameField(),
-                    _buildDropdownForTaskListFrequency(),
-                  ],
-                ),
-                padding32,
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: constraints.maxHeight),
+              child: Center(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildCurrentListOfTasks(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildTaskListNameField(),
+                          _buildDropdownForTaskListFrequency(),
+                        ],
+                      ),
                       padding32,
-                      _buildListOfUnselectedTasks(),
+
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildCurrentListOfTasks(),
+                            padding32,
+                            _buildListOfUnselectedTasks(),
+                          ],
+                        ),
+                      ),
+                      padding32,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          FilledButton(
+                            child: const Text("Cancel"),
+                            onPressed: () => unNavigate(),
+                          ),
+                          FilledButton(
+                            child: const Text("Add New Task"),
+                            onPressed: () => navigate(
+                              AddTaskScreen(
+                                taskModel: TaskModel(
+                                  taskListRepository: context.read(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          FilledButton(
+                            child: Text(widget.title),
+                            onPressed: () async {
+                              if (_formKey.currentState!.validate()) {
+                                var taskList = widget.taskList;
+                                bool changed = _taskListChanged(taskList);
+                                if (changed) {
+                                  var tidToIndex = {
+                                    for (
+                                      int i = 0;
+                                      i < selectedTasks.length;
+                                      i++
+                                    )
+                                      selectedTasks[i].tid: i,
+                                  };
+                                  if (changed) {
+                                    if (taskList == null) {
+                                      await widget._model.addTaskList(
+                                        _taskListController.text,
+                                        selectedFrequency!,
+                                        tidToIndex,
+                                      );
+                                    } else {
+                                      await widget._model.editTaskList(
+                                        taskList.tlid,
+                                        _taskListController.text,
+                                        selectedFrequency!,
+                                        tidToIndex,
+                                      );
+                                    }
+                                  } else {
+                                    await widget._model.reorderTasks(
+                                      taskList!.tlid,
+                                      tidToIndex,
+                                    );
+                                  }
+                                }
+                                if (context.mounted) {
+                                  unNavigate();
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                      padding8,
                     ],
                   ),
                 ),
-                padding32,
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FilledButton(
-                      child: const Text("Cancel"),
-                      onPressed: () => unNavigate(),
-                    ),
-                    FilledButton(
-                      child: const Text("Add New Task"),
-                      onPressed: () => navigate(
-                        AddTaskScreen(
-                          taskModel: TaskModel(
-                            taskListRepository: context.read(),
-                          ),
-                        ),
-                      ),
-                    ),
-                    FilledButton(
-                      child: Text(widget.title),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          var taskList = widget.taskList;
-                          bool changed = _taskListChanged(taskList);
-                          if (changed) {
-                            var tidToIndex = {
-                              for (int i = 0; i < selectedTasks.length; i++)
-                                selectedTasks[i].tid: i,
-                            };
-                            if (changed) {
-                              if (taskList == null) {
-                                await widget._model.addTaskList(
-                                  _taskListController.text,
-                                  selectedFrequency!,
-                                  tidToIndex,
-                                );
-                              } else {
-                                await widget._model.editTaskList(
-                                  taskList.tlid,
-                                  _taskListController.text,
-                                  selectedFrequency!,
-                                  tidToIndex,
-                                );
-                              }
-                            } else {
-                              await widget._model.reorderTasks(
-                                taskList!.tlid,
-                                tidToIndex,
-                              );
-                            }
-                          }
-                          if (context.mounted) {
-                            unNavigate();
-                          }
-                        }
-                      },
-                    ),
-                  ],
-                ),
-                padding8,
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -258,6 +270,7 @@ class AddTaskListState extends State<AddTaskListPage> {
     );
   }
 
+  // TODO deletable
   Widget _buildListOfUnselectedTasks() {
     return Expanded(
       child: Column(

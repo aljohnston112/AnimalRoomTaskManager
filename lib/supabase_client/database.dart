@@ -350,6 +350,7 @@ class Database {
             'unit': range.units,
             'maximum': range.max,
             'minimum': range.min,
+            'deleted': false,
           })
           .select('qr_id')
           .single())['qr_id'];

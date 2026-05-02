@@ -14,80 +14,75 @@ class TaskListManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Task List Editor",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Column(
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ListenableBuilder(
+            listenable: _model,
+            builder: (context, _) {
+              return Center(
+                child: constrainToPhoneWidth(
+                  ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final entry
+                          in _model.getTaskLists().entries.toList()..sort(
+                            (a, b) => a.key.index.compareTo(b.key.index),
+                          )) ...[
+                        ExpansionTile(
+                          title: mediumTitleText(context, entry.key.toDbString),
+                          children: [
+                            for (final taskList in entry.value) ...[
+                              ListTile(
+                                title: mediumTitleText(context, taskList.name),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _buildEditIconButton(context, taskList),
+                                    padding8,
+                                    _buildDeleteIconButton(context, taskList),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          padding8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              ListenableBuilder(
-                listenable: _model,
-                builder: (context, _) {
-                  return Expanded(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (final entry
-                            in _model.getTaskLists().entries.toList()..sort(
-                              (a, b) => a.key.index.compareTo(b.key.index),
-                            )) ...[
-                          ExpansionTile(
-                            title: mediumTitleText(
-                              context,
-                              entry.key.toDbString,
-                            ),
-                            children: [
-                              for (final taskList in entry.value) ...[
-                                ListTile(
-                                  title: mediumTitleText(
-                                    context,
-                                    taskList.name,
-                                  ),
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _buildEditIconButton(context, taskList),
-                                      padding8,
-                                      _buildDeleteIconButton(context, taskList),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ],
+              FilledButton(
+                onPressed: () async {
+                  unNavigate();
+                },
+                child: Text("Go Back"),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await navigate(
+                    AddTaskListPage(
+                      model: _model,
+                      title: "Add New Task List",
+                      taskList: null,
                     ),
                   );
                 },
+                child: Text("Add New Task List"),
               ),
-              padding8,
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  FilledButton(
-                    onPressed: () async {
-                      unNavigate();
-                    },
-                    child: Text("Go Back"),
-                  ),
-                  FilledButton(
-                    onPressed: () async {
-                      await navigate(
-                        AddTaskListPage(
-                          model: _model,
-                          title: "Add New Task List",
-                          taskList: null,
-                        ),
-                      );
-                    },
-                    child: Text("Add New Task List"),
-                  ),
-                ],
-              ),
-              padding8,
             ],
           ),
-        ),
+          padding8,
+        ],
       ),
     );
   }

@@ -14,34 +14,46 @@ class LabManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Lab Editor",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Column(
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ListenableBuilder(
+            listenable: _model,
+            builder: (context, _) {
+              return Center(
+                child: constrainToPhoneWidth(
+                  ListView(
+                    shrinkWrap: true,
+                    children: [
+                      Divider(),
+                      for (var lab in _model.getLabs()) ...[
+                        ListTile(
+                          title: mediumTitleText(context, lab.name),
+                          // TODO edit color
+                          trailing: _buildDeleteIconButton(context, lab),
+                          leading: Icon(Icons.circle, color: lab.color),
+                        ),
+                        const Divider(),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          padding8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              ListenableBuilder(
-                listenable: _model,
-                builder: (context, _) {
-                  return Expanded(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        Divider(),
-                        for (var lab in _model.getLabs()) ...[
-                          ListTile(
-                            title: mediumTitleText(context, lab.name),
-                            // TODO edit color
-                            trailing: _buildDeleteIconButton(context, lab),
-                            leading: Icon(Icons.circle, color: lab.color),
-                          ),
-                          const Divider(),
-                        ],
-                      ],
-                    ),
-                  );
+              FilledButton(
+                onPressed: () async {
+                  unNavigate();
                 },
+                child: Text("Go Back"),
               ),
-              padding8,
               FilledButton(
                 onPressed: () async {
                   await Navigator.push(
@@ -51,12 +63,12 @@ class LabManagementScreen extends StatelessWidget {
                     ),
                   );
                 },
-                child: mediumTitleText(context, "Add New Lab"),
+                child: Text("Add New Lab"),
               ),
-              padding8,
             ],
           ),
-        ),
+          padding8,
+        ],
       ),
     );
   }
@@ -109,80 +121,77 @@ class AddLabState extends State<AddLabPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Add New Lab",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Form(
-            key: _formKey,
-            child: Column(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            constrainTextBoxWidth(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  mediumTitleText(context, "Lab Name"),
+                  TextFormField(
+                    controller: _labController,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a lab name';
+                      }
+                      if (widget._model.labExists(value)) {
+                        return 'There is already a lab with that name';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: () {
+                openColorPicker();
+              },
+              icon: CircleAvatar(backgroundColor: currentColor, radius: 10),
+              label: Text('Pick Lab Color'),
+            ),
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                constrainTextBoxWidth(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      mediumTitleText(context, "Lab Name"),
-                      TextFormField(
-                        controller: _labController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a lab name';
-                          }
-                          if (widget._model.labExists(value)) {
-                            return 'There is already a lab with that name';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
+                FilledButton(
+                  child: const Text("Cancel"),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    openColorPicker();
-                  },
-                  icon: CircleAvatar(backgroundColor: currentColor, radius: 10),
-                  label: Text('Pick Lab Color'),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FilledButton(
-                      child: const Text("Cancel"),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    FilledButton(
-                      child: Text("Add Lab"),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          bool valid = true;
-                          if (currentColor == null) {
-                            showSnackBar(context, 'Please choose a color');
-                            valid = false;
-                          }
-                          if (widget._model.existingLabHasColor(currentColor)) {
-                            showSnackBar(
-                              context,
-                              'There is already a lab with that color',
-                            );
-                            valid = false;
-                          }
-                          if (valid) {
-                            await widget._model.addLab(
-                              _labController.text,
-                              currentColor!,
-                            );
-                            if (context.mounted) {
-                              Navigator.pop(context);
-                            }
-                          }
+                FilledButton(
+                  child: Text("Add Lab"),
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      bool valid = true;
+                      if (currentColor == null) {
+                        showSnackBar(context, 'Please choose a color');
+                        valid = false;
+                      }
+                      if (widget._model.existingLabHasColor(currentColor)) {
+                        showSnackBar(
+                          context,
+                          'There is already a lab with that color',
+                        );
+                        valid = false;
+                      }
+                      if (valid) {
+                        await widget._model.addLab(
+                          _labController.text,
+                          currentColor!,
+                        );
+                        if (context.mounted) {
+                          Navigator.pop(context);
                         }
-                      },
-                    ),
-                  ],
+                      }
+                    }
+                  },
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );

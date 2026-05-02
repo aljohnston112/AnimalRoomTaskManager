@@ -19,15 +19,21 @@ class SchedulingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Scheduler",
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildDailySchedulingButton(context),
-            _buildWeeklySchedulingButton(context),
-            _buildMonthlySchedulingButton(context),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _buildDailySchedulingButton(context),
+          _buildWeeklySchedulingButton(context),
+          _buildMonthlySchedulingButton(context),
+          FilledButton(
+            onPressed: () async {
+              unNavigate();
+            },
+            child: Text("Go Back"),
+          ),
+        ],
       ),
     );
   }
@@ -99,6 +105,7 @@ class SchedulingScreenCards extends StatelessWidget {
     // Create the expanding cards that contain the room assignments
     final now = DateTime.now();
     return buildScaffold(
+      makeScrollable: false,
       title: switch (_taskFrequency) {
         TaskFrequency.daily => "Daily Tasks",
         TaskFrequency.weekly => "Weekly Tasks",

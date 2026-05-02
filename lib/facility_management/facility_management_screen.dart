@@ -13,32 +13,40 @@ class FacilityManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Facility Editor",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Column(
+      child: Column(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ListenableBuilder(
+            listenable: _model,
+            builder: (context, _) {
+              return ListView(
+                shrinkWrap: true,
+                children: [
+                  Divider(),
+                  for (var facility in _model.getFacilities()) ...[
+                    ListTile(
+                      title: mediumTitleText(context, facility.name),
+                      trailing: _buildDeleteIconButton(context, facility),
+                    ),
+                    const Divider(),
+                  ],
+                ],
+              );
+            },
+          ),
+          padding8,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              ListenableBuilder(
-                listenable: _model,
-                builder: (context, _) {
-                  return Expanded(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        Divider(),
-                        for (var facility in _model.getFacilities()) ...[
-                          ListTile(
-                            title: mediumTitleText(context, facility.name),
-                            trailing: _buildDeleteIconButton(context, facility),
-                          ),
-                          const Divider(),
-                        ],
-                      ],
-                    ),
-                  );
+              FilledButton(
+                onPressed: () async {
+                  unNavigate();
                 },
+                child: Text("Go Back"),
               ),
-              padding8,
               FilledButton(
                 onPressed: () async {
                   await Navigator.push(
@@ -48,12 +56,12 @@ class FacilityManagementScreen extends StatelessWidget {
                     ),
                   );
                 },
-                child: mediumTitleText(context, "Add New Facility"),
+                child: Text("Add New Facility"),
               ),
-              padding8,
             ],
           ),
-        ),
+          padding8,
+        ],
       ),
     );
   }
@@ -100,58 +108,54 @@ class AddFacilityState extends State<AddFacilityPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Add New Facility Name",
-      child: Center(
-        child: constrainToPhoneWidth(
-          Form(
-            key: _formKey,
-            child: Column(
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            constrainTextBoxWidth(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  mediumTitleText(context, "Facility Name"),
+                  TextFormField(
+                    controller: _facilityController,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a facility';
+                      }
+                      if (widget._model.facilityExists(value)) {
+                        return 'There is already a facility with that name';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                constrainTextBoxWidth(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      mediumTitleText(context, "Facility Name"),
-                      TextFormField(
-                        controller: _facilityController,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter a facility';
-                          }
-                          if (widget._model.facilityExists(value)) {
-                            return 'There is already a facility with that name';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
+                FilledButton(
+                  child: const Text("Cancel"),
+                  onPressed: () => Navigator.pop(context),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    FilledButton(
-                      child: const Text("Cancel"),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    FilledButton(
-                      child: Text("Add Facility"),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          await widget._model.addFacility(
-                            _facilityController.text,
-                          );
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        }
-                      },
-                    ),
-                  ],
+                FilledButton(
+                  child: Text("Add Facility"),
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      await widget._model.addFacility(_facilityController.text);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                      }
+                    }
+                  },
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
