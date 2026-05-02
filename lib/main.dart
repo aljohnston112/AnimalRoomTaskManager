@@ -72,9 +72,16 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         ),
       ),
       themeMode: ThemeMode.light,
-      home: loginUseCase.loggedInUser == null
-          ? LoginScreen(loginUseCase: loginUseCase)
-          : _buildHomeScreen(context, loginUseCase),
+      home: Builder(
+        builder: (context) {
+          if (loginUseCase.isInitializing) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return loginUseCase.loggedInUser == null
+              ? LoginScreen(loginUseCase: loginUseCase)
+              : _buildHomeScreen(context, loginUseCase);
+        },
+      ),
     );
   }
 

@@ -346,7 +346,6 @@ class SchedulingScreenCards extends StatelessWidget {
                       FilledButton(
                         onPressed: () async {
                           await schedulingModel.refreshData();
-                          // TODO assign room check if unassigned
                           if (context.mounted) {
                             await Navigator.push(
                               context,

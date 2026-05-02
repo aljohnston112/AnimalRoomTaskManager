@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase_client/database.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as s;
 
 enum UserGroup { admin, principalInvestigatorOrChiefOfStaff, roomChecker }
 
@@ -78,6 +79,16 @@ class UserRepository {
       uid: map['u_id'],
     );
     return user;
+  }
+
+  Future<User?> getSessionUser() async {
+    if (_database.isSessionValid()) {
+      s.User? user = _database.getSessionUser();
+      if (user != null) {
+        return await _database.getUserWithAuthId(user.id);
+      }
+    }
+    return null;
   }
 
   void subscribeToAuthEvents(void Function(User?) onAuthChange) {

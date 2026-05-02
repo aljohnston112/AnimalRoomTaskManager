@@ -353,4 +353,26 @@ class TaskListRepository {
   Future<void> undeleteTaskList(TaskList taskList) async {
     await _database.undeleteTaskList(taskList);
   }
+
+  bool taskDescriptionExists(String value) {
+    return _tasks.any((t) => t.description == value);
+  }
+
+  Future<void> addQuantitativeTask(
+    String description,
+    bool isManagerOnly,
+    QuantitativeRange<double> warningRange,
+    QuantitativeRange<double> requiredRange,
+  ) async {
+    _database.addQuantitativeTask(
+      description,
+      isManagerOnly,
+      warningRange,
+      requiredRange,
+    );
+  }
+
+  Future<void> addTask(String description, bool isManagerOnly) async {
+    _database.addTask(description, isManagerOnly);
+  }
 }

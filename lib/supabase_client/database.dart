@@ -25,10 +25,7 @@ class Database {
     final connection = await Supabase.initialize(
       url: 'https://rlbbezekxurjffutovsz.supabase.co',
       anonKey: 'sb_publishable_tPiZgEloifhv8Af6sG_m1w_-mEQ1RnT',
-      authOptions: const FlutterAuthClientOptions(
-        // TODO for dev only
-        localStorage: EmptyLocalStorage(),
-      ),
+      authOptions: const FlutterAuthClientOptions(),
     );
     return Database._(connection.client);
   }
@@ -44,6 +41,17 @@ class Database {
       return false;
     }
     return true;
+  }
+
+  bool isSessionValid() {
+    if (_supabase.auth.currentSession != null) {
+      return true;
+    }
+    return false;
+  }
+
+  User? getSessionUser() {
+    return _supabase.auth.currentUser;
   }
 
   Future<bool> login({required String email, required String password}) async {
@@ -328,6 +336,97 @@ class Database {
         } else {
           rethrow;
         }
+      }
+    }
+  }
+
+  // TODO unique constraints on tasks and ranges
+
+  Future<int> addRange(QuantitativeRange<double> range) async {
+    try {
+      return (await _supabase
+          .from('quantitative_ranges')
+          .insert({
+            'unit': range.units,
+            'maximum': range.max,
+            'minimum': range.min,
+          })
+          .select('qr_id')
+          .single())['qr_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // TODO this is fine,
+        //      but ranges need to be implemented client side to avoid
+        return (await _supabase
+            .from('quantitative_ranges')
+            .select('qr_id')
+            .eq('unit', range.units)
+            .eq('maximum', range.max)
+            .eq('minimum', range.min)
+            .single())['qr_id'];
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  // TODO undelete tasks and ranges on duplicate
+  // TODO realtime update of tasks
+
+  Future<void> addQuantitativeTask(
+    String description,
+    bool isManagerOnly,
+    QuantitativeRange<double>? warningRange,
+    QuantitativeRange<double>? requiredRange,
+  ) async {
+    int tid = await addTask(description, isManagerOnly);
+    int? qridWarning;
+    int? qridRequired;
+    if (warningRange != null) {
+      qridWarning = await addRange(warningRange);
+    }
+    if (requiredRange != null) {
+      qridRequired = await addRange(requiredRange);
+    }
+    try {
+      return (await _supabase.from('quantitative_tasks').insert({
+        't_id': tid,
+        'qr_id_warning': qridWarning,
+        'qr_id_required': qridRequired,
+      }));
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // TODO this is fine,
+        //      but ranges need to be implemented client side to avoid
+      } else {
+        rethrow;
+      }
+    }
+  }
+
+  Future<int> addTask(String description, bool isManagerOnly) async {
+    try {
+      return (await _supabase
+          .from('tasks')
+          .insert({
+            'name': description,
+            'manager_only': isManagerOnly,
+            'deleted': false,
+          })
+          .select('t_id')
+          .single())['t_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // this is fine, and should be avoided client side
+        // TODO undelete
+        return (await _supabase
+            .from('tasks')
+            .select('t_id')
+            .eq('name', description)
+            .eq('manager_only', isManagerOnly)
+            .single())['t_id'];
+      } else {
+        rethrow;
       }
     }
   }
