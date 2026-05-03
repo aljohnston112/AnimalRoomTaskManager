@@ -1,5 +1,6 @@
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme_data.dart';
 
@@ -120,6 +121,11 @@ class AddTaskScreen extends StatelessWidget {
                             keyboardType: TextInputType.numberWithOptions(
                               signed: true,
                             ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
                             controller: _minWarningController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -140,6 +146,11 @@ class AddTaskScreen extends StatelessWidget {
                             keyboardType: TextInputType.numberWithOptions(
                               signed: true,
                             ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
                             controller: _maxWarningController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -178,6 +189,11 @@ class AddTaskScreen extends StatelessWidget {
                             keyboardType: TextInputType.numberWithOptions(
                               signed: true,
                             ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
                             controller: _minRequiredController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -198,6 +214,11 @@ class AddTaskScreen extends StatelessWidget {
                             keyboardType: TextInputType.numberWithOptions(
                               signed: true,
                             ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
                             controller: _maxRequiredController,
                             validator: (value) {
                               if (value == null || value.isEmpty) {

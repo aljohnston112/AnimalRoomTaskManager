@@ -1,9 +1,9 @@
 import 'package:animal_room_task_manager/animal_management/animal_repository.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
+import 'package:animal_room_task_manager/census/census_model.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
-import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -616,6 +616,23 @@ class Database {
         rethrow;
       }
     }
+  }
+
+  Future<void> submitCensus(
+    List<Census> censusEntries,
+    int rid,
+    int uid,
+  ) async {
+    await _supabase.rpc(
+      'submit_census',
+      params: {
+        'rid': rid,
+        'uid': uid,
+        'census_records': censusEntries
+            .map((e) => {'a_id': e.animal.aid, 'quantity': e.quantity})
+            .toList(),
+      },
+    );
   }
 
   Future<void> insertFacility(String facilityName) async {

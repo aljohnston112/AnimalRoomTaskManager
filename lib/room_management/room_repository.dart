@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -25,6 +26,10 @@ class RoomModel {
 
   @override
   int get hashCode => rid.hashCode;
+
+  Room toRoom() {
+    return Room(rid: rid, name: roomName);
+  }
 }
 
 class RoomRepository {

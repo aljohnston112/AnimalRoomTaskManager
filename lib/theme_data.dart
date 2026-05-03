@@ -109,15 +109,20 @@ extension LoadingExtension on BuildContext {
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-Future<T?> navigate<T>(Widget screen) async {
+Future<T?> navigate<T>(Widget screen, {String? tag}) async {
   return await navigatorKey.currentState?.push(
-    MaterialPageRoute(builder: (_) => screen),
+    MaterialPageRoute(
+      builder: (_) => screen,
+      settings: RouteSettings(name: tag),
+    ),
   );
 }
 
-void unNavigate<T>({T? result, int count = 1}) {
-  for (int i = 0; i < count - 1; i++) {
-    navigatorKey.currentState?.pop();
-  }
+void unNavigate<T>({T? result}) {
   navigatorKey.currentState?.pop<T>(result);
+}
+
+void unNavigatePast<T>(String tag, {T? result}) {
+  navigatorKey.currentState?.popUntil(ModalRoute.withName(tag));
+  unNavigate(result: result);
 }

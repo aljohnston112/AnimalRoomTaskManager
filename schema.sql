@@ -551,6 +551,11 @@ CREATE POLICY "AnimalsUpdateAuth"
     TO authenticated
     USING (check_is_admin())
     WITH CHECK (check_is_admin());
+INSERT INTO animals (a_id, name, deleted)
+VALUES (0, 'Mouse', false),
+       (1, 'Rat', false),
+       (2, '13-Lined Ground Squirrels', false),
+       (3, 'Mongolian Gerbil', false);
 
 -- Census Records ----------------------------------------------------
 CREATE TABLE IF NOT EXISTS census_records
@@ -575,6 +580,30 @@ CREATE POLICY "CensusRecordsInsertAuth"
     FOR INSERT
     TO authenticated
     WITH CHECK (TRUE);
+
+CREATE OR REPLACE FUNCTION submit_census(
+    rid INTEGER,
+    uid INTEGER,
+    census_records JSONB -- Expected format: [{"a_id": int, "quantity": int}, ...]
+)
+    RETURNS INTEGER AS
+$$
+DECLARE
+    new_cid INTEGER;
+BEGIN
+    INSERT INTO public.censuses (date_time, r_id, u_id)
+    VALUES (NOW(), rid, uid)
+    RETURNING c_id INTO new_cid;
+
+    INSERT INTO public.census_records (c_id, a_id, number_of_animals)
+    SELECT new_cid,
+           (item ->> 'a_id')::INTEGER,
+           (item ->> 'quantity')::SMALLINT
+    FROM JSONB_ARRAY_ELEMENTS(census_records) AS item;
+
+    RETURN new_cid;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Task Frequency ----------------------------------------------------
 CREATE TYPE task_frequency AS ENUM (

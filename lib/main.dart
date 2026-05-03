@@ -4,6 +4,9 @@ import 'package:animal_room_task_manager/animal_management/animal_repository.dar
 import 'package:animal_room_task_manager/building_management/building_management_model.dart';
 import 'package:animal_room_task_manager/building_management/building_management_screen.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
+import 'package:animal_room_task_manager/census/census_model.dart';
+import 'package:animal_room_task_manager/census/census_repository.dart';
+import 'package:animal_room_task_manager/census/census_screen.dart';
 import 'package:animal_room_task_manager/facility_management/facility_management_model.dart';
 import 'package:animal_room_task_manager/facility_management/facility_management_screen.dart';
 import 'package:animal_room_task_manager/lab_management/lab_management_model.dart';
@@ -41,6 +44,7 @@ Future<void> main() async {
         Provider.value(value: database),
         Provider.value(value: AnimalRepository(database: database)),
         Provider.value(value: BuildingRepository(database: database)),
+        Provider.value(value: CensusRepository(database: database)),
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
         Provider.value(value: RecordRepository(database: database)),
@@ -105,7 +109,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           if (loginUseCase.loggedInUser?.group == UserGroup.admin)
             ..._buildAdminButtons(context),
           padding8,
-          _buildSchedulerButton(context),
+          ..._buildAllUserButtons(context),
         ],
       ),
     );
@@ -211,23 +215,45 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
     ];
   }
 
-  FilledButton _buildSchedulerButton(BuildContext context) {
+  List<Widget> _buildAllUserButtons(BuildContext context) {
+    AnimalRepository animalRepository = context.read();
     RecordRepository recordRepository = context.read();
+    RoomRepository roomRepository = context.read();
     RoomCheckRepository roomCheckRepository = context.read();
     TaskListRepository taskListRepository = context.read();
-    return FilledButton(
-      onPressed: () async {
-        await navigate(
-          SchedulingScreen(
-            schedulingModel: SchedulingModel(
-              recordRepository: recordRepository,
-              roomCheckRepository: roomCheckRepository,
-              taskListRepository: taskListRepository,
+    return [
+      FilledButton(
+        onPressed: () async {
+          await navigate(
+            CensusEntryScreen(
+              model: CensusEntryModel(
+                animalRepository: animalRepository,
+                roomRepository: roomRepository,
+              ),
+              isFirstEntry: true,
+              censusToEdit: null,
+              room: null,
             ),
-          ),
-        );
-      },
-      child: Text("Scheduler and Room Checks"),
-    );
+            tag: 'census',
+          );
+        },
+        child: Text("Record a Census"),
+      ),
+      padding8,
+      FilledButton(
+        onPressed: () async {
+          await navigate(
+            SchedulingScreen(
+              schedulingModel: SchedulingModel(
+                recordRepository: recordRepository,
+                roomCheckRepository: roomCheckRepository,
+                taskListRepository: taskListRepository,
+              ),
+            ),
+          );
+        },
+        child: Text("Scheduler and Room Checks"),
+      ),
+    ];
   }
 }
