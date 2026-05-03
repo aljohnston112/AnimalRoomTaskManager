@@ -108,7 +108,19 @@ class Database {
         .subscribe();
   }
 
-  void subscribeToRooms(void Function(dynamic) callback) {
+  void subscribeToRoomsUpdates(void Function(dynamic) callback) {
+    _supabase
+        .channel("rooms")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'rooms',
+          callback: callback,
+        )
+        .subscribe();
+  }
+
+  void subscribeToFullRooms(void Function(dynamic) callback) {
     _supabase
         .channel(
           'room_channel',
@@ -602,6 +614,17 @@ class Database {
         'bid': bid,
         'tlids': tlids,
       },
+    );
+  }
+
+  Future<void> updateRoom({
+    required int rid,
+    required int lid,
+    required List<int> tlids,
+  }) async {
+    await _supabase.rpc(
+      'update_room',
+      params: {'rid': rid, 'lid': lid, 'tlids': tlids},
     );
   }
 

@@ -39,6 +39,7 @@ class RoomManagementModel extends ChangeNotifier {
     _roomRepository.rooms.addListener(() {
       notifyListeners();
     });
+    // TODO could be a single database call to get all the information
     _buildingRepository.loadBuildings();
     _facilityRepository.loadFacilities();
     _labRepository.loadLabs();
@@ -78,5 +79,25 @@ class RoomManagementModel extends ChangeNotifier {
 
   Future<void> undeleteRoom(String roomName) async {
     await _roomRepository.undeleteRoom(roomName);
+  }
+
+  int? getTaskList(List<int> tlids, TaskFrequency frequency) {
+    for (final tlid in tlids) {
+      final taskList = taskLists.value[frequency]?.where(
+        (tl) => tl.tlid == tlid
+      ).firstOrNull;
+      if(taskList != null){
+        return tlid;
+      }
+    }
+    return null;
+  }
+
+  Future<void> updateRoom({
+    required int rid,
+    required int lid,
+    required List<int> tlids,
+  }) async {
+    await _roomRepository.updateRoom(rid: rid, lid: lid, tlids: tlids);
   }
 }

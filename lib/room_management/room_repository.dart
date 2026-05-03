@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../scheduler/scheduling_model.dart';
 import '../supabase_client/database.dart';
 
 class RoomModel {
@@ -34,12 +33,22 @@ class RoomRepository {
   final ValueNotifier<Set<RoomModel>> rooms = ValueNotifier({});
 
   RoomRepository({required Database database}) : _database = database {
-    _database.subscribeToRooms((data) {
+    _database.subscribeToFullRooms((data) {
       final payload = data['payload'];
       var room = _parseRoom(payload);
       _rooms.remove(room);
       if (!payload['room']['deleted']) {
         _rooms.add(room);
+      }
+      rooms.value = Set.from(_rooms);
+    });
+    _database.subscribeToRoomsUpdates((data){
+      bool? deleted = data.newRecord['deleted'];
+      if (deleted == true) {
+        _rooms.removeWhere((r) => r.rid == data.newRecord['r_id']);
+      } else {
+        // TODO can do a call to get just the one
+        loadRooms();
       }
       rooms.value = Set.from(_rooms);
     });
@@ -91,5 +100,13 @@ class RoomRepository {
 
   Future<void> undeleteRoom(String roomName) async {
     await _database.undeleteRoom(roomName);
+  }
+
+  Future<void> updateRoom({
+    required int rid,
+    required int lid,
+    required List<int> tlids,
+  }) async {
+    await _database.updateRoom(rid: rid, lid: lid, tlids: tlids);
   }
 }

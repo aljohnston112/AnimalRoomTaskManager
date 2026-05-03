@@ -428,7 +428,7 @@ CREATE POLICY "Users can hear room updates"
     TO authenticated
     USING ((SELECT realtime.topic()) = 'room_channel');
 
-CREATE OR REPLACE FUNCTION edit_room(
+CREATE OR REPLACE FUNCTION update_room(
     rid integer,
     lid integer,
     tlids integer[]
