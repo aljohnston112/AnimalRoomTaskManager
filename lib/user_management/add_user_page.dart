@@ -36,36 +36,31 @@ class _AddNewUserState extends State<AddNewUserPage> {
       key: _formKey,
       child: buildScaffold(
         title: widget.title,
-        child: Center(
-          child: constrainToPhoneWidth(
-            Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                constrainTextBoxWidth(
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      mediumTitleText(context, "User Email"),
-                      TextFormField(
-                        controller: _emailController,
-                        enabled: false,
-                      ),
-                    ],
-                  ),
-                ),
-                constrainTextBoxWidth(_buildUserGroupDropdown()),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: constrainTextBoxWidth(
+          Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              constrainTextBoxWidth(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FilledButton(
-                      child: const Text("Cancel"),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    _buildAddUserButton(context),
+                    mediumTitleText(context, "User Email"),
+                    TextFormField(controller: _emailController, enabled: false),
                   ],
                 ),
-              ],
-            ),
+              ),
+              constrainTextBoxWidth(_buildUserGroupDropdown()),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  FilledButton(
+                    child: const Text("Cancel"),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  _buildAddUserButton(context),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -74,6 +69,7 @@ class _AddNewUserState extends State<AddNewUserPage> {
 
   DropdownButtonFormField<UserGroup> _buildUserGroupDropdown() {
     return DropdownButtonFormField<UserGroup>(
+      isExpanded: true,
       decoration: InputDecoration(hintText: widget.title),
       items: UserGroup.values
           .where((group) {
@@ -82,7 +78,10 @@ class _AddNewUserState extends State<AddNewUserPage> {
           .map((group) {
             return DropdownMenuItem(
               value: group,
-              child: Text(userGroupToString(group)),
+              child: Text(
+                userGroupToString(group),
+                overflow: TextOverflow.ellipsis,
+              ),
             );
           })
           .toList(),

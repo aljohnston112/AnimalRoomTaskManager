@@ -190,7 +190,7 @@ class AddRoomState extends State<AddRoomPage> {
                     enabled: isNew,
                     controller: _roomController,
                     validator: (value) {
-                      if(isNew) {
+                      if (isNew) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter a room';
                         }
@@ -280,7 +280,7 @@ class AddRoomState extends State<AddRoomPage> {
                         _selectedWeeklyTlid,
                         _selectedMonthlyTlid,
                       ].whereType<int>().toList();
-                      if(isNew) {
+                      if (isNew) {
                         await widget._model.addRoom(
                           roomName: _roomController.text,
                           bid: _selectedBid!,
@@ -290,7 +290,11 @@ class AddRoomState extends State<AddRoomPage> {
                         );
                       } else {
                         final roomModel = widget._roomModel!;
-                        await widget._model.updateRoom(rid: roomModel.rid, lid: _selectedLid!, tlids: tlids);
+                        await widget._model.updateRoom(
+                          rid: roomModel.rid,
+                          lid: _selectedLid!,
+                          tlids: tlids,
+                        );
                       }
                       if (context.mounted) {
                         Navigator.pop(context);
@@ -315,16 +319,6 @@ class AddRoomState extends State<AddRoomPage> {
     required void Function(int?) onChanged,
     required bool editable,
   }) {
-    Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        mediumTitleText(context, "Monthly Task List"),
-        constrainTextBoxWidth(
-          DropdownButtonFormField(items: [], onChanged: (value) {}),
-        ),
-      ],
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -344,6 +338,12 @@ class AddRoomState extends State<AddRoomPage> {
                     )
                     .toList(),
                 onChanged: editable ? onChanged : null,
+                validator: (v) {
+                  if (v == null) {
+                    return "Please select a $label";
+                  }
+                  return null;
+                },
               );
             },
           ),

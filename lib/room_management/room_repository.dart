@@ -42,7 +42,7 @@ class RoomRepository {
       }
       rooms.value = Set.from(_rooms);
     });
-    _database.subscribeToRoomsUpdates((data){
+    _database.subscribeToRoomsUpdates((data) {
       bool? deleted = data.newRecord['deleted'];
       if (deleted == true) {
         _rooms.removeWhere((r) => r.rid == data.newRecord['r_id']);

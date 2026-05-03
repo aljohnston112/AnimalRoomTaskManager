@@ -115,6 +115,9 @@ Future<T?> navigate<T>(Widget screen) async {
   );
 }
 
-void unNavigate<T>([T? result]) {
+void unNavigate<T>({T? result, int count = 1}) {
+  for (int i = 0; i < count - 1; i++) {
+    navigatorKey.currentState?.pop();
+  }
   navigatorKey.currentState?.pop<T>(result);
 }

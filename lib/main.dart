@@ -124,9 +124,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         onPressed: () async {
           await navigate(
             AnimalManagementScreen(
-              model: AnimalManagementModel(
-                animalRepository: animalRepository,
-              ),
+              model: AnimalManagementModel(animalRepository: animalRepository),
             ),
           );
         },

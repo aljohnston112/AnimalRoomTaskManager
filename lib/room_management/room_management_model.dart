@@ -83,10 +83,10 @@ class RoomManagementModel extends ChangeNotifier {
 
   int? getTaskList(List<int> tlids, TaskFrequency frequency) {
     for (final tlid in tlids) {
-      final taskList = taskLists.value[frequency]?.where(
-        (tl) => tl.tlid == tlid
-      ).firstOrNull;
-      if(taskList != null){
+      final taskList = taskLists.value[frequency]
+          ?.where((tl) => tl.tlid == tlid)
+          .firstOrNull;
+      if (taskList != null) {
         return tlid;
       }
     }
