@@ -1,3 +1,6 @@
+import 'package:animal_room_task_manager/animal_management/animal_management_model.dart';
+import 'package:animal_room_task_manager/animal_management/animal_management_screen.dart';
+import 'package:animal_room_task_manager/animal_management/animal_repository.dart';
 import 'package:animal_room_task_manager/building_management/building_management_model.dart';
 import 'package:animal_room_task_manager/building_management/building_management_screen.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
@@ -28,12 +31,15 @@ import 'package:provider/provider.dart';
 
 import 'facility_management/facility_repository.dart';
 
+// TODO clear snackbars when navigating; and switch to navigation functions in theme_data
+
 Future<void> main() async {
   Database database = await Database.create();
   runApp(
     MultiProvider(
       providers: [
         Provider.value(value: database),
+        Provider.value(value: AnimalRepository(database: database)),
         Provider.value(value: BuildingRepository(database: database)),
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
@@ -106,6 +112,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
   }
 
   List<Widget> _buildAdminButtons(BuildContext context) {
+    AnimalRepository animalRepository = context.read();
     BuildingRepository buildingRepository = context.read();
     LabRepository labRepository = context.read();
     FacilityRepository facilityRepository = context.read();
@@ -113,6 +120,19 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
     TaskListRepository taskListRepository = context.read();
     UserRepository userRepository = context.read();
     return [
+      FilledButton(
+        onPressed: () async {
+          await navigate(
+            AnimalManagementScreen(
+              model: AnimalManagementModel(
+                animalRepository: animalRepository,
+              ),
+            ),
+          );
+        },
+        child: Text("Animal Editor"),
+      ),
+      padding8,
       FilledButton(
         onPressed: () async {
           await navigate(

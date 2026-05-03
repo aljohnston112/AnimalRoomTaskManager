@@ -528,6 +528,7 @@ CREATE TABLE IF NOT EXISTS animals
 );
 ALTER TABLE public.animals
     ENABLE ROW LEVEL SECURITY;
+ALTER PUBLICATION supabase_realtime ADD TABLE animals;
 GRANT SELECT, INSERT ON TABLE public.animals TO authenticated;
 GRANT UPDATE (deleted) ON public.animals TO authenticated;
 GRANT USAGE, SELECT ON SEQUENCE animals_a_id_seq TO authenticated;

@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/animal_management/animal_repository.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
@@ -70,6 +71,18 @@ class Database {
     _supabase.auth.onAuthStateChange.listen((data) {
       onAuthChange(data);
     });
+  }
+
+  void subscribeToAnimals(Null Function(PostgresChangePayload p) callback) {
+    _supabase
+        .channel("animals")
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'animals',
+          callback: callback,
+        )
+        .subscribe();
   }
 
   void subscribeToBuildings(Null Function(PostgresChangePayload p) callback) {
@@ -212,6 +225,13 @@ class Database {
 
   // selectors
   // ---------------------------------------------------------------------------
+  Future<List<PostgrestMap>> getAnimals() async {
+    final data = await _supabase.from('animals').select('''
+    *
+  ''');
+    return data.toList();
+  }
+
   Future<List<PostgrestMap>> getBuildings() async {
     final data = await _supabase.from('buildings').select('''
     *
@@ -544,6 +564,24 @@ class Database {
     });
   }
 
+  Future<void> insertAnimal(String animalName) async {
+    try {
+      return (await _supabase
+          .from('animals')
+          .insert({'name': animalName, 'deleted': false})
+          .select('a_id')
+          .single())['a_id'];
+    } on PostgrestException catch (ex, e) {
+      if (ex.message.contains("duplicate key")) {
+        // Front end does not have deleted rows
+        // therefore toggling the deleted flag
+        await undeleteAnimal(animalName);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
   Future<void> insertLab(String labName, int color) async {
     try {
       return (await _supabase
@@ -675,6 +713,13 @@ class Database {
     );
   }
 
+  Future<void> deleteAnimal(Animal animal) async {
+    await _supabase
+        .from('animals')
+        .update({'deleted': true})
+        .eq('a_id', animal.aid);
+  }
+
   Future<void> deleteLab(Lab lab) async {
     await _supabase.from('labs').update({'deleted': true}).eq('l_id', lab.lid);
   }
@@ -702,6 +747,13 @@ class Database {
         .from('task_lists')
         .update({'deleted': true})
         .eq('tl_id', taskList.tlid);
+  }
+
+  Future<void> undeleteAnimal(String animalName) async {
+    await _supabase
+        .from('animals')
+        .update({'deleted': false})
+        .eq('name', animalName);
   }
 
   Future<void> undeleteLab(String labName) async {
