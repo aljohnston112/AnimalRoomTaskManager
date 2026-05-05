@@ -14,6 +14,7 @@ import 'package:animal_room_task_manager/lab_management/lab_management_screen.da
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
+import 'package:animal_room_task_manager/query/query_screen.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/room_management/room_management_model.dart';
@@ -211,6 +212,15 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           );
         },
         child: Text("User Editor"),
+      ),
+      padding8,
+      FilledButton(
+        onPressed: () async {
+          await navigate(
+            QueryScreen(),
+          );
+        },
+        child: Text("Query"),
       ),
     ];
   }

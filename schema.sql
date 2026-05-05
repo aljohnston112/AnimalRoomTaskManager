@@ -845,8 +845,8 @@ CREATE TABLE IF NOT EXISTS quantitative_ranges
 (
     qr_id   serial PRIMARY KEY,
     unit    text    NOT NULL,
-    maximum numeric NOT NULL,
-    minimum numeric NOT NULL,
+    maximum real NOT NULL,
+    minimum real NOT NULL,
     deleted boolean NOT NULL,
     CHECK ( minimum < maximum )
 );
@@ -1659,7 +1659,7 @@ CREATE POLICY "TaskRecordsInsertAuth"
 CREATE TABLE IF NOT EXISTS quantitative_task_records
 (
     tr_id integer PRIMARY KEY REFERENCES task_records (tr_id),
-    value numeric NOT NULL
+    value real NOT NULL
 );
 ALTER TABLE public.quantitative_task_records
     ENABLE ROW LEVEL SECURITY;
@@ -1711,7 +1711,7 @@ CREATE POLICY "TaskRecordUsersInsertAuth"
 CREATE OR REPLACE FUNCTION submit_task_record(
     record_data JSONB,
     user_ids integer[],
-    recorded_value numeric
+    recorded_value real
 ) RETURNS VOID
     SET search_path TO public, auth, pg_temp AS
 $$
@@ -1830,7 +1830,7 @@ BEGIN
             );
 END
 $$ LANGUAGE plpgsql SECURITY INVOKER;
-GRANT EXECUTE ON FUNCTION public.submit_task_record(jsonb, integer[], numeric) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_task_record(jsonb, integer[], real) TO authenticated;
 
 DROP POLICY IF EXISTS "Users can hear task updates" ON realtime.messages;
 CREATE POLICY "Users can hear task updates"
