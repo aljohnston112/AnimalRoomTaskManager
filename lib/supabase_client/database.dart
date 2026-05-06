@@ -267,6 +267,15 @@ class Database {
     return data;
   }
 
+  Future<List<PostgrestMap>> getRecordsForMonth(DateTime date) async {
+    final start = DateTime(date.year, date.month).toIso8601String();
+    final end = DateTime(date.year, date.month + 1).toIso8601String();
+    return await _supabase
+        .from('all_task_records_view')
+        .select()
+        .gte('recorded_date', start)
+        .lt('recorded_date', end);  }
+
   Future<List<PostgrestMap>> getRooms() async {
     return await _supabase.rpc('get_rooms_full');
   }
@@ -813,4 +822,5 @@ class Database {
       },
     );
   }
+
 }

@@ -1,7 +1,9 @@
+import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:flutter/material.dart';
 import 'package:material_table_view/material_table_view.dart';
 import 'package:material_table_view/table_column_control_handles_popup_route.dart';
 import 'package:material_table_view/table_view_typedefs.dart';
+import 'package:provider/provider.dart';
 
 import '../theme_data.dart';
 
@@ -11,13 +13,23 @@ class QueryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => buildScaffold(
     title: "Query",
-    child: const QueryTable(),
+    child: Column(
+      children: [
+        Expanded(
+          child: QueryTable(model: QueryModel(queryRepository: context.read())),
+        ),
+        padding8,
+        FilledButton(onPressed: () => unNavigate(), child: Text("Go Back")),
+      ],
+    ),
     makeScrollable: false,
   );
 }
 
 class QueryTable extends StatefulWidget {
-  const QueryTable({super.key});
+  final QueryModel _model;
+
+  const QueryTable({super.key, required QueryModel model}) : _model = model;
 
   @override
   State<QueryTable> createState() => _QueryTableState();
@@ -30,11 +42,8 @@ class _QueryTableState extends State<QueryTable>
   final cellPadding = const EdgeInsets.only(left: 8.0);
   final cellAlignment = Alignment.centerLeft;
 
-  final columns = <_QueryTableColumn>[
-    for (int i = 0; i < 1000; i++) _QueryTableColumn(index: i, width: 64.0),
-  ];
-
-  double get _rowHeight => 48.0 + 4 * Theme.of(context).visualDensity.vertical;
+  double get _rowHeight =>
+      20.0 + 48.0 + 4 * Theme.of(context).visualDensity.vertical;
 
   @override
   Widget build(BuildContext context) {
@@ -46,24 +55,29 @@ class _QueryTableState extends State<QueryTable>
             left: Divider.createBorderSide(context),
           ),
         ),
-        child: TableView.builder(
-          columns: columns,
-          style: TableViewStyle(
-            scrollbars: const TableViewScrollbarsStyle.symmetric(
-              TableViewScrollbarStyle(
-                interactive: true,
-                enabled: TableViewScrollbarEnabled.always,
-                thumbVisibility: WidgetStatePropertyAll(true),
-                trackVisibility: WidgetStatePropertyAll(true),
+        child: ListenableBuilder(
+          listenable: widget._model.records,
+          builder: (_, _) {
+            return TableView.builder(
+              columns: widget._model.columns,
+              style: TableViewStyle(
+                scrollbars: const TableViewScrollbarsStyle.symmetric(
+                  TableViewScrollbarStyle(
+                    interactive: true,
+                    enabled: TableViewScrollbarEnabled.always,
+                    thumbVisibility: WidgetStatePropertyAll(true),
+                    trackVisibility: WidgetStatePropertyAll(true),
+                  ),
+                ),
               ),
-            ),
-          ),
-          rowHeight: _rowHeight,
-          rowCount: ((1 << 31) - 1),
-          rowBuilder: createRowBuilder(context),
-          headerBuilder: _headerBuilder,
-          headerHeight: _rowHeight,
-          bodyContainerBuilder: (context, bodyContainer) => bodyContainer,
+              rowHeight: _rowHeight,
+              rowCount: widget._model.records.value.length,
+              rowBuilder: createRowBuilder(context),
+              headerBuilder: _headerBuilder,
+              headerHeight: _rowHeight,
+              bodyContainerBuilder: (context, bodyContainer) => bodyContainer,
+            );
+          },
         ),
       ),
     );
@@ -73,31 +87,46 @@ class _QueryTableState extends State<QueryTable>
     BuildContext context,
     TableRowContentBuilder contentBuilder,
   ) => contentBuilder(context, (context, column) {
-    switch (columns[column].index) {
-      default:
-        return Container(
-          decoration: BoxDecoration(
-            border: Border(
-              right: Divider.createBorderSide(context),
-            ),
-          ),
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: () => Navigator.of(
-                context,
-              ).push(_createColumnControlsRoute(context, column)),
-              child: Padding(
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(right: Divider.createBorderSide(context)),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () => Navigator.of(
+            context,
+          ).push(_createColumnControlsRoute(context, column)),
+          child: Column(
+            children: [
+              Padding(
                 padding: cellPadding,
                 child: Align(
                   alignment: cellAlignment,
-                  child: Text('${columns[column].index}'),
+                  child: Text(widget._model.columns[column].name),
                 ),
               ),
-            ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      widget._model.sortColumn(column, isUp: true);
+                    },
+                    icon: Icon(Icons.arrow_upward),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      widget._model.sortColumn(column, isUp: false);
+                    },
+                    icon: Icon(Icons.arrow_downward),
+                  ),
+                ],
+              ),
+            ],
           ),
-        );
-    }
+        ),
+      ),
+    );
   });
 
   ModalRoute<void> _createColumnControlsRoute(
@@ -109,15 +138,19 @@ class _QueryTableState extends State<QueryTable>
       columnIndex: columnIndex,
       tableViewChanged: null,
       onColumnTranslate: (index, newTranslation) => setState(
-        () => columns[index] = columns[index].copyWith(
-          translation: newTranslation,
-        ),
+        () => widget._model.columns[index] = widget._model.columns[index]
+            .copyWith(translation: newTranslation),
       ),
       onColumnResize: (index, newWidth) => setState(
-        () => columns[index] = columns[index].copyWith(width: newWidth),
+        () => widget._model.columns[index] = widget._model.columns[index]
+            .copyWith(width: newWidth),
       ),
-      onColumnMove: (oldIndex, newIndex) =>
-          setState(() => columns.insert(newIndex, columns.removeAt(oldIndex))),
+      onColumnMove: (oldIndex, newIndex) => setState(
+        () => widget._model.columns.insert(
+          newIndex,
+          widget._model.columns.removeAt(oldIndex),
+        ),
+      ),
     );
   }
 
@@ -152,7 +185,8 @@ class _QueryTableState extends State<QueryTable>
       final selected = selection.contains(row);
 
       Widget cellBuilder(BuildContext context, int column) {
-        var cellIndex = (columns.length * row) + columns[column].index;
+        var cellIndex =
+            (widget._model.columns.length * row) + column;
         return Padding(
           padding: cellPadding,
           child: _wrapCell(
@@ -160,7 +194,7 @@ class _QueryTableState extends State<QueryTable>
             Align(
               alignment: cellAlignment,
               child: Text(
-                '$cellIndex',
+                widget._model.getRecordAt(column, row),
                 overflow: TextOverflow.fade,
                 maxLines: 1,
                 softWrap: false,
@@ -189,42 +223,4 @@ class _QueryTableState extends State<QueryTable>
       );
     };
   }
-}
-
-class _QueryTableColumn extends TableColumn {
-  _QueryTableColumn({
-    required this.index,
-    required super.width,
-    super.freezePriority = 0,
-    super.sticky = false,
-    super.flex = 0,
-    super.translation = 0,
-    super.minResizeWidth,
-    super.maxResizeWidth,
-  }) : key = ValueKey<int>(index);
-
-  final int index;
-
-  @override
-  final ValueKey<int> key;
-
-  @override
-  _QueryTableColumn copyWith({
-    double? width,
-    int? freezePriority,
-    bool? sticky,
-    int? flex,
-    double? translation,
-    double? minResizeWidth,
-    double? maxResizeWidth,
-  }) => _QueryTableColumn(
-    index: index,
-    width: width ?? this.width,
-    freezePriority: freezePriority ?? this.freezePriority,
-    sticky: sticky ?? this.sticky,
-    flex: flex ?? this.flex,
-    translation: translation ?? this.translation,
-    minResizeWidth: minResizeWidth ?? this.minResizeWidth,
-    maxResizeWidth: maxResizeWidth ?? this.maxResizeWidth,
-  );
 }

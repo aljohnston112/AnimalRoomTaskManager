@@ -14,6 +14,8 @@ import 'package:animal_room_task_manager/lab_management/lab_management_screen.da
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
+import 'package:animal_room_task_manager/query/query_model.dart';
+import 'package:animal_room_task_manager/query/query_repository.dart';
 import 'package:animal_room_task_manager/query/query_screen.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
@@ -48,6 +50,7 @@ Future<void> main() async {
         Provider.value(value: CensusRepository(database: database)),
         Provider.value(value: LabRepository(database: database)),
         Provider.value(value: FacilityRepository(database: database)),
+        Provider.value(value: QueryRepository(database: database)),
         Provider.value(value: RecordRepository(database: database)),
         Provider.value(value: RoomRepository(database: database)),
         Provider.value(value: RoomCheckRepository(database: database)),
