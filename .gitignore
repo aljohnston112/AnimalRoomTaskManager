@@ -46,3 +46,7 @@ app.*.map.json
 
 .env
 update.sql
+test_data
+test_data/*
+test_data/upload.sh
+test_data/testing_shell.sh

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:material_table_view/material_table_view.dart';
 import 'package:material_table_view/table_column_control_handles_popup_route.dart';

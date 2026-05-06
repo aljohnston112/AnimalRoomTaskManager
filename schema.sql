@@ -586,7 +586,8 @@ CREATE OR REPLACE FUNCTION submit_census(
     uid INTEGER,
     census_records JSONB -- Expected format: [{"a_id": int, "quantity": int}, ...]
 )
-    RETURNS INTEGER AS
+    RETURNS INTEGER
+    SET search_path TO public, auth, pg_temp AS
 $$
 DECLARE
     new_cid INTEGER;
@@ -1235,7 +1236,8 @@ GRANT EXECUTE ON FUNCTION public.edit_task_list(integer, text, task_frequency, j
 
 
 CREATE OR REPLACE FUNCTION reorder_tasks(payload jsonb)
-    RETURNS void AS
+    RETURNS void
+    SET search_path TO public, auth, pg_temp AS
 $$
 DECLARE
     tlid        int;
@@ -2008,7 +2010,7 @@ $$
                         LEFT JOIN quantitative_task_records qtr
                                   ON tr.tr_id = qtr.tr_id
                WHERE tr.rc_id = rcs.rc_id
-                 AND (start_date IS NOT NULL OR
+                 AND (start_date IS NULL OR
                       tr.date_time >= start_date)
                GROUP BY tr.date_time) tr_grouped
          ) slot_dates ON TRUE
