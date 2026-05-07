@@ -99,7 +99,7 @@ class RecordRepository {
           final rcid = record['rc_id'];
           final taskDB = record['task'];
           final tid = record['t_id'];
-          double? value = record['recorded_value'];
+          double? value = record['recorded_value']?.toDouble();
           final frequency = (taskDB['frequency'] as String).toTaskFrequency;
           date = normalizeDate(date, frequency);
           RoomCheckDate roomCheckDate = (
