@@ -37,11 +37,14 @@ class QueryModel {
     "Recorded Value",
   ];
 
+  final QueryRepository _repository;
   late final RefreshableNotifier<List<QueryData>> records;
   late final ValueNotifier<bool> isLoading;
   late List<QueryTableColumn> columns;
 
-  QueryModel({required QueryRepository queryRepository}) {
+  QueryModel(
+      {required QueryRepository queryRepository})
+      : _repository = queryRepository {
     queryRepository.loadAllRecords();
     isLoading = queryRepository.isLoading;
     records = queryRepository.recordsNotifier;
@@ -54,6 +57,10 @@ class QueryModel {
       for (final columnName in columnNames)
         QueryTableColumn(name: columnName, index: i++, width: 50, flex: 1),
     ];
+  }
+
+  int getMaxStringLength() {
+    return _repository.longestStringLength;
   }
 
   String getColumnFromRecord<T>(QueryData query, int columnIndex) {
@@ -103,13 +110,17 @@ class QueryModel {
       records.value,
       compare: (q1, q2) {
         return Comparable.compare(
-              getSortColumnFromRecord(q1, column),
-              getSortColumnFromRecord(q2, column),
-            ) *
+          getSortColumnFromRecord(q1, column),
+          getSortColumnFromRecord(q2, column),
+        ) *
             multiplier;
       },
     );
     records.refresh();
+  }
+
+  void applyDateFilter(DateTime start, DateTime end) {
+    // TODO
   }
 }
 
@@ -141,15 +152,16 @@ class QueryTableColumn extends TableColumn {
     double? translation,
     double? minResizeWidth,
     double? maxResizeWidth,
-  }) => QueryTableColumn(
-    index: index,
-    name: name,
-    width: width ?? this.width,
-    freezePriority: freezePriority ?? this.freezePriority,
-    sticky: sticky ?? this.sticky,
-    flex: flex ?? this.flex,
-    translation: translation ?? this.translation,
-    minResizeWidth: minResizeWidth ?? this.minResizeWidth,
-    maxResizeWidth: maxResizeWidth ?? this.maxResizeWidth,
-  );
+  }) =>
+      QueryTableColumn(
+        index: index,
+        name: name,
+        width: width ?? this.width,
+        freezePriority: freezePriority ?? this.freezePriority,
+        sticky: sticky ?? this.sticky,
+        flex: flex ?? this.flex,
+        translation: translation ?? this.translation,
+        minResizeWidth: minResizeWidth ?? this.minResizeWidth,
+        maxResizeWidth: maxResizeWidth ?? this.maxResizeWidth,
+      );
 }

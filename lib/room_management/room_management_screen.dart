@@ -17,11 +17,13 @@ class RoomManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Room Editor",
+      makeScrollable: false,
       child: Column(
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Expanded(child:
           ListenableBuilder(
             listenable: _model,
             builder: (context, _) {
@@ -49,6 +51,7 @@ class RoomManagementScreen extends StatelessWidget {
                 ),
               );
             },
+          ),
           ),
           padding8,
           Row(

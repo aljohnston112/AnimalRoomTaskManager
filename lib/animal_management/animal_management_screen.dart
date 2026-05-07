@@ -12,7 +12,7 @@ class AnimalManagementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return buildScaffold(
-      title: "Animal Editor",
+      title: "Species Editor",
       child: Column(
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -55,7 +55,7 @@ class AnimalManagementScreen extends StatelessWidget {
                 onPressed: () async {
                   await navigate(AddAnimalPage(model: _model));
                 },
-                child: Text("Add New Animal"),
+                child: Text("Add New Species"),
               ),
             ],
           ),
@@ -117,15 +117,15 @@ class AddAnimalState extends State<AddAnimalPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  mediumTitleText(context, "Animal"),
+                  mediumTitleText(context, "Species"),
                   TextFormField(
                     controller: _animalController,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'Please enter an animal';
+                        return 'Please enter a species';
                       }
                       if (widget._model.animalExists(value)) {
-                        return 'There is already an animal with that name';
+                        return 'There is already a species with that name';
                       }
                       return null;
                     },

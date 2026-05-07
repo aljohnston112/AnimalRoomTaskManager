@@ -92,7 +92,7 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                mediumTitleText(context, "Animal"),
+                mediumTitleText(context, "Species"),
                 constrainTextBoxWidth(
                   ValueListenableBuilder(
                     valueListenable: widget._model.animals,
@@ -286,7 +286,7 @@ class CensusRecordList extends StatelessWidget {
     return ListTile(
       title: mediumTitleText(
         context,
-        "Animal: ${census.animal.name}\nQuantity: ${census.quantity}",
+        "Species: ${census.animal.name}\nQuantity: ${census.quantity}",
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

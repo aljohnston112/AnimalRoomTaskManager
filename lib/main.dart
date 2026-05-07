@@ -136,7 +136,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
             ),
           );
         },
-        child: Text("Animal Editor"),
+        child: Text("Species Editor"),
       ),
       padding8,
       FilledButton(

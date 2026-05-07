@@ -37,13 +37,17 @@ class QueryTable extends StatefulWidget {
 
 class _QueryTableState extends State<QueryTable>
     with TickerProviderStateMixin<QueryTable> {
-  final selection = <int>{};
+  int? selectedRow;
+  DateTime? _startDate;
+  DateTime? _endDate;
 
-  final cellPadding = const EdgeInsets.only(left: 8.0);
+  final cellPadding = const EdgeInsetsGeometry.all(8);
   final cellAlignment = Alignment.centerLeft;
 
-  double get _rowHeight =>
-      20.0 + 48.0 + 4 * Theme.of(context).visualDensity.vertical;
+  double get _headerHeight =>
+      109.0 + 16 * Theme.of(context).visualDensity.vertical;
+
+  final _textEditingController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -53,29 +57,94 @@ class _QueryTableState extends State<QueryTable>
           border: Border(
             top: Divider.createBorderSide(context),
             left: Divider.createBorderSide(context),
+            right: Divider.createBorderSide(context),
           ),
         ),
         child: ListenableBuilder(
           listenable: widget._model.records,
           builder: (_, _) {
-            return TableView.builder(
-              columns: widget._model.columns,
-              style: TableViewStyle(
-                scrollbars: const TableViewScrollbarsStyle.symmetric(
-                  TableViewScrollbarStyle(
-                    interactive: true,
-                    enabled: TableViewScrollbarEnabled.always,
-                    thumbVisibility: WidgetStatePropertyAll(true),
-                    trackVisibility: WidgetStatePropertyAll(true),
+            return Column(
+              children: [
+                // Row(
+                //   children: [
+                //     constrainTextBoxWidth(
+                //       Column(
+                //         children: [
+                //           ListTile(
+                //             title: Text(
+                //               "From: ${_startDate?.toLocal().toDisplayString() ?? 'Select'}",
+                //             ),
+                //             trailing: Icon(Icons.calendar_today),
+                //             onTap: () => _pickDate(isStart: true),
+                //           ),
+                //           ListTile(
+                //             title: Text(
+                //               "To: ${_endDate?.toLocal().toDisplayString() ?? 'Select'}",
+                //             ),
+                //             trailing: Icon(Icons.calendar_today),
+                //             onTap: () => _pickDate(isStart: false),
+                //           ),
+                //           ElevatedButton(
+                //             onPressed: () {},
+                //             child: Text("Apply Filter"),
+                //           ),
+                //         ],
+                //       ),
+                //     ),
+                //     constrainTextBoxWidth(
+                //       TextField(
+                //         controller: _textEditingController,
+                //         decoration: InputDecoration(
+                //           hintText: 'Search values',
+                //           suffixIcon: IconButton(
+                //             icon: Icon(Icons.clear),
+                //             onPressed: () => _textEditingController.clear(),
+                //           ),
+                //         ),
+                //       ),
+                //     ),
+                //   ],
+                // ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final double totalWidth = constraints.maxWidth;
+                      final int columnCount = widget._model.columns.length;
+                      final double columnWidth = totalWidth / columnCount;
+                      // Estimates
+                      const double charWidth = 8.0;
+                      const double lineHeight = 20.0;
+                      final padding = cellPadding.horizontal;
+                      final lines =
+                          (widget._model.getMaxStringLength() *
+                                  charWidth /
+                                  (columnWidth - padding))
+                              .ceil();
+                      final rowHeight = (lines * lineHeight) + padding;
+                      return TableView.builder(
+                        columns: widget._model.columns,
+                        style: TableViewStyle(
+                          scrollbars: const TableViewScrollbarsStyle.symmetric(
+                            TableViewScrollbarStyle(
+                              interactive: true,
+                              enabled: TableViewScrollbarEnabled.always,
+                              thumbVisibility: WidgetStatePropertyAll(true),
+                              trackVisibility: WidgetStatePropertyAll(true),
+                            ),
+                          ),
+                        ),
+                        rowHeight: rowHeight,
+                        rowCount: widget._model.records.value.length,
+                        rowBuilder: createRowBuilder(context),
+                        headerBuilder: _headerBuilder,
+                        headerHeight: _headerHeight,
+                        bodyContainerBuilder: (context, bodyContainer) =>
+                            bodyContainer,
+                      );
+                    },
                   ),
                 ),
-              ),
-              rowHeight: _rowHeight,
-              rowCount: widget._model.records.value.length,
-              rowBuilder: createRowBuilder(context),
-              headerBuilder: _headerBuilder,
-              headerHeight: _rowHeight,
-              bodyContainerBuilder: (context, bodyContainer) => bodyContainer,
+              ],
             );
           },
         ),
@@ -87,9 +156,13 @@ class _QueryTableState extends State<QueryTable>
     BuildContext context,
     TableRowContentBuilder contentBuilder,
   ) => contentBuilder(context, (context, column) {
+    var columnName = widget._model.columns[column].name;
     return Container(
       decoration: BoxDecoration(
-        border: Border(right: Divider.createBorderSide(context)),
+        border: Border(
+          right: Divider.createBorderSide(context),
+          top: Divider.createBorderSide(context),
+        ),
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -97,32 +170,29 @@ class _QueryTableState extends State<QueryTable>
           onTap: () => Navigator.of(
             context,
           ).push(_createColumnControlsRoute(context, column)),
-          child: Column(
-            children: [
-              Padding(
-                padding: cellPadding,
-                child: Align(
-                  alignment: cellAlignment,
-                  child: Text(widget._model.columns[column].name),
+          child: Padding(
+            padding: cellPadding,
+            child: Column(
+              children: [
+                Align(alignment: cellAlignment, child: Text(columnName)),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        widget._model.sortColumn(column, isUp: true);
+                      },
+                      icon: Icon(Icons.arrow_upward),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        widget._model.sortColumn(column, isUp: false);
+                      },
+                      icon: Icon(Icons.arrow_downward),
+                    ),
+                  ],
                 ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      widget._model.sortColumn(column, isUp: true);
-                    },
-                    icon: Icon(Icons.arrow_upward),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      widget._model.sortColumn(column, isUp: false);
-                    },
-                    icon: Icon(Icons.arrow_downward),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -172,7 +242,7 @@ class _QueryTableState extends State<QueryTable>
       decoration: BoxDecoration(
         border: Border(right: Divider.createBorderSide(context)),
       ),
-      child: child,
+      child: Padding(padding: cellPadding, child: child),
     ),
   );
 
@@ -182,25 +252,13 @@ class _QueryTableState extends State<QueryTable>
     return (context, row, TableRowContentBuilder contentBuilder) {
       row += start;
 
-      final selected = selection.contains(row);
+      final selected = selectedRow == row;
 
       Widget cellBuilder(BuildContext context, int column) {
-        var cellIndex =
-            (widget._model.columns.length * row) + column;
-        return Padding(
-          padding: cellPadding,
-          child: _wrapCell(
-            cellIndex,
-            Align(
-              alignment: cellAlignment,
-              child: Text(
-                widget._model.getRecordAt(column, row),
-                overflow: TextOverflow.fade,
-                maxLines: 1,
-                softWrap: false,
-              ),
-            ),
-          ),
+        var cellIndex = (widget._model.columns.length * row) + column;
+        return _wrapCell(
+          cellIndex,
+          Text(widget._model.getRecordAt(column, row)),
         );
       }
 
@@ -214,8 +272,7 @@ class _QueryTableState extends State<QueryTable>
           ),
           child: InkWell(
             onTap: () => setState(() {
-              selection.clear();
-              selection.add(row);
+              selectedRow = row;
             }),
             child: content,
           ),

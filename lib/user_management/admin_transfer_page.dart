@@ -21,22 +21,21 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Admin Transfer",
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            constrainToPhoneWidth(_buildDropdownForUserList()),
-            constrainToPhoneWidth(
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildCancelButton(context),
-                  _buildConfirmButton(context),
-                ],
-              ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          constrainToPhoneWidth(_buildDropdownForUserList()),
+          padding8,
+          constrainToPhoneWidth(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildCancelButton(context),
+                _buildConfirmButton(context),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
