@@ -38,16 +38,20 @@ class QueryTable extends StatefulWidget {
 
 class _QueryTableState extends State<QueryTable>
     with TickerProviderStateMixin<QueryTable> {
+  static const arrowHeight = 41;
+  final _headerHeight = arrowHeight + estimatedLineHeight;
   final cellAlignment = Alignment.centerLeft;
 
   int? selectedRow;
+
   DateTime? _startDate;
   DateTime? _endDate;
 
-  double get _headerHeight =>
-      109.0 + 16 * Theme.of(context).visualDensity.vertical;
+  double? _startValue;
+  double? _endValue;
 
-  final _textEditingController = TextEditingController();
+  final TextEditingController _minController = TextEditingController();
+  final TextEditingController _maxController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -66,10 +70,12 @@ class _QueryTableState extends State<QueryTable>
             return Column(
               children: [
                 Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.end,
                   children: [
                     constrainTextBoxWidth(
                       Column(
                         children: [
+                          padding8,
                           ListTile(
                             title: Text(
                               "From: ${_startDate?.toLocal().toDisplayString() ?? 'Select'}",
@@ -77,6 +83,7 @@ class _QueryTableState extends State<QueryTable>
                             trailing: Icon(Icons.calendar_today),
                             onTap: () => _pickDate(isStart: true),
                           ),
+                          padding8,
                           ListTile(
                             title: Text(
                               "To: ${_endDate?.toLocal().toDisplayString() ?? 'Select'}",
@@ -84,23 +91,62 @@ class _QueryTableState extends State<QueryTable>
                             trailing: Icon(Icons.calendar_today),
                             onTap: () => _pickDate(isStart: false),
                           ),
-                          ElevatedButton(
+                          padding8,
+                          FilledButton(
                             onPressed: () {},
                             child: Text("Apply Filter"),
                           ),
+                          padding8,
                         ],
                       ),
                     ),
-                    constrainTextBoxWidth(
-                      TextField(
-                        controller: _textEditingController,
-                        decoration: InputDecoration(
-                          hintText: 'Search values',
-                          suffixIcon: IconButton(
-                            icon: Icon(Icons.clear),
-                            onPressed: () => _textEditingController.clear(),
-                          ),
+
+                    padding8,
+                    Column(
+                      children: [
+                        FilledButton(
+                          onPressed: () {
+                            _showFilterPopup(RowType.room);
+                          },
+                          child: Text("Open Room Filter"),
                         ),
+                        padding8,
+                      ],
+                    ),
+                    padding8,
+
+                    constrainTextBoxWidth(
+                      Column(
+                        children: [
+                          padding8,
+                          TextFormField(
+                            controller: _minController,
+                            decoration: const InputDecoration(
+                              labelText: "Minimum Value",
+                              hintText: "-inf",
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                          ),
+                          padding8,
+                          TextFormField(
+                            controller: _maxController,
+                            decoration: const InputDecoration(
+                              labelText: "Maximum Value",
+                              hintText: "inf",
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                          ),
+                          padding8,
+                          FilledButton(
+                            onPressed: () {},
+                            child: const Text("Apply Value Filter"),
+                          ),
+                          padding8,
+                        ],
                       ),
                     ),
                   ],
@@ -108,21 +154,13 @@ class _QueryTableState extends State<QueryTable>
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      // final double totalWidth = constraints.maxWidth;
-                      // final int columnCount = widget._model.columns.length;
-                      // final double columnWidth = totalWidth / columnCount;
-                      // final padding = widget._model.cellPadding.horizontal;
-                      // final lines =
-                      //     (widget._model.getMaxStringLength() *
-                      //             estimatedCharacterWidth /
-                      //             (columnWidth - padding))
-                      //         .ceil();
-                      // final rowHeight = (lines * estimatedLineHeight) + padding;
                       return ListenableBuilder(
                         listenable: widget._model.longestStringListenable,
                         builder: (_, _) {
                           return TableView.builder(
-                            columns: widget._model.getNewColumns(DefaultTextStyle.of(context)),
+                            columns: widget._model.getNewColumns(
+                              DefaultTextStyle.of(context),
+                            ),
                             style: TableViewStyle(
                               scrollbars:
                                   const TableViewScrollbarsStyle.symmetric(
@@ -154,6 +192,46 @@ class _QueryTableState extends State<QueryTable>
           },
         ),
       ),
+    );
+  }
+
+  void _showFilterPopup(RowType rowType) {
+    var model = widget._model;
+    final options = model.getFilterOptionsForColumn(rowType);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Filter ${rowType.name}"),
+        content:
+        Scaffold(
+          body: SafeArea(
+          child: Padding(
+            padding: EdgeInsetsGeometry.all(64),
+            child: Expanded(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  return CheckboxListTile(
+                    title: Text(options[index]),
+                    value: null,
+                    onChanged: (bool? isChecked) {
+                      model.toggleFilter(rowType, options[index], isChecked ?? false);
+                  },
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Done"),
+          ),
+        ],
+      )
     );
   }
 
@@ -199,36 +277,36 @@ class _QueryTableState extends State<QueryTable>
       ),
       child: Material(
         type: MaterialType.transparency,
-        child: InkWell(
-          onTap: () => Navigator.of(
-            context,
-          ).push(_createColumnControlsRoute(context, column)),
-          child: Padding(
-            padding: cellPadding,
-            child: Column(
-              children: [
-                Align(alignment: cellAlignment, child: Text(columnName)),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {
-                        widget._model.sortColumn(column, isUp: true);
-                      },
-                      icon: Icon(Icons.arrow_upward),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        widget._model.sortColumn(column, isUp: false);
-                      },
-                      icon: Icon(Icons.arrow_downward),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+        // child: InkWell(
+        //   onTap: () => Navigator.of(
+        //     context,
+        //   ).push(_createColumnControlsRoute(context, column)),
+        child: Padding(
+          padding: cellPadding,
+          child: Column(
+            children: [
+              Align(alignment: cellAlignment, child: Text(columnName)),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      widget._model.sortColumn(column, isUp: true);
+                    },
+                    icon: Icon(Icons.arrow_upward),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      widget._model.sortColumn(column, isUp: false);
+                    },
+                    icon: Icon(Icons.arrow_downward),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
+      // ),
     );
   });
 
@@ -307,5 +385,12 @@ class _QueryTableState extends State<QueryTable>
         ),
       );
     };
+  }
+
+  @override
+  void dispose() {
+    _minController.dispose();
+    _maxController.dispose();
+    super.dispose();
   }
 }

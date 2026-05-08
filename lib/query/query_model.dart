@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:material_table_view/material_table_view.dart' show TableColumn;
 
-const double estimatedCharacterWidth = 10.0;
 final cellPadding = const EdgeInsetsGeometry.all(8);
 final double estimatedLineHeight = 20.0 + cellPadding.horizontal;
 
@@ -27,6 +26,26 @@ class QueryData {
     required this.roomName,
     required this.date,
   });
+
+  dynamic getRowAsValue(RowType rowType) {
+    return switch (rowType) {
+      RowType.date => date,
+      RowType.room => roomName,
+      RowType.user => userName,
+      RowType.task => taskName,
+      RowType.value => value,
+    };
+  }
+
+  String getRowAsDisplayString(RowType rowType) {
+    return switch (rowType) {
+      RowType.date => dateString,
+      RowType.room => roomName,
+      RowType.user => userName,
+      RowType.task => taskName,
+      RowType.value => valueString,
+    };
+  }
 }
 
 class RefreshableNotifier<T> extends ValueNotifier<T> {
@@ -36,30 +55,14 @@ class RefreshableNotifier<T> extends ValueNotifier<T> {
 }
 
 class QueryModel {
-  static const Map<RowType, String> rowTypeToColumnName = {
-    RowType.date: "Record Date",
-    RowType.room: "Room Name",
-    RowType.user: "User Name",
-    RowType.task: "Task",
-    RowType.value: "Recorded Value",
-  };
 
   final QueryRepository _repository;
-  late final Listenable longestStringListenable = Listenable.merge([
-    _repository.longestDate,
-    _repository.longestRoom,
-    _repository.longestTask,
-    _repository.longestUser,
-    _repository.longestValue,
-  ]);
+  late final Listenable longestStringListenable = Listenable.merge(
+    _repository.rowTypeToLongestStringListenables.values,
+  );
 
-  late final Map<RowType, ValueListenable<String>> rowTypeToLongestString = {
-    RowType.date: _repository.longestDate,
-    RowType.room: _repository.longestRoom,
-    RowType.user: _repository.longestUser,
-    RowType.task: _repository.longestTask,
-    RowType.value: _repository.longestValue,
-  };
+  late final Map<RowType, ValueListenable<String>> rowTypeToLongestString =
+      _repository.rowTypeToLongestStringListenables;
 
   late final RefreshableNotifier<List<QueryData>> records;
   late final ValueNotifier<bool> isLoading;
@@ -77,6 +80,7 @@ class QueryModel {
       text: TextSpan(text: text, style: textStyle.style),
       textDirection: TextDirection.ltr,
     )..layout();
+    // + 1 is needed to prevent overflow; ceil did not prevent it
     return textPainter.width + cellPadding.horizontal + 1;
   }
 
@@ -84,9 +88,9 @@ class QueryModel {
 
   List<QueryTableColumn> getNewColumns(DefaultTextStyle textStyle) {
     var i = 0;
-    columns = rowTypeToColumnName.entries.map((entry) {
-      final rowType = entry.key;
-      final columnName = entry.value;
+    columns = RowType.values.map((v) {
+      final rowType = v;
+      final columnName = v.columnName;
       final minWidth = max(
         calculatePixelWidth(textStyle, columnName),
         sortingArrowsWidth,
@@ -105,55 +109,23 @@ class QueryModel {
     return columns;
   }
 
-  String getColumnFromRecord<T>(QueryData query, int columnIndex) {
-    switch (columnIndex) {
-      case 0:
-        return query.dateString;
-      case 1:
-        return query.roomName;
-      case 2:
-        return query.userName;
-      case 3:
-        return query.taskName;
-      case 4:
-        return query.valueString;
-      default:
-        throw Exception("Column out of range");
-    }
-  }
-
-  dynamic getSortColumnFromRecord<T>(QueryData query, int columnIndex) {
-    switch (columnIndex) {
-      case 0:
-        return query.date;
-      case 1:
-        return query.roomName;
-      case 2:
-        return query.userName;
-      case 3:
-        return query.taskName;
-      case 4:
-        return query.value;
-      default:
-        throw Exception("Column out of range");
-    }
-  }
-
   String getRecordAt(int columnIndex, int rowIndex) {
     if (rowIndex >= 0 && rowIndex < records.value.length) {
-      return getColumnFromRecord(records.value[rowIndex], columnIndex);
+      final rowType = RowType.values[columnIndex];
+      return records.value[rowIndex].getRowAsDisplayString(rowType);
     }
     return '';
   }
 
-  void sortColumn(int column, {required bool isUp}) {
+  void sortColumn(int columnIndex, {required bool isUp}) {
+    final rowType = RowType.values[columnIndex];
     final multiplier = isUp ? 1 : -1;
     mergeSort<QueryData>(
       records.value,
       compare: (q1, q2) {
         return Comparable.compare(
-              getSortColumnFromRecord(q1, column),
-              getSortColumnFromRecord(q2, column),
+              q1.getRowAsValue(rowType),
+              q2.getRowAsValue(rowType),
             ) *
             multiplier;
       },
@@ -161,8 +133,16 @@ class QueryModel {
     records.refresh();
   }
 
+  List<String> getFilterOptionsForColumn(RowType rowType) {
+    return getSortedStringPoolForType(rowType);
+  }
+
   void applyDateFilter(DateTime start, DateTime end) {
     // TODO
+  }
+
+  void toggleFilter(RowType rowType, String filterString, bool add) {
+
   }
 }
 

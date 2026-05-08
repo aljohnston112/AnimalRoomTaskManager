@@ -1,24 +1,27 @@
-import 'dart:math';
-
 import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:flutter/foundation.dart';
 
-final Set<String> _dateStringPool = {};
-final Set<String> _roomStringPool = {};
-final Set<String> _userStringPool = {};
-final Set<String> _taskStringPool = {};
-final Set<String> _valueStringPool = {};
+enum RowType {
+  date("Record Date"),
+  room("Room Name"),
+  user("User Name"),
+  task("Task"),
+  value("Recorded Value");
 
-enum RowType { date, room, user, task, value }
+  final String columnName;
+
+  const RowType(this.columnName);
+}
 
 final Map<RowType, Set<String>> _rowTypeToStringPool = {
-  RowType.date: _dateStringPool,
-  RowType.room: _roomStringPool,
-  RowType.user: _userStringPool,
-  RowType.task: _taskStringPool,
-  RowType.value: _valueStringPool,
+  for (var type in RowType.values) type: {},
 };
+
+List<String> getSortedStringPoolForType(RowType rowType) {
+  final pool = _rowTypeToStringPool[rowType] ?? {};
+  return pool.toList()..sort();
+}
 
 class QueryRepository {
   final Database _database;
@@ -27,35 +30,19 @@ class QueryRepository {
       RefreshableNotifier([]);
   final ValueNotifier<bool> isLoading = ValueNotifier(true);
 
-  final ValueNotifier<String> _longestDate = ValueNotifier<String>("");
-  late ValueListenable<String> longestDate = _longestDate;
-
-  final ValueNotifier<String> _longestRoom = ValueNotifier<String>("");
-  late ValueListenable<String> longestRoom = _longestRoom;
-
-  final ValueNotifier<String> _longestUser = ValueNotifier<String>("");
-  late ValueListenable<String> longestUser = _longestUser;
-
-  final ValueNotifier<String> _longestTask = ValueNotifier<String>("");
-  late ValueListenable<String> longestTask = _longestTask;
-
-  final ValueNotifier<String> _longestValue = ValueNotifier<String>("");
-  late ValueListenable<String> longestValue = _longestValue;
-
-  late final Map<RowType, ValueNotifier<String>>
-  rowTypeToLongestStringNotifiers = {
-    RowType.date: _longestDate,
-    RowType.room: _longestRoom,
-    RowType.user: _longestUser,
-    RowType.task: _longestTask,
-    RowType.value: _longestValue,
+  final Map<RowType, ValueNotifier<String>> _rowTypeToLongestStringNotifiers = {
+    for (var type in RowType.values) type: ValueNotifier<String>(""),
   };
+
+  late final Map<RowType, ValueListenable<String>>
+  rowTypeToLongestStringListenables = Map.unmodifiable(
+    _rowTypeToLongestStringNotifiers,
+  );
 
   QueryRepository({required Database database}) : _database = database;
 
   String _intern(RowType rowType, String string) {
-
-    final longestStringNotifier = rowTypeToLongestStringNotifiers[rowType]!;
+    final longestStringNotifier = _rowTypeToLongestStringNotifiers[rowType]!;
     if (longestStringNotifier.value.length < string.length) {
       longestStringNotifier.value = string;
     }
@@ -103,6 +90,9 @@ class QueryRepository {
 extension DateTimeExtension on DateTime {
   String toDisplayString() {
     DateTime d = toLocal();
-    return "${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}";
+    return "${d.month.toString().padLeft(2, '0')}/"
+        "${d.day.toString().padLeft(2, '0')}/"
+        "${d.year} ${d.hour.toString().padLeft(2, '0')}:"
+        "${d.minute.toString().padLeft(2, '0')}";
   }
 }
