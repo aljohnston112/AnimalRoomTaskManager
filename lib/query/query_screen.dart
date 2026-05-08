@@ -1,4 +1,5 @@
 import 'package:animal_room_task_manager/query/query_model.dart';
+import 'package:animal_room_task_manager/query/query_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:material_table_view/material_table_view.dart';
 import 'package:material_table_view/table_column_control_handles_popup_route.dart';
@@ -37,12 +38,11 @@ class QueryTable extends StatefulWidget {
 
 class _QueryTableState extends State<QueryTable>
     with TickerProviderStateMixin<QueryTable> {
+  final cellAlignment = Alignment.centerLeft;
+
   int? selectedRow;
   DateTime? _startDate;
   DateTime? _endDate;
-
-  final cellPadding = const EdgeInsetsGeometry.all(8);
-  final cellAlignment = Alignment.centerLeft;
 
   double get _headerHeight =>
       109.0 + 16 * Theme.of(context).visualDensity.vertical;
@@ -65,81 +65,86 @@ class _QueryTableState extends State<QueryTable>
           builder: (_, _) {
             return Column(
               children: [
-                // Row(
-                //   children: [
-                //     constrainTextBoxWidth(
-                //       Column(
-                //         children: [
-                //           ListTile(
-                //             title: Text(
-                //               "From: ${_startDate?.toLocal().toDisplayString() ?? 'Select'}",
-                //             ),
-                //             trailing: Icon(Icons.calendar_today),
-                //             onTap: () => _pickDate(isStart: true),
-                //           ),
-                //           ListTile(
-                //             title: Text(
-                //               "To: ${_endDate?.toLocal().toDisplayString() ?? 'Select'}",
-                //             ),
-                //             trailing: Icon(Icons.calendar_today),
-                //             onTap: () => _pickDate(isStart: false),
-                //           ),
-                //           ElevatedButton(
-                //             onPressed: () {},
-                //             child: Text("Apply Filter"),
-                //           ),
-                //         ],
-                //       ),
-                //     ),
-                //     constrainTextBoxWidth(
-                //       TextField(
-                //         controller: _textEditingController,
-                //         decoration: InputDecoration(
-                //           hintText: 'Search values',
-                //           suffixIcon: IconButton(
-                //             icon: Icon(Icons.clear),
-                //             onPressed: () => _textEditingController.clear(),
-                //           ),
-                //         ),
-                //       ),
-                //     ),
-                //   ],
-                // ),
+                Wrap(
+                  children: [
+                    constrainTextBoxWidth(
+                      Column(
+                        children: [
+                          ListTile(
+                            title: Text(
+                              "From: ${_startDate?.toLocal().toDisplayString() ?? 'Select'}",
+                            ),
+                            trailing: Icon(Icons.calendar_today),
+                            onTap: () => _pickDate(isStart: true),
+                          ),
+                          ListTile(
+                            title: Text(
+                              "To: ${_endDate?.toLocal().toDisplayString() ?? 'Select'}",
+                            ),
+                            trailing: Icon(Icons.calendar_today),
+                            onTap: () => _pickDate(isStart: false),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {},
+                            child: Text("Apply Filter"),
+                          ),
+                        ],
+                      ),
+                    ),
+                    constrainTextBoxWidth(
+                      TextField(
+                        controller: _textEditingController,
+                        decoration: InputDecoration(
+                          hintText: 'Search values',
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.clear),
+                            onPressed: () => _textEditingController.clear(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final double totalWidth = constraints.maxWidth;
-                      final int columnCount = widget._model.columns.length;
-                      final double columnWidth = totalWidth / columnCount;
-                      // Estimates
-                      const double charWidth = 8.0;
-                      const double lineHeight = 20.0;
-                      final padding = cellPadding.horizontal;
-                      final lines =
-                          (widget._model.getMaxStringLength() *
-                                  charWidth /
-                                  (columnWidth - padding))
-                              .ceil();
-                      final rowHeight = (lines * lineHeight) + padding;
-                      return TableView.builder(
-                        columns: widget._model.columns,
-                        style: TableViewStyle(
-                          scrollbars: const TableViewScrollbarsStyle.symmetric(
-                            TableViewScrollbarStyle(
-                              interactive: true,
-                              enabled: TableViewScrollbarEnabled.always,
-                              thumbVisibility: WidgetStatePropertyAll(true),
-                              trackVisibility: WidgetStatePropertyAll(true),
+                      // final double totalWidth = constraints.maxWidth;
+                      // final int columnCount = widget._model.columns.length;
+                      // final double columnWidth = totalWidth / columnCount;
+                      // final padding = widget._model.cellPadding.horizontal;
+                      // final lines =
+                      //     (widget._model.getMaxStringLength() *
+                      //             estimatedCharacterWidth /
+                      //             (columnWidth - padding))
+                      //         .ceil();
+                      // final rowHeight = (lines * estimatedLineHeight) + padding;
+                      return ListenableBuilder(
+                        listenable: widget._model.longestStringListenable,
+                        builder: (_, _) {
+                          return TableView.builder(
+                            columns: widget._model.getNewColumns(DefaultTextStyle.of(context)),
+                            style: TableViewStyle(
+                              scrollbars:
+                                  const TableViewScrollbarsStyle.symmetric(
+                                    TableViewScrollbarStyle(
+                                      interactive: true,
+                                      enabled: TableViewScrollbarEnabled.always,
+                                      thumbVisibility: WidgetStatePropertyAll(
+                                        true,
+                                      ),
+                                      trackVisibility: WidgetStatePropertyAll(
+                                        true,
+                                      ),
+                                    ),
+                                  ),
                             ),
-                          ),
-                        ),
-                        rowHeight: rowHeight,
-                        rowCount: widget._model.records.value.length,
-                        rowBuilder: createRowBuilder(context),
-                        headerBuilder: _headerBuilder,
-                        headerHeight: _headerHeight,
-                        bodyContainerBuilder: (context, bodyContainer) =>
-                            bodyContainer,
+                            rowHeight: estimatedLineHeight,
+                            rowCount: widget._model.records.value.length,
+                            rowBuilder: createRowBuilder(context),
+                            headerBuilder: _headerBuilder,
+                            headerHeight: _headerHeight,
+                          );
+                        },
                       );
                     },
                   ),
@@ -150,6 +155,34 @@ class _QueryTableState extends State<QueryTable>
         ),
       ),
     );
+  }
+
+  Future<void> _pickDate({required bool isStart}) async {
+    final DateTime initial =
+        (isStart ? _startDate : _endDate) ?? DateTime.now();
+
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(DateTime.now().year - 7),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        if (isStart) {
+          _startDate = picked;
+          if (_endDate != null && _startDate!.isAfter(_endDate!)) {
+            _endDate = null;
+          }
+        } else {
+          _endDate = picked;
+          if (_startDate != null && _endDate!.isBefore(_startDate!)) {
+            _startDate = null;
+          }
+        }
+      });
+    }
   }
 
   Widget _headerBuilder(
@@ -224,23 +257,18 @@ class _QueryTableState extends State<QueryTable>
     );
   }
 
-  Widget _wrapRow(int index, Widget child) => KeyedSubtree(
-    key: ValueKey(index),
-    child: DecoratedBox(
-      position: DecorationPosition.foreground,
-      decoration: BoxDecoration(
-        border: Border(bottom: Divider.createBorderSide(context)),
-      ),
-      child: child,
-    ),
-  );
+  Widget _wrapRow(int index, Widget child) =>
+      KeyedSubtree(key: ValueKey(index), child: child);
 
   Widget _wrapCell(int index, Widget child) => KeyedSubtree(
     key: ValueKey(index),
     child: DecoratedBox(
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
-        border: Border(right: Divider.createBorderSide(context)),
+        border: Border(
+          right: Divider.createBorderSide(context),
+          bottom: Divider.createBorderSide(context),
+        ),
       ),
       child: Padding(padding: cellPadding, child: child),
     ),

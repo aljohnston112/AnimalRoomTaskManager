@@ -1,6 +1,13 @@
+import 'dart:math';
+
 import 'package:animal_room_task_manager/query/query_repository.dart';
 import 'package:flutter/foundation.dart';
-import 'package:material_table_view/src/table_column.dart';
+import 'package:flutter/material.dart';
+import 'package:material_table_view/material_table_view.dart' show TableColumn;
+
+const double estimatedCharacterWidth = 10.0;
+final cellPadding = const EdgeInsetsGeometry.all(8);
+final double estimatedLineHeight = 20.0 + cellPadding.horizontal;
 
 class QueryData {
   final DateTime date;
@@ -29,38 +36,73 @@ class RefreshableNotifier<T> extends ValueNotifier<T> {
 }
 
 class QueryModel {
-  static const List<String> columnNames = [
-    "Record Date",
-    "Room Name",
-    "User Name",
-    "Task",
-    "Recorded Value",
-  ];
+  static const Map<RowType, String> rowTypeToColumnName = {
+    RowType.date: "Record Date",
+    RowType.room: "Room Name",
+    RowType.user: "User Name",
+    RowType.task: "Task",
+    RowType.value: "Recorded Value",
+  };
 
   final QueryRepository _repository;
+  late final Listenable longestStringListenable = Listenable.merge([
+    _repository.longestDate,
+    _repository.longestRoom,
+    _repository.longestTask,
+    _repository.longestUser,
+    _repository.longestValue,
+  ]);
+
+  late final Map<RowType, ValueListenable<String>> rowTypeToLongestString = {
+    RowType.date: _repository.longestDate,
+    RowType.room: _repository.longestRoom,
+    RowType.user: _repository.longestUser,
+    RowType.task: _repository.longestTask,
+    RowType.value: _repository.longestValue,
+  };
+
   late final RefreshableNotifier<List<QueryData>> records;
   late final ValueNotifier<bool> isLoading;
   late List<QueryTableColumn> columns;
 
-  QueryModel(
-      {required QueryRepository queryRepository})
-      : _repository = queryRepository {
+  QueryModel({required QueryRepository queryRepository})
+    : _repository = queryRepository {
     queryRepository.loadAllRecords();
     isLoading = queryRepository.isLoading;
     records = queryRepository.recordsNotifier;
-    columns = _getColumns();
   }
 
-  List<QueryTableColumn> _getColumns() {
+  double calculatePixelWidth(DefaultTextStyle textStyle, String text) {
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: textStyle.style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    return textPainter.width + cellPadding.horizontal + 1;
+  }
+
+  static final sortingArrowsWidth = 97.0;
+
+  List<QueryTableColumn> getNewColumns(DefaultTextStyle textStyle) {
     var i = 0;
-    return [
-      for (final columnName in columnNames)
-        QueryTableColumn(name: columnName, index: i++, width: 50, flex: 1),
-    ];
-  }
-
-  int getMaxStringLength() {
-    return _repository.longestStringLength;
+    columns = rowTypeToColumnName.entries.map((entry) {
+      final rowType = entry.key;
+      final columnName = entry.value;
+      final minWidth = max(
+        calculatePixelWidth(textStyle, columnName),
+        sortingArrowsWidth,
+      );
+      final width = max(
+        calculatePixelWidth(textStyle, rowTypeToLongestString[rowType]!.value),
+        minWidth,
+      );
+      return QueryTableColumn(
+        name: columnName,
+        index: i++,
+        minResizeWidth: minWidth,
+        width: width,
+      );
+    }).toList();
+    return columns;
   }
 
   String getColumnFromRecord<T>(QueryData query, int columnIndex) {
@@ -110,9 +152,9 @@ class QueryModel {
       records.value,
       compare: (q1, q2) {
         return Comparable.compare(
-          getSortColumnFromRecord(q1, column),
-          getSortColumnFromRecord(q2, column),
-        ) *
+              getSortColumnFromRecord(q1, column),
+              getSortColumnFromRecord(q2, column),
+            ) *
             multiplier;
       },
     );
@@ -152,16 +194,15 @@ class QueryTableColumn extends TableColumn {
     double? translation,
     double? minResizeWidth,
     double? maxResizeWidth,
-  }) =>
-      QueryTableColumn(
-        index: index,
-        name: name,
-        width: width ?? this.width,
-        freezePriority: freezePriority ?? this.freezePriority,
-        sticky: sticky ?? this.sticky,
-        flex: flex ?? this.flex,
-        translation: translation ?? this.translation,
-        minResizeWidth: minResizeWidth ?? this.minResizeWidth,
-        maxResizeWidth: maxResizeWidth ?? this.maxResizeWidth,
-      );
+  }) => QueryTableColumn(
+    index: index,
+    name: name,
+    width: width ?? this.width,
+    freezePriority: freezePriority ?? this.freezePriority,
+    sticky: sticky ?? this.sticky,
+    flex: flex ?? this.flex,
+    translation: translation ?? this.translation,
+    minResizeWidth: minResizeWidth ?? this.minResizeWidth,
+    maxResizeWidth: maxResizeWidth ?? this.maxResizeWidth,
+  );
 }
