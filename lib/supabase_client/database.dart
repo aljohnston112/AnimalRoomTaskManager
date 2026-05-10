@@ -274,7 +274,8 @@ class Database {
         .from('all_task_records_view')
         .select()
         .gte('recorded_date', start)
-        .lt('recorded_date', end);  }
+        .lt('recorded_date', end);
+  }
 
   Future<List<PostgrestMap>> getRooms() async {
     return await _supabase.rpc('get_rooms_full');
@@ -627,18 +628,19 @@ class Database {
     }
   }
 
-  Future<void> submitCensus(
-    List<Census> censusEntries,
-    int rid,
-    int uid,
-  ) async {
+  Future<void> submitCensus(List<Census> censusEntries, int uid) async {
     await _supabase.rpc(
       'submit_census',
       params: {
-        'rid': rid,
         'uid': uid,
         'census_records': censusEntries
-            .map((e) => {'a_id': e.animal.aid, 'quantity': e.quantity})
+            .map(
+              (e) => {
+                'a_id': e.animal.aid,
+                'quantity': e.quantity,
+                'r_id': e.room.rid,
+              },
+            )
             .toList(),
       },
     );
@@ -822,5 +824,4 @@ class Database {
       },
     );
   }
-
 }

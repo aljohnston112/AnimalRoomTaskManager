@@ -32,9 +32,8 @@ class QueryRepository {
       _recordsNotifier;
 
   final RefreshableNotifier<List<QueryData>> _recordsUpdater =
-  RefreshableNotifier([]);
-  late final ValueListenable<List<QueryData>> recordsUpdater =
-      _recordsUpdater;
+      RefreshableNotifier([]);
+  late final ValueListenable<List<QueryData>> recordsUpdater = _recordsUpdater;
 
   final ValueNotifier<bool> _isLoading = ValueNotifier(true);
   late final ValueListenable<bool> isLoading = _isLoading;

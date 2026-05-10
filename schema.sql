@@ -495,31 +495,6 @@ CREATE POLICY "LabGroupMembershipsUpdateAuth"
     USING (check_is_admin())
     WITH CHECK (check_is_admin());
 
--- Censuses ----------------------------------------------------------
-CREATE TABLE IF NOT EXISTS censuses
-(
-    c_id      serial PRIMARY KEY,
-    date_time timestamptz                     NOT NULL,
-    r_id      integer REFERENCES rooms (r_id) NOT NULL,
-    u_id      integer REFERENCES users (u_id) NOT NULL
-);
-ALTER TABLE public.censuses
-    ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT ON TABLE public.censuses TO authenticated;
-GRANT USAGE, SELECT ON SEQUENCE censuses_c_id_seq TO authenticated;
-CREATE POLICY "CensusesSelectAuth"
-    ON public.censuses
-    AS PERMISSIVE
-    FOR SELECT
-    TO authenticated
-    USING (TRUE);
-CREATE POLICY "CensusesInsertAuth"
-    ON public.censuses
-    AS PERMISSIVE
-    FOR INSERT
-    TO authenticated
-    WITH CHECK (TRUE);
-
 -- Animals -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS animals
 (
@@ -562,52 +537,50 @@ SELECT SETVAL(
                COALESCE((SELECT MAX(r_id) FROM rooms), 0)
        );
 
--- Census Records ----------------------------------------------------
-CREATE TABLE IF NOT EXISTS census_records
+-- Censuses ----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS censuses
 (
-    c_id              integer REFERENCES censuses (c_id) NOT NULL,
-    a_id              integer REFERENCES animals (a_id)  NOT NULL,
-    number_of_animals smallint                           NOT NULL,
-    PRIMARY KEY (c_id, a_id)
+    c_id              serial PRIMARY KEY,
+    date_time         timestamptz                       NOT NULL,
+    r_id              integer REFERENCES rooms (r_id)   NOT NULL,
+    u_id              integer REFERENCES users (u_id)   NOT NULL,
+    a_id              integer REFERENCES animals (a_id) NOT NULL,
+    number_of_animals smallint                          NOT NULL
 );
-ALTER TABLE public.census_records
+ALTER TABLE public.censuses
     ENABLE ROW LEVEL SECURITY;
-GRANT SELECT, INSERT ON TABLE public.census_records TO authenticated;
-CREATE POLICY "CensusRecordsSelectAuth"
-    ON public.census_records
+GRANT SELECT, INSERT ON TABLE public.censuses TO authenticated;
+GRANT USAGE, SELECT ON SEQUENCE censuses_c_id_seq TO authenticated;
+CREATE POLICY "CensusesSelectAuth"
+    ON public.censuses
     AS PERMISSIVE
     FOR SELECT
     TO authenticated
     USING (TRUE);
-CREATE POLICY "CensusRecordsInsertAuth"
-    ON public.census_records
+CREATE POLICY "CensusesInsertAuth"
+    ON public.censuses
     AS PERMISSIVE
     FOR INSERT
     TO authenticated
     WITH CHECK (TRUE);
 
 CREATE OR REPLACE FUNCTION submit_census(
-    rid INTEGER,
     uid INTEGER,
-    census_records JSONB -- Expected format: [{"a_id": int, "quantity": int}, ...]
+    census_records JSONB -- Expected format: [{"r_id: int, "a_id": int, "quantity": int}, ...]
 )
-    RETURNS INTEGER
+    RETURNS SETOF INTEGER
     SET search_path TO public, auth, pg_temp AS
 $$
-DECLARE
-    new_cid INTEGER;
 BEGIN
-    INSERT INTO public.censuses (date_time, r_id, u_id)
-    VALUES (NOW(), rid, uid)
-    RETURNING c_id INTO new_cid;
-
-    INSERT INTO public.census_records (c_id, a_id, number_of_animals)
-    SELECT new_cid,
+    RETURN QUERY
+    INSERT INTO public.censuses (date_time, r_id, u_id, a_id, number_of_animals)
+    SELECT NOW(),
+           (item ->> 'r_id')::INTEGER,
+           uid,
            (item ->> 'a_id')::INTEGER,
            (item ->> 'quantity')::SMALLINT
-    FROM JSONB_ARRAY_ELEMENTS(census_records) AS item;
-
-    RETURN new_cid;
+    FROM JSONB_ARRAY_ELEMENTS(census_records) AS item
+    RETURNING c_id;
 END;
 $$ LANGUAGE plpgsql;
 

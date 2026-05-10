@@ -23,35 +23,35 @@ class RoomManagementScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Expanded(child:
-          ListenableBuilder(
-            listenable: _model,
-            builder: (context, _) {
-              return Center(
-                child: constrainToPhoneWidth(
-                  ListView(
-                    shrinkWrap: true,
-                    children: [
-                      Divider(),
-                      for (var room in _model.getRooms()) ...[
-                        ListTile(
-                          title: mediumTitleText(context, room.roomName),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildEditIconButton(context, room),
-                              _buildDeleteIconButton(context, room),
-                            ],
+          Expanded(
+            child: ListenableBuilder(
+              listenable: _model,
+              builder: (context, _) {
+                return Center(
+                  child: constrainToPhoneWidth(
+                    ListView(
+                      shrinkWrap: true,
+                      children: [
+                        Divider(),
+                        for (var room in _model.getRooms()) ...[
+                          ListTile(
+                            title: mediumTitleText(context, room.roomName),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildEditIconButton(context, room),
+                                _buildDeleteIconButton(context, room),
+                              ],
+                            ),
                           ),
-                        ),
-                        const Divider(),
+                          const Divider(),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
+                );
+              },
+            ),
           ),
           padding8,
           Row(

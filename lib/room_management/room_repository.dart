@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,6 +31,11 @@ class RoomModel {
 
   Room toRoom() {
     return Room(rid: rid, name: roomName);
+  }
+
+  @override
+  String toString() {
+    return rid.toString();
   }
 }
 

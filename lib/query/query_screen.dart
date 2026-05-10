@@ -179,7 +179,7 @@ class _QueryTableState extends State<QueryTable>
                                     widget._model.applyRangeFilter(
                                       RowType.value,
                                       double.parse(_minValueController.text),
-                                        double.parse(_maxValueController.text),
+                                      double.parse(_maxValueController.text),
                                     );
                                   },
                                   child: const Text("Apply Value Filter"),

@@ -7,23 +7,22 @@ import 'package:flutter/foundation.dart';
 import '../scheduler/scheduling_model.dart';
 
 class Census {
+  final Room room;
   final Animal animal;
   final int quantity;
 
-  Census({required this.animal, required this.quantity});
+  Census({required this.animal, required this.quantity, required this.room});
 }
 
 class CensusScreenModel {
   final LoginUseCase _loginUseCase;
   final CensusRepository _censusRepository;
-  final Room room;
   final List<Census> _censusEntries = [];
 
   ValueNotifier<List<Census>> censusEntries = ValueNotifier([]);
 
   CensusScreenModel({
     required Census? census,
-    required this.room,
     required LoginUseCase loginUseCase,
     required CensusRepository censusRepository,
   }) : _censusRepository = censusRepository,
@@ -34,7 +33,7 @@ class CensusScreenModel {
 
   void addCensusEntry(Census census) {
     final existingIndex = _censusEntries.indexWhere(
-      (e) => e.animal.aid == census.animal.aid,
+      (e) => e.animal.aid == census.animal.aid && e.room.rid == census.room.rid,
     );
 
     if (existingIndex != -1) {
@@ -42,6 +41,7 @@ class CensusScreenModel {
       _censusEntries[existingIndex] = Census(
         animal: existingEntry.animal,
         quantity: existingEntry.quantity + census.quantity,
+        room: existingEntry.room,
       );
     } else {
       _censusEntries.add(census);
@@ -64,11 +64,7 @@ class CensusScreenModel {
   void submitCensus() {
     var currentUser = _loginUseCase.loggedInUser;
     if (currentUser?.uid != null) {
-      _censusRepository.submitCensus(
-        _censusEntries,
-        room.rid,
-        currentUser!.uid!,
-      );
+      _censusRepository.submitCensus(_censusEntries, currentUser!.uid!);
     }
   }
 }
@@ -80,10 +76,16 @@ class CensusEntryModel extends ChangeNotifier {
   CensusEntryModel({
     required AnimalRepository animalRepository,
     required RoomRepository roomRepository,
+    required Set<int> roomsWithCensuses,
   }) {
     animals = animalRepository.animals;
     animalRepository.loadAnimals();
-    rooms = roomRepository.rooms;
+    roomRepository.rooms.addListener(() {
+      var set = roomRepository.rooms.value
+          .where((e) => !roomsWithCensuses.contains(e.rid))
+          .toSet();
+      rooms.value = set;
+    });
     roomRepository.loadRooms();
   }
 

@@ -9,16 +9,13 @@ class CensusEntryScreen extends StatefulWidget {
   final CensusEntryModel _model;
   final bool _isFirstEntry;
   final Census? _census;
-  final Room? _room;
 
   const CensusEntryScreen({
     super.key,
     required CensusEntryModel model,
     required bool isFirstEntry,
     required Census? censusToEdit,
-    required Room? room,
-  }) : _room = room,
-       _census = censusToEdit,
+  }) : _census = censusToEdit,
        _isFirstEntry = isFirstEntry,
        _model = model;
 
@@ -40,7 +37,7 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
     _censusController.text = widget._census != null
         ? widget._census!.quantity.toString()
         : "";
-    _selectedRoom = widget._room;
+    _selectedRoom = widget._census?.room;
     _selectedAid = widget._census?.animal.aid;
   }
 
@@ -62,8 +59,12 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                   ValueListenableBuilder(
                     valueListenable: widget._model.rooms,
                     builder: (context, items, _) {
+                      var initialValue =
+                          items.any((i) => i.rid == _selectedRoom?.rid)
+                          ? _selectedRoom
+                          : null;
                       return DropdownButtonFormField<Room>(
-                        initialValue: _selectedRoom,
+                        initialValue: initialValue,
                         items: items
                             .map(
                               (item) => DropdownMenuItem(
@@ -72,11 +73,9 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                               ),
                             )
                             .toList(),
-                        onChanged: widget._isFirstEntry
-                            ? (Room? v) {
-                                _selectedRoom = v;
-                              }
-                            : null,
+                        onChanged: (Room? v) {
+                          _selectedRoom = v;
+                        },
                         validator: (v) {
                           if (v == null) {
                             return "Please select an room";
@@ -152,7 +151,7 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                   },
                 ),
                 FilledButton(
-                  child: Text("Add Census"),
+                  child: Text("Add Census Entry"),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
                       final animal = widget._model.getAnimal(_selectedAid!);
@@ -164,8 +163,8 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                               census: Census(
                                 animal: animal,
                                 quantity: quantity,
+                                room: _selectedRoom!,
                               ),
-                              room: _selectedRoom!,
                               loginUseCase: context.read(),
                               censusRepository: context.read(),
                             ),
@@ -173,7 +172,11 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                         );
                       } else {
                         unNavigate(
-                          result: Census(animal: animal, quantity: quantity),
+                          result: Census(
+                            animal: animal,
+                            quantity: quantity,
+                            room: _selectedRoom!,
+                          ),
                         );
                       }
                     }
@@ -201,7 +204,7 @@ class CensusScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          mediumTitleText(context, "Census For Room: ${_model.room.name}"),
+          mediumTitleText(context, "Censuses"),
           padding8,
           CensusRecordList(censusScreenModel: _model),
           padding8,
@@ -232,15 +235,21 @@ class CensusScreen extends StatelessWidget {
             model: CensusEntryModel(
               animalRepository: context.read(),
               roomRepository: context.read(),
+              roomsWithCensuses: _model.censusEntries.value
+                  .map((v) => v.room.rid)
+                  .toSet(),
             ),
             isFirstEntry: _model.censusEntries.value.isEmpty,
             censusToEdit: null,
-            room: _model.room,
           ),
         );
         if (result != null) {
           _model.addCensusEntry(
-            Census(animal: result.animal, quantity: result.quantity),
+            Census(
+              animal: result.animal,
+              quantity: result.quantity,
+              room: result.room,
+            ),
           );
         }
       },
@@ -275,18 +284,18 @@ class CensusRecordList extends StatelessWidget {
         return ListView(
           shrinkWrap: true,
           children: _model.censusEntries.value
-              .map((entry) => _censusEntryUserListTile(context, entry))
+              .map((entry) => _censusEntryListTile(context, entry))
               .toList(),
         );
       },
     );
   }
 
-  ListTile _censusEntryUserListTile(BuildContext context, Census census) {
+  ListTile _censusEntryListTile(BuildContext context, Census census) {
     return ListTile(
       title: mediumTitleText(
         context,
-        "Species: ${census.animal.name}\nQuantity: ${census.quantity}",
+        "Room: ${census.room.name}\nSpecies: ${census.animal.name}\nQuantity: ${census.quantity}",
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -305,15 +314,22 @@ class CensusRecordList extends StatelessWidget {
         final Census? result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => CensusEntryScreen(
-              model: CensusEntryModel(
-                animalRepository: context.read(),
-                roomRepository: context.read(),
-              ),
-              isFirstEntry: _model.censusEntries.value.length < 2,
-              censusToEdit: census,
-              room: _model.room,
-            ),
+            builder: (_) {
+              var set = _model.censusEntries.value
+                  .map((v) => v.room.rid)
+                  .toSet()
+                  .where((e) => e != census.room.rid)
+                  .toSet();
+              return CensusEntryScreen(
+                model: CensusEntryModel(
+                  animalRepository: context.read(),
+                  roomRepository: context.read(),
+                  roomsWithCensuses: set,
+                ),
+                isFirstEntry: _model.censusEntries.value.length < 2,
+                censusToEdit: census,
+              );
+            },
           ),
         );
         if (result != null) {

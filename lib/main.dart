@@ -219,9 +219,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
       padding8,
       FilledButton(
         onPressed: () async {
-          await navigate(
-            QueryScreen(),
-          );
+          await navigate(QueryScreen());
         },
         child: Text("Query"),
       ),
@@ -242,10 +240,10 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
               model: CensusEntryModel(
                 animalRepository: animalRepository,
                 roomRepository: roomRepository,
+                roomsWithCensuses: {},
               ),
               isFirstEntry: true,
               censusToEdit: null,
-              room: null,
             ),
             tag: 'census',
           );

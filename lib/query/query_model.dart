@@ -190,7 +190,11 @@ class QueryModel {
     _records.refresh();
   }
 
-  void applyRangeFilter<T extends Comparable>(RowType rowType, T? start, T? end) {
+  void applyRangeFilter<T extends Comparable>(
+    RowType rowType,
+    T? start,
+    T? end,
+  ) {
     _startValues[rowType] = start;
     _endValues[rowType] = end;
     updateRecords();

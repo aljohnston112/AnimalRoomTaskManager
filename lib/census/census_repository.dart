@@ -7,11 +7,7 @@ class CensusRepository {
 
   CensusRepository({required Database database}) : _database = database;
 
-  Future<void> submitCensus(
-    List<Census> censusEntries,
-    int rid,
-    int uid,
-  ) async {
-    await _database.submitCensus(censusEntries, rid, uid);
+  Future<void> submitCensus(List<Census> censusEntries, int uid) async {
+    await _database.submitCensus(censusEntries, uid);
   }
 }
