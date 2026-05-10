@@ -142,7 +142,10 @@ class MeasureUtil {
         RenderObjectToWidgetAdapter<RenderBox>(
           container: rootView,
           debugShortDescription: '[root]',
-          child: widget,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: widget,
+          ),
         ).attachToRenderTree(buildOwner);
     try {
       rootView.scheduleInitialLayout();
@@ -161,6 +164,7 @@ class MeasureUtil {
 class _MeasurementView extends RenderBox
     with RenderObjectWithChildMixin<RenderBox> {
   final BoxConstraints boxConstraints;
+
   _MeasurementView(this.boxConstraints);
 
   @override

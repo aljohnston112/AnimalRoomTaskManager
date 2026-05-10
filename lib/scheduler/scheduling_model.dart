@@ -1,9 +1,13 @@
 import 'dart:collection';
+import 'dart:math';
 
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
+import 'package:animal_room_task_manager/theme_data.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/src/material/card.dart';
 
 import '../user_management/user_repository.dart';
 
@@ -191,5 +195,42 @@ class SchedulingModel extends ChangeNotifier {
       tasksDone: taskList.tasks.every((t) => recordMap.keys.contains(t)),
       doneBy: doneBy,
     );
+  }
+
+  final ValueNotifier<double> _maxHeight = ValueNotifier(0);
+  late final ValueListenable<double> maxHeight = _maxHeight;
+  var _measuredUnassigned = false;
+  var _maxStringLength = 1;
+
+  void updateMaxHeight({
+    required Card widget,
+    required double width,
+    required bool isUnassigned,
+    required int stringLength,
+  }) {
+    if (!_measuredUnassigned && isUnassigned) {
+      _maxHeight.value = max(
+        _maxHeight.value,
+        MeasureUtil.measureWidget(
+          widget,
+          BoxConstraints(maxWidth: width),
+        ).height,
+      );
+      _measuredUnassigned = true;
+    } else if (!isUnassigned && stringLength > _maxStringLength) {
+      _maxHeight.value = max(
+        _maxHeight.value,
+        MeasureUtil.measureWidget(
+          widget,
+          BoxConstraints(
+            minWidth: width,
+            maxWidth: width,
+            minHeight: 0.0,
+            maxHeight: double.infinity,
+          ),
+        ).height,
+      );
+      _maxStringLength = stringLength;
+    }
   }
 }

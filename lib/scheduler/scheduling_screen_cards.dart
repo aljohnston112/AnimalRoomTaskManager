@@ -16,6 +16,7 @@ import '../room_check/room_check_screen.dart';
 class SchedulingScreenCards extends StatelessWidget {
   final SchedulingModel schedulingModel;
   final TaskFrequency _taskFrequency;
+  final numberOfColumns = 2;
 
   const SchedulingScreenCards({
     super.key,
@@ -213,20 +214,44 @@ class SchedulingScreenCards extends StatelessWidget {
     bool isCurrentPeriod,
     RoomCheckDate date,
   ) {
-    var cards = _buildRoomAssignmentTiles(
-      context,
-      taskLists,
-      isCurrentPeriod,
-      date,
-    );
     return Card(
       child: Padding(
         padding: insets8,
         child: ExpansionTile(
           key: PageStorageKey(dateString),
+          initiallyExpanded: isCurrentPeriod,
           expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
           title: mediumTitleText(context, dateString),
-          children: cards,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                double tileWidth = constraints.maxWidth / numberOfColumns;
+                var tiles = _buildRoomAssignmentTiles(
+                  context,
+                  taskLists,
+                  isCurrentPeriod,
+                  date,
+                  tileWidth,
+                );
+                return ListenableBuilder(
+                  listenable: schedulingModel.maxHeight,
+                  builder: (context, _) {
+                    return Wrap(
+                      children: tiles
+                          .map(
+                            (tile) => SizedBox(
+                              width: tileWidth,
+                              height: schedulingModel.maxHeight.value,
+                              child: tile,
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -237,12 +262,10 @@ class SchedulingScreenCards extends StatelessWidget {
     Map<TaskListKey, TaskList> taskLists,
     bool isCurrentPeriod,
     RoomCheckDate date,
+    double width,
   ) {
     final List<TaskListKey> keys = taskLists.keys.toList();
     List<Widget> cards = [];
-    int maxStringLength = 0;
-    late Card cardWithMaxString;
-    Card? unassignedCard;
     for (var key in keys) {
       final roomTaskList = taskLists[key]!;
       final frequency = roomTaskList.frequency;
@@ -350,18 +373,17 @@ class SchedulingScreenCards extends StatelessWidget {
                 ),
               ),
             );
-            if (unassignedCard == null && userAssignedString == "Unassigned") {
-              unassignedCard = card;
-            }
-            if (userAssignedString.length > maxStringLength) {
-              cardWithMaxString = card;
-            }
+            schedulingModel.updateMaxHeight(
+              widget: card,
+              width: width,
+              stringLength: userAssignedString.length,
+              isUnassigned: userAssignedString == "Unassigned",
+            );
             return card;
           },
         ),
       );
     }
-    // TODO max data should be in viewmodel
     return cards;
   }
 
@@ -452,35 +474,28 @@ class SchedulerListView extends StatelessWidget {
     return buildScaffold(
       title: title,
       makeScrollable: false,
-      child: constrainToPhoneWidth(
-        Column(
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    padding: insets8,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: children,
-                      ),
-                    ),
-                  );
-                },
-              ),
+      child: Column(
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: insets8,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: children,
+                  ),
+                );
+              },
             ),
-            padding8,
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Done"),
-            ),
-            padding8,
-          ],
-        ),
+          ),
+          padding8,
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Done"),
+          ),
+          padding8,
+        ],
       ),
     );
   }
