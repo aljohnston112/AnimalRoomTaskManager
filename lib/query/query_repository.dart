@@ -26,14 +26,22 @@ List<String> getSortedStringPoolForType(RowType rowType) {
 class QueryRepository {
   final Database _database;
 
-  final RefreshableNotifier<List<QueryData>> recordsNotifier =
+  final RefreshableNotifier<List<QueryData>> _recordsNotifier =
       RefreshableNotifier([]);
-  final ValueNotifier<bool> isLoading = ValueNotifier(true);
+  late final ValueListenable<List<QueryData>> recordsNotifier =
+      _recordsNotifier;
+
+  final RefreshableNotifier<List<QueryData>> _recordsUpdater =
+  RefreshableNotifier([]);
+  late final ValueListenable<List<QueryData>> recordsUpdater =
+      _recordsUpdater;
+
+  final ValueNotifier<bool> _isLoading = ValueNotifier(true);
+  late final ValueListenable<bool> isLoading = _isLoading;
 
   final Map<RowType, ValueNotifier<String>> _rowTypeToLongestStringNotifiers = {
     for (var type in RowType.values) type: ValueNotifier<String>(""),
   };
-
   late final Map<RowType, ValueListenable<String>>
   rowTypeToLongestStringListenables = Map.unmodifiable(
     _rowTypeToLongestStringNotifiers,
@@ -53,7 +61,7 @@ class QueryRepository {
   }
 
   Future<void> loadAllRecords() async {
-    isLoading.value = true;
+    _isLoading.value = true;
 
     final now = DateTime.now();
     int maxYearsOfData = 7;
@@ -79,11 +87,13 @@ class QueryRepository {
             roomName: _intern(RowType.room, m['room_name']),
           );
         }).toList();
+        await Future.delayed(Duration.zero);
         recordsNotifier.value.addAll(newMonthRecords);
-        recordsNotifier.refresh();
+        _recordsUpdater.value = newMonthRecords;
+        _recordsNotifier.refresh();
       }
     }
-    isLoading.value = false;
+    _isLoading.value = false;
   }
 }
 

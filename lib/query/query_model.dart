@@ -55,7 +55,6 @@ class RefreshableNotifier<T> extends ValueNotifier<T> {
 }
 
 class QueryModel {
-
   final QueryRepository _repository;
   late final Listenable longestStringListenable = Listenable.merge(
     _repository.rowTypeToLongestStringListenables.values,
@@ -64,15 +63,73 @@ class QueryModel {
   late final Map<RowType, ValueListenable<String>> rowTypeToLongestString =
       _repository.rowTypeToLongestStringListenables;
 
-  late final RefreshableNotifier<List<QueryData>> records;
-  late final ValueNotifier<bool> isLoading;
+  late final ValueListenable<List<QueryData>> _allRecords;
+  final RefreshableNotifier<List<QueryData>> _records = RefreshableNotifier([]);
+  late final ValueListenable<List<QueryData>> records = _records;
+  late final ValueListenable<bool> isLoading;
   late List<QueryTableColumn> columns;
+
+  final Map<RowType, dynamic> _startValues = {};
+  final Map<RowType, dynamic> _endValues = {};
+
+  final Map<RowType, RefreshableNotifier<Set<String>>> _currentFilters = {
+    for (final rowType in RowType.values) rowType: RefreshableNotifier({}),
+  };
+  late final Map<RowType, ValueListenable<Set<String>>> currentFilters =
+      _currentFilters;
 
   QueryModel({required QueryRepository queryRepository})
     : _repository = queryRepository {
-    queryRepository.loadAllRecords();
+    queryRepository.recordsUpdater.addListener(() {
+      addRecordUpdate(queryRepository.recordsUpdater.value);
+    });
     isLoading = queryRepository.isLoading;
-    records = queryRepository.recordsNotifier;
+    _allRecords = queryRepository.recordsNotifier;
+    queryRepository.loadAllRecords();
+  }
+
+  void addRecordUpdate(List<QueryData> records) {
+    List<QueryData> newRecords = _filterRecords(records);
+    for (final rowType in currentFilters.keys) {
+      _currentFilters[rowType]!.value.addAll(
+        getSortedStringPoolForType(rowType),
+      );
+      _currentFilters[rowType]!.refresh();
+    }
+    _records.value.addAll(newRecords);
+    _records.refresh();
+  }
+
+  List<QueryData> _filterRecords(List<QueryData> records) {
+    List<QueryData> newRecords = [];
+    for (final record in records) {
+      bool add = true;
+      for (final rowType in currentFilters.keys) {
+        var currentFilter = currentFilters[rowType]!;
+        final stringValue = record.getRowAsDisplayString(rowType);
+        if (!currentFilter.value.contains(stringValue)) {
+          add = false;
+          break;
+        }
+
+        final start = _startValues[rowType];
+        final end = _endValues[rowType];
+        final Comparable value = record.getRowAsValue(rowType);
+        if ((start != null && value.compareTo(start) < 0) ||
+            (end != null && value.compareTo(end) > 0)) {
+          add = false;
+          break;
+        }
+      }
+      if (add) {
+        newRecords.add(record);
+      }
+    }
+    return newRecords;
+  }
+
+  void updateRecords() {
+    _records.value = _filterRecords(_allRecords.value);
   }
 
   double calculatePixelWidth(DefaultTextStyle textStyle, String text) {
@@ -121,7 +178,7 @@ class QueryModel {
     final rowType = RowType.values[columnIndex];
     final multiplier = isUp ? 1 : -1;
     mergeSort<QueryData>(
-      records.value,
+      _records.value,
       compare: (q1, q2) {
         return Comparable.compare(
               q1.getRowAsValue(rowType),
@@ -130,19 +187,35 @@ class QueryModel {
             multiplier;
       },
     );
-    records.refresh();
+    _records.refresh();
   }
 
-  List<String> getFilterOptionsForColumn(RowType rowType) {
-    return getSortedStringPoolForType(rowType);
-  }
-
-  void applyDateFilter(DateTime start, DateTime end) {
-    // TODO
+  void applyRangeFilter<T extends Comparable>(RowType rowType, T? start, T? end) {
+    _startValues[rowType] = start;
+    _endValues[rowType] = end;
+    updateRecords();
   }
 
   void toggleFilter(RowType rowType, String filterString, bool add) {
+    var currentFilter = _currentFilters[rowType]!;
+    if (add) {
+      currentFilter.value.add(filterString);
+    } else {
+      currentFilter.value.remove(filterString);
+    }
+    currentFilter.refresh();
+  }
 
+  void addAllFiltersForRow(RowType rowType) {
+    var currentFilter = _currentFilters[rowType]!;
+    currentFilter.value.addAll(getSortedStringPoolForType(rowType));
+    currentFilter.refresh();
+  }
+
+  void clearAllFiltersForRow(RowType rowType) {
+    var currentFilter = _currentFilters[rowType]!;
+    currentFilter.value.clear();
+    currentFilter.refresh();
   }
 }
 

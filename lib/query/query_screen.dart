@@ -47,11 +47,8 @@ class _QueryTableState extends State<QueryTable>
   DateTime? _startDate;
   DateTime? _endDate;
 
-  double? _startValue;
-  double? _endValue;
-
-  final TextEditingController _minController = TextEditingController();
-  final TextEditingController _maxController = TextEditingController();
+  final TextEditingController _minValueController = TextEditingController();
+  final TextEditingController _maxValueController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -69,87 +66,132 @@ class _QueryTableState extends State<QueryTable>
           builder: (_, _) {
             return Column(
               children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.end,
-                  children: [
-                    constrainTextBoxWidth(
-                      Column(
-                        children: [
-                          padding8,
-                          ListTile(
-                            title: Text(
-                              "From: ${_startDate?.toLocal().toDisplayString() ?? 'Select'}",
-                            ),
-                            trailing: Icon(Icons.calendar_today),
-                            onTap: () => _pickDate(isStart: true),
-                          ),
-                          padding8,
-                          ListTile(
-                            title: Text(
-                              "To: ${_endDate?.toLocal().toDisplayString() ?? 'Select'}",
-                            ),
-                            trailing: Icon(Icons.calendar_today),
-                            onTap: () => _pickDate(isStart: false),
-                          ),
-                          padding8,
-                          FilledButton(
-                            onPressed: () {},
-                            child: Text("Apply Filter"),
-                          ),
-                          padding8,
-                        ],
-                      ),
-                    ),
-
-                    padding8,
-                    Column(
-                      children: [
-                        FilledButton(
-                          onPressed: () {
-                            _showFilterPopup(RowType.room);
-                          },
-                          child: Text("Open Room Filter"),
+                ListenableBuilder(
+                  listenable: widget._model.isLoading,
+                  builder: (_, _) {
+                    if (widget._model.isLoading.value == true) {
+                      return const Center(
+                        child: Column(
+                          children: [
+                            padding8,
+                            CircularProgressIndicator(),
+                            padding8,
+                          ],
                         ),
-                        padding8,
-                      ],
-                    ),
-                    padding8,
-
-                    constrainTextBoxWidth(
-                      Column(
+                      );
+                    } else {
+                      return Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.end,
                         children: [
-                          padding8,
-                          TextFormField(
-                            controller: _minController,
-                            decoration: const InputDecoration(
-                              labelText: "Minimum Value",
-                              hintText: "-inf",
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
+                          constrainTextBoxWidth(
+                            Column(
+                              children: [
+                                padding8,
+                                ListTile(
+                                  title: Text(
+                                    "From: ${_startDate?.toLocal().toDisplayString() ?? 'Select'}",
+                                  ),
+                                  trailing: Icon(Icons.calendar_today),
+                                  onTap: () => _pickDate(isStart: true),
+                                ),
+                                padding8,
+                                ListTile(
+                                  title: Text(
+                                    "To: ${_endDate?.toLocal().toDisplayString() ?? 'Select'}",
+                                  ),
+                                  trailing: Icon(Icons.calendar_today),
+                                  onTap: () => _pickDate(isStart: false),
+                                ),
+                                padding8,
+                                FilledButton(
+                                  onPressed: () {
+                                    widget._model.applyRangeFilter(
+                                      RowType.date,
+                                      _startDate,
+                                      _endDate,
+                                    );
+                                  },
+                                  child: Text("Apply Filter"),
+                                ),
+                                padding8,
+                              ],
                             ),
                           ),
+
                           padding8,
-                          TextFormField(
-                            controller: _maxController,
-                            decoration: const InputDecoration(
-                              labelText: "Maximum Value",
-                              hintText: "inf",
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
+                          Column(
+                            children: [
+                              FilledButton(
+                                onPressed: () {
+                                  _showFilterPopup(RowType.room);
+                                },
+                                child: Text("Open Room Filter"),
+                              ),
+                              padding8,
+                              FilledButton(
+                                onPressed: () {
+                                  _showFilterPopup(RowType.user);
+                                },
+                                child: Text("Open User Filter"),
+                              ),
+                              padding8,
+                              FilledButton(
+                                onPressed: () {
+                                  _showFilterPopup(RowType.task);
+                                },
+                                child: Text("Open Task Filter"),
+                              ),
+                              padding8,
+                            ],
                           ),
                           padding8,
-                          FilledButton(
-                            onPressed: () {},
-                            child: const Text("Apply Value Filter"),
+
+                          constrainTextBoxWidth(
+                            Column(
+                              children: [
+                                padding8,
+                                TextFormField(
+                                  controller: _minValueController,
+                                  decoration: const InputDecoration(
+                                    labelText: "Minimum Value",
+                                    hintText: "-inf",
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                ),
+                                padding8,
+                                TextFormField(
+                                  controller: _maxValueController,
+                                  decoration: const InputDecoration(
+                                    labelText: "Maximum Value",
+                                    hintText: "inf",
+                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                ),
+                                padding8,
+                                FilledButton(
+                                  onPressed: () {
+                                    widget._model.applyRangeFilter(
+                                      RowType.value,
+                                      double.parse(_minValueController.text),
+                                        double.parse(_maxValueController.text),
+                                    );
+                                  },
+                                  child: const Text("Apply Value Filter"),
+                                ),
+                                padding8,
+                              ],
+                            ),
                           ),
-                          padding8,
                         ],
-                      ),
-                    ),
-                  ],
+                      );
+                    }
+                  },
                 ),
                 Expanded(
                   child: LayoutBuilder(
@@ -195,44 +237,89 @@ class _QueryTableState extends State<QueryTable>
     );
   }
 
-  void _showFilterPopup(RowType rowType) {
+  Future<void> _showFilterPopup(RowType rowType) async {
     var model = widget._model;
-    final options = model.getFilterOptionsForColumn(rowType);
-    showDialog(
+    final options = getSortedStringPoolForType(rowType);
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Filter ${rowType.name}"),
-        content:
-        Scaffold(
-          body: SafeArea(
-          child: Padding(
-            padding: EdgeInsetsGeometry.all(64),
-            child: Expanded(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  return CheckboxListTile(
-                    title: Text(options[index]),
-                    value: null,
-                    onChanged: (bool? isChecked) {
-                      model.toggleFilter(rowType, options[index], isChecked ?? false);
-                  },
-                  );
-                },
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.75,
+          height: MediaQuery.of(context).size.height * 0.75,
+          child: Column(
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsetsGeometry.all(64),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (context, index) {
+                            return ListenableBuilder(
+                              listenable:
+                                  widget._model.currentFilters[rowType]!,
+                              builder: (context, _) {
+                                final currentFilter = widget
+                                    ._model
+                                    .currentFilters[rowType]!
+                                    .value;
+                                var option = options[index];
+                                return CheckboxListTile(
+                                  title: Text(option),
+                                  value: currentFilter.contains(option),
+                                  onChanged: (bool? isChecked) {
+                                    model.toggleFilter(
+                                      rowType,
+                                      option,
+                                      isChecked ?? false,
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      padding8,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          FilledButton(
+                            onPressed: () {
+                              model.addAllFiltersForRow(rowType);
+                            },
+                            child: const Text("Add All"),
+                          ),
+                          padding8,
+                          FilledButton(
+                            onPressed: () {
+                              model.clearAllFiltersForRow(rowType);
+                            },
+                            child: const Text("Clear All"),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ),
-      ),
         actions: [
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(context),
             child: const Text("Done"),
           ),
         ],
-      )
+      ),
     );
+    widget._model.updateRecords();
   }
 
   Future<void> _pickDate({required bool isStart}) async {
@@ -389,8 +476,8 @@ class _QueryTableState extends State<QueryTable>
 
   @override
   void dispose() {
-    _minController.dispose();
-    _maxController.dispose();
+    _minValueController.dispose();
+    _maxValueController.dispose();
     super.dispose();
   }
 }
