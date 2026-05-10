@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:animal_room_task_manager/user_management/user_list_model.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
@@ -94,7 +96,12 @@ class AdminRow extends StatelessWidget {
         final User? result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => AdminTransferPage(userListModel.users),
+            builder: (_) => ListenableBuilder(
+              listenable: userListModel.users,
+              builder: (_, _) => AdminTransferPage(
+                UnmodifiableSetView(userListModel.users.value),
+              ),
+            ),
           ),
         );
         if (result != null) {
@@ -116,12 +123,15 @@ class UserListWidget extends StatelessWidget {
       listenable: userListModel,
       builder: (context, _) {
         return constrainToPhoneWidth(
-          ListView(
-            shrinkWrap: true,
-            children: userListModel.users
-                .where((user) => user.group != UserGroup.admin)
-                .map((user) => _buildUserListTile(context, user))
-                .toList(),
+          ListenableBuilder(
+            listenable: userListModel.users,
+            builder: (_, _) => ListView(
+              shrinkWrap: true,
+              children: userListModel.users.value
+                  .where((user) => user.group != UserGroup.admin)
+                  .map((user) => _buildUserListTile(context, user))
+                  .toList(),
+            ),
           ),
         );
       },

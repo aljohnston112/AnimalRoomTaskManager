@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'user_repository.dart';
@@ -9,27 +10,16 @@ class UserListModel extends ChangeNotifier {
 
   late User _admin;
 
+  late ValueListenable<Set<User>> users;
+  late ValueListenable<Set<User>> whitelistedEmails;
+
   User get admin => _admin;
-
-  Set<User> _users = {};
-  Set<User> _whitelistedEmails = {};
-
-  UnmodifiableListView<User> get users =>
-      UnmodifiableListView(_users.union(_whitelistedEmails));
 
   UserListModel({required UserRepository userRepository})
     : _userRepository = userRepository {
     _admin = _userRepository.getAdmin();
-    _whitelistedEmails = _userRepository.getWhitelistedEmails();
-    _users = _userRepository.getUsers();
-    _userRepository.emailWhitelistNotifier.addListener(() {
-      _whitelistedEmails = _userRepository.emailWhitelistNotifier.value;
-      notifyListeners();
-    });
-    _userRepository.usersNotifier.addListener(() {
-      _users = _userRepository.usersNotifier.value;
-      notifyListeners();
-    });
+    whitelistedEmails = _userRepository.emailWhitelistNotifier;
+    users = _userRepository.users;
   }
 
   void addEmailToWhitelist(User user) {

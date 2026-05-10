@@ -105,20 +105,22 @@ class QueryModel {
     for (final record in records) {
       bool add = true;
       for (final rowType in currentFilters.keys) {
-        var currentFilter = currentFilters[rowType]!;
-        final stringValue = record.getRowAsDisplayString(rowType);
-        if (!currentFilter.value.contains(stringValue)) {
-          add = false;
-          break;
-        }
-
-        final start = _startValues[rowType];
-        final end = _endValues[rowType];
-        final Comparable value = record.getRowAsValue(rowType);
-        if ((start != null && value.compareTo(start) < 0) ||
-            (end != null && value.compareTo(end) > 0)) {
-          add = false;
-          break;
+        if (rowType != RowType.date && rowType != RowType.value) {
+          var currentFilter = currentFilters[rowType]!;
+          final stringValue = record.getRowAsDisplayString(rowType);
+          if (!currentFilter.value.contains(stringValue)) {
+            add = false;
+            break;
+          }
+        } else {
+          final start = _startValues[rowType];
+          final end = _endValues[rowType];
+          final Comparable value = record.getRowAsValue(rowType);
+          if ((start != null && value.compareTo(start) < 0) ||
+              (end != null && value.compareTo(end) > 0)) {
+            add = false;
+            break;
+          }
         }
       }
       if (add) {

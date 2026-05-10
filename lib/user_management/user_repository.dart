@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:animal_room_task_manager/query/query_model.dart';
+import 'package:flutter/src/foundation/change_notifier.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase_client/database.dart';
@@ -34,33 +35,33 @@ class User {
 class UserRepository {
   final Database _database;
 
-  final ValueNotifier<Set<User>> emailWhitelistNotifier = ValueNotifier({});
-  final ValueNotifier<Set<User>> usersNotifier = ValueNotifier({});
+  final RefreshableNotifier<Set<User>> _emailWhitelistNotifier =
+      RefreshableNotifier({});
+  late final ValueListenable<Set<User>> emailWhitelistNotifier =
+      _emailWhitelistNotifier;
 
-  final Set<User> _whitelistedUsers = {};
-  final Set<User> _users = {};
+  final RefreshableNotifier<Set<User>> _users = RefreshableNotifier({});
+  late final ValueListenable<Set<User>> users = _users;
 
   UserRepository({required Database database}) : _database = database {
     _database.subscribeToEmailWhitelist((p) {
       var map = p.newRecord;
       var user = parseWhitelistedEmail(map);
-      _whitelistedUsers.remove(user);
-      _whitelistedUsers.add(user);
-      emailWhitelistNotifier.value = Set.from(_whitelistedUsers);
+      _emailWhitelistNotifier.value.remove(user);
+      if (!map['deleted']) {
+        _emailWhitelistNotifier.value.add(user);
+      }
+      _emailWhitelistNotifier.refresh();
     });
     _database.subscribeToUsers((p) {
       var map = p.newRecord;
       User user = parseUser(map);
-      _whitelistedUsers.removeWhere((u) => u.email == user.email);
+      _users.value.remove(user);
       if (!map['deleted']) {
-        // add does not replace
-        _users.remove(user);
-        _users.add(user);
-      } else {
-        _users.remove(user);
+        _users.value.add(user);
       }
-      emailWhitelistNotifier.value = Set.from(_whitelistedUsers);
-      usersNotifier.value = Set.from(_users);
+      _emailWhitelistNotifier.refresh();
+      _users.refresh();
     });
   }
 
@@ -100,8 +101,8 @@ class UserRepository {
           if (email != null && authId != null) {
             var user = await _database.getUserWithAuthId(authId);
             if (user != null) {
-              _users.add(user);
-              usersNotifier.value = Set.from(_users);
+              _users.value.add(user);
+              _users.refresh();
             }
             onAuthChange(user);
           } else {
@@ -120,27 +121,21 @@ class UserRepository {
   Future<void> loadUsers() async {
     final whitelistedEmails = await _database.getWhitelistedEmails();
     for (final whitelistedEmail in whitelistedEmails) {
-      _whitelistedUsers.add(parseWhitelistedEmail(whitelistedEmail));
+      _emailWhitelistNotifier.value.add(
+        parseWhitelistedEmail(whitelistedEmail),
+      );
     }
-    emailWhitelistNotifier.value = Set.from(_whitelistedUsers);
+    _emailWhitelistNotifier.refresh();
 
     final users = await _database.getUsers();
     for (final user in users) {
-      _users.add(parseUser(user));
+      _users.value.add(parseUser(user));
     }
-    usersNotifier.value = Set.from(_users);
-  }
-
-  Set<User> getWhitelistedEmails() {
-    return _whitelistedUsers;
-  }
-
-  Set<User> getUsers() {
-    return _users;
+    _users.refresh();
   }
 
   User getAdmin() {
-    return _users.firstWhere((u) {
+    return _users.value.firstWhere((u) {
       return u.group == UserGroup.admin;
     });
   }

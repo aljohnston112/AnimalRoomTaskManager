@@ -14,7 +14,6 @@ import 'package:animal_room_task_manager/lab_management/lab_management_screen.da
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_screen.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
-import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:animal_room_task_manager/query/query_repository.dart';
 import 'package:animal_room_task_manager/query/query_screen.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
@@ -22,8 +21,8 @@ import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/room_management/room_management_model.dart';
 import 'package:animal_room_task_manager/room_management/room_management_screen.dart';
 import 'package:animal_room_task_manager/room_management/room_repository.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_home_screen.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
-import 'package:animal_room_task_manager/scheduler/scheduling_screen.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_management_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_management_screen.dart';
@@ -120,19 +119,12 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
   }
 
   List<Widget> _buildAdminButtons(BuildContext context) {
-    AnimalRepository animalRepository = context.read();
-    BuildingRepository buildingRepository = context.read();
-    LabRepository labRepository = context.read();
-    FacilityRepository facilityRepository = context.read();
-    RoomRepository roomRepository = context.read();
-    TaskListRepository taskListRepository = context.read();
-    UserRepository userRepository = context.read();
     return [
       FilledButton(
         onPressed: () async {
           await navigate(
             AnimalManagementScreen(
-              model: AnimalManagementModel(animalRepository: animalRepository),
+              model: AnimalManagementModel(animalRepository: context.read()),
             ),
           );
         },
@@ -144,7 +136,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           await navigate(
             BuildingManagementScreen(
               model: BuildingManagementModel(
-                buildingRepository: buildingRepository,
+                buildingRepository: context.read(),
               ),
             ),
           );
@@ -157,7 +149,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           await navigate(
             FacilityManagementScreen(
               model: FacilityManagementModel(
-                facilityRepository: facilityRepository,
+                facilityRepository: context.read(),
               ),
             ),
           );
@@ -169,7 +161,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         onPressed: () async {
           await navigate(
             LabManagementScreen(
-              model: LabManagementModel(labRepository: labRepository),
+              model: LabManagementModel(labRepository: context.read()),
             ),
           );
         },
@@ -181,11 +173,11 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           await navigate(
             RoomManagementScreen(
               model: RoomManagementModel(
-                roomRepository: roomRepository,
-                buildingRepository: buildingRepository,
-                facilityRepository: facilityRepository,
-                labRepository: labRepository,
-                taskListRepository: taskListRepository,
+                roomRepository: context.read(),
+                buildingRepository: context.read(),
+                facilityRepository: context.read(),
+                labRepository: context.read(),
+                taskListRepository: context.read(),
               ),
             ),
           );
@@ -198,7 +190,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
           await navigate(
             TaskListManagementScreen(
               model: TaskListManagementModel(
-                taskListRepository: taskListRepository,
+                taskListRepository: context.read(),
               ),
             ),
           );
@@ -210,7 +202,7 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
         onPressed: () async {
           await navigate(
             UserManagementScreen(
-              userListModel: UserListModel(userRepository: userRepository),
+              userListModel: UserListModel(userRepository: context.read()),
             ),
           );
         },
@@ -227,19 +219,14 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
   }
 
   List<Widget> _buildAllUserButtons(BuildContext context) {
-    AnimalRepository animalRepository = context.read();
-    RecordRepository recordRepository = context.read();
-    RoomRepository roomRepository = context.read();
-    RoomCheckRepository roomCheckRepository = context.read();
-    TaskListRepository taskListRepository = context.read();
     return [
       FilledButton(
         onPressed: () async {
           await navigate(
             CensusEntryScreen(
               model: CensusEntryModel(
-                animalRepository: animalRepository,
-                roomRepository: roomRepository,
+                animalRepository: context.read(),
+                roomRepository: context.read(),
                 roomsWithCensuses: {},
               ),
               isFirstEntry: true,
@@ -254,11 +241,12 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
       FilledButton(
         onPressed: () async {
           await navigate(
-            SchedulingScreen(
+            SchedulingHomeScreen(
               schedulingModel: SchedulingModel(
-                recordRepository: recordRepository,
-                roomCheckRepository: roomCheckRepository,
-                taskListRepository: taskListRepository,
+                recordRepository: context.read(),
+                roomCheckRepository: context.read(),
+                taskListRepository: context.read(),
+                userRepository: context.read(),
               ),
             ),
           );

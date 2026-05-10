@@ -32,6 +32,8 @@ class SchedulingModel extends ChangeNotifier {
   final RoomCheckRepository _roomCheckRepository;
   final TaskListRepository _taskListRepository;
 
+  late final ValueListenable<Set<User>> users;
+
   final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   _dailyInternal = {};
   final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
@@ -56,11 +58,14 @@ class SchedulingModel extends ChangeNotifier {
     required RecordRepository recordRepository,
     required RoomCheckRepository roomCheckRepository,
     required TaskListRepository taskListRepository,
+    required UserRepository userRepository,
   }) : _recordRepository = recordRepository,
        _roomCheckRepository = roomCheckRepository,
        _taskListRepository = taskListRepository {
     _roomCheckRepository.loadRoomChecks();
     _taskListRepository.loadTaskLists();
+    users = userRepository.users;
+    userRepository.loadUsers();
     updateViews();
     // TODO only the changed/new rows should be updated
     roomCheckRepository.roomChecksNotifier.addListener(() {
