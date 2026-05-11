@@ -201,36 +201,47 @@ class SchedulingModel extends ChangeNotifier {
   late final ValueListenable<double> maxHeight = _maxHeight;
   var _measuredUnassigned = false;
   var _maxStringLength = 1;
+  var _reset = true;
 
   void updateMaxHeight({
-    required Card widget,
+    required Widget widget,
     required double width,
     required bool isUnassigned,
     required int stringLength,
   }) {
+    late final double measuredHeight;
     if (!_measuredUnassigned && isUnassigned) {
-      _maxHeight.value = max(
-        _maxHeight.value,
-        MeasureUtil.measureWidget(
-          widget,
-          BoxConstraints(maxWidth: width),
-        ).height,
-      );
+      measuredHeight = MeasureUtil.measureWidget(
+        widget,
+        BoxConstraints(maxWidth: width),
+      ).height;
       _measuredUnassigned = true;
     } else if (!isUnassigned && stringLength > _maxStringLength) {
-      _maxHeight.value = max(
-        _maxHeight.value,
-        MeasureUtil.measureWidget(
-          widget,
-          BoxConstraints(
-            minWidth: width,
-            maxWidth: width,
-            minHeight: 0.0,
-            maxHeight: double.infinity,
-          ),
-        ).height,
-      );
+      measuredHeight = MeasureUtil.measureWidget(
+        widget,
+        BoxConstraints(
+          minWidth: width,
+          maxWidth: width,
+          minHeight: 0.0,
+          maxHeight: double.infinity,
+        ),
+      ).height;
       _maxStringLength = stringLength;
+    } else {
+      measuredHeight = _maxHeight.value;
     }
+
+    if (!_reset) {
+      _maxHeight.value = max(_maxHeight.value, measuredHeight);
+    } else {
+      _maxHeight.value = measuredHeight;
+    }
+    _reset = false;
+  }
+
+  void resetMaxWidth() {
+    _measuredUnassigned = false;
+    _maxStringLength = 1;
+    _reset = true;
   }
 }

@@ -60,9 +60,48 @@ class RecordRepository {
   RecordRepository({required Database database}) : _database = database {
     _database.subscribeToRecords((data) async {
       data = data['payload'];
-      data = data['rooms'];
-      for (final d in data) {
-        _parseTasks(d);
+      final rid = data['r_id'];
+      final roomName = data['room_name'];
+      final room = Room(rid: rid, name: roomName);
+      DateTime date = DateTime.parse(data['date_time']);
+      final taskDB = data['task_record'];
+      final frequency = (taskDB['frequency'] as String).toTaskFrequency;
+      date = normalizeDate(date, frequency);
+      RoomCheckDate roomCheckDate = (
+      year: date.year,
+      month: date.month,
+      day: date.day,
+      );
+      final tid = data['t_id'];
+      final task = parseTask(taskDB, tid);
+      // TODO multiple users
+      var userDB = taskDB['assigned_users'][0];
+      final doneBy = User(
+        email: userDB['name'],
+        group: UserGroup.values[userDB['ug_id']],
+        uid: userDB['u_id'],
+      );
+      final rcid = data['rc_id'];
+      double? value = data['value']?.toDouble();
+      if (task is QuantitativeTask) {
+        _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
+            QuantitativeRecord(
+              room: room,
+              task: task,
+              dateTime: date,
+              doneBy: doneBy,
+              rcid: rcid,
+              recordedValue: value!,
+            );
+      } else {
+        _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
+            TaskRecord(
+              room: room,
+              task: task,
+              dateTime: date,
+              doneBy: doneBy,
+              rcid: rcid,
+            );
       }
       roomToDateToFrequencyToTaskRecords.value = Map.from(
         _roomToDateToFrequencyToTaskRecords,
@@ -90,11 +129,8 @@ class RecordRepository {
     final roomName = result['room_name'];
     final room = Room(rid: rid, name: roomName);
     for (final records in result['records']) {
-      final recordsForDates = records['dates'];
-      for (final recordsForDate in recordsForDates) {
-        DateTime date = DateTime.parse(recordsForDate['date_time']);
-        final records = recordsForDate['records'];
-        for (final record in records) {
+      DateTime date = DateTime.parse(records['date_time']);
+      for (final record in records['records']) {
           final trid = record['tr_id'];
           final rcid = record['rc_id'];
           final taskDB = record['task'];
@@ -149,7 +185,6 @@ class RecordRepository {
                   doneBy: doneBy,
                   rcid: rcid,
                 );
-          }
         }
       }
     }

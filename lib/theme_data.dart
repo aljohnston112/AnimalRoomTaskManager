@@ -14,8 +14,8 @@ const Padding padding32 = Padding(padding: EdgeInsetsGeometry.all(32));
 Text largeTitleText(BuildContext context, String text) =>
     Text(text, style: Theme.of(context).textTheme.titleLarge);
 
-Text mediumTitleText(BuildContext context, String text) =>
-    Text(text, style: Theme.of(context).textTheme.titleMedium);
+Text mediumTitleText(BuildContext context, String text, [TextAlign textAlign = TextAlign.start]) =>
+    Text(text, style: Theme.of(context).textTheme.titleMedium, textAlign: textAlign,);
 
 Text smallTitleText(BuildContext context, String text) =>
     Text(text, style: Theme.of(context).textTheme.titleSmall);
@@ -29,7 +29,7 @@ Scaffold buildScaffold({
     appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
     body: SafeArea(
       child: Padding(
-        padding: EdgeInsetsGeometry.all(64),
+        padding: EdgeInsetsGeometry.all(8),
         child: makeScrollable ? buildScrollable(child) : child,
       ),
     ),

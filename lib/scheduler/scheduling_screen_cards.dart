@@ -219,12 +219,12 @@ class SchedulingScreenCards extends StatelessWidget {
         padding: insets8,
         child: ExpansionTile(
           key: PageStorageKey(dateString),
-          initiallyExpanded: isCurrentPeriod,
           expandedCrossAxisAlignment: CrossAxisAlignment.stretch,
           title: mediumTitleText(context, dateString),
           children: [
             LayoutBuilder(
               builder: (context, constraints) {
+                schedulingModel.resetMaxWidth();
                 double tileWidth = constraints.maxWidth / numberOfColumns;
                 var tiles = _buildRoomAssignmentTiles(
                   context,
@@ -292,7 +292,8 @@ class SchedulingScreenCards extends StatelessWidget {
                     mediumTitleText(context, key.room.name),
                     if (!tasksDone) ...[
                       padding8,
-                      mediumTitleText(context, userAssignedString),
+                      Center(child:
+                      mediumTitleText(context, userAssignedString, TextAlign.center),)
                     ],
                     padding8,
                     if (tasksDone && doneBy != null) ...[
@@ -311,7 +312,7 @@ class SchedulingScreenCards extends StatelessWidget {
                                 _taskFrequency,
                               );
                             },
-                            child: const Text("Assign to me"),
+                            child: const Text("Assign to me", textAlign: TextAlign.center,),
                           ),
                           padding8,
                           FilledButton(
@@ -333,7 +334,7 @@ class SchedulingScreenCards extends StatelessWidget {
                                 );
                               }
                             },
-                            child: const Text("Assign to another"),
+                            child: const Text("Assign to another", textAlign: TextAlign.center,),
                           ),
                         ],
                       ),
@@ -419,12 +420,10 @@ class SchedulingBuildingSelectorScreen extends StatelessWidget {
       child: Column(
         children: [
           Expanded(
-            child: GridView.builder(
+            child: ListView.separated(
               padding: insets8,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 2.5,
-              ),
+              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              shrinkWrap: true,
               itemCount: buildings.length,
               itemBuilder: (context, index) {
                 final building = buildings[index];

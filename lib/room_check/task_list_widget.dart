@@ -177,19 +177,19 @@ class _NumberEntryFieldState extends State<NumberEntryField> {
     } else if (!widget.entry.isCompleted) {
       final warningRange = widget.task.warningRange;
       final requiredRange = widget.task.requiredRange;
-      if (warningRange != null &&
-          (value < warningRange.min || value > warningRange.max)) {
-        setState(() {
-          _errorText =
-              'Value must be between '
-              '(${warningRange.min} to ${warningRange.max})';
-        });
-      } else if (requiredRange != null &&
+      if (requiredRange != null &&
           (value < requiredRange.min || value > requiredRange.max)) {
         setState(() {
           _errorText =
-              'Value out of range '
+              'Value must be between '
               '(${requiredRange.min} to ${requiredRange.max})';
+        });
+      } else if (warningRange != null &&
+          (value < warningRange.min || value > warningRange.max)) {
+        setState(() {
+          _errorText =
+              'Value out of range '
+              '(${warningRange.min} to ${warningRange.max})';
         });
       } else {
         setState(() {

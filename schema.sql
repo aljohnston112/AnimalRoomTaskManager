@@ -1717,95 +1717,71 @@ BEGIN
         VALUES (tr_id_out, recorded_value);
     END IF;
 
-
--- TODO this is way to slow when there are 7 years of records;
---  need to refactor to send only the updated record
-    SELECT JSONB_BUILD_OBJECT('rooms', JSONB_AGG(JSONB_BUILD_OBJECT(
-            'r_id', r.r_id,
-            'room_name', r.name,
-            'records', room_records.data
-                                                 )))
+    SELECT jsonb_build_object(
+                   'r_id', rcs.r_id,
+                   'room_name', r.name,
+                   'date_time', tr.date_time,
+                   'rc_id', rcs.rc_id,
+                   'tr_id', tr.tr_id,
+                   't_id', tr.t_id,
+                   'value', qtr.value,
+                   'task_record', task_data.task_record
+           )
     INTO payload
-    FROM rooms r
-             INNER JOIN LATERAL (
-        SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
-                'dates', slot_dates.data
-                         )) AS data
-        FROM room_check_slots rcs
-                 INNER JOIN LATERAL (
-            SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
-                    'date_time', tr_grouped.date_time,
-                    'records', tr_grouped.records
-                             )) AS data
-            FROM (SELECT tr.date_time,
-                         JSONB_AGG(JSONB_BUILD_OBJECT(
-                                 'rc_id', rcs.rc_id,
-                                 'tr_id', tr.tr_id,
-                                 't_id', tr.t_id,
-                                 'recorded_value', qtr.value,
-                                 'task', (SELECT JSONB_BUILD_OBJECT(
-                                                         'task_name',
-                                                         t.name,
-                                                         'frequency',
-                                                         rcs.frequency,
-                                                         'manager_only',
-                                                         t.manager_only,
-                                                         'assigned_users',
-                                                         (SELECT JSONB_AGG(JSONB_BUILD_OBJECT(
+    FROM room_check_slots rcs
+             LEFT JOIN rooms r ON rcs.r_id = r.r_id
+             LEFT JOIN task_records tr ON tr.rc_id = rcs.rc_id
+             LEFT JOIN quantitative_task_records qtr
+                       ON tr.tr_id = qtr.tr_id
+             LEFT JOIN LATERAL (
+        SELECT JSONB_BUILD_OBJECT(
+                       'task_name', t.name,
+                       'frequency', rcs.frequency,
+                       'manager_only', t.manager_only,
+                       'assigned_users', (SELECT JSONB_AGG(
+                                                         JSONB_BUILD_OBJECT(
                                                                  'u_id',
                                                                  u.u_id,
                                                                  'name',
                                                                  u.name,
                                                                  'ug_id',
-                                                                 u.ug_id
-                                                                           ))
-                                                          FROM task_record_users tru
-                                                                   LEFT JOIN users u ON tru.u_id = u.u_id
-                                                          WHERE tru.tr_id = tr.tr_id),
-                                                         'quantitative_ranges',
-                                                         CASE
-                                                             WHEN qt.t_id IS NOT NULL
-                                                                 THEN JSONB_BUILD_OBJECT(
-                                                                     'unit',
-                                                                     COALESCE(qrw.unit, qrr.unit),
-                                                                     'warning_range',
-                                                                     CASE
-                                                                         WHEN qrw.qr_id IS NOT NULL
-                                                                             THEN JSONB_BUILD_OBJECT(
-                                                                                 'min',
-                                                                                 qrw.minimum,
-                                                                                 'max',
-                                                                                 qrw.maximum) END,
-                                                                     'required_range',
-                                                                     CASE
-                                                                         WHEN qrr.qr_id IS NOT NULL
-                                                                             THEN JSONB_BUILD_OBJECT(
-                                                                                 'min',
-                                                                                 qrr.minimum,
-                                                                                 'max',
-                                                                                 qrr.maximum) END
-                                                                      )
-                                                             END
+                                                                 u.ug_id)
                                                  )
-                                          FROM tasks t
-                                                   LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
-                                                   LEFT JOIN quantitative_ranges qrw
-                                                             ON qt.qr_id_warning = qrw.qr_id
-                                                   LEFT JOIN quantitative_ranges qrr
-                                                             ON qt.qr_id_required = qrr.qr_id
-                                          WHERE t.t_id = tr.t_id)
-                                   )) AS records
-                  FROM task_records tr
-                           LEFT JOIN quantitative_task_records qtr
-                                     ON tr.tr_id = qtr.tr_id
-                  WHERE tr.rc_id = rcs.rc_id
-                  GROUP BY tr.date_time) tr_grouped
-            ) slot_dates ON TRUE
-        WHERE rcs.r_id = r.r_id
-          AND slot_dates.data IS NOT NULL
-        GROUP BY r.r_id
-        ) room_records ON TRUE
-    WHERE room_records.data IS NOT NULL;
+                                          FROM task_record_users tru
+                                                   LEFT JOIN users u ON tru.u_id = u.u_id
+                                          WHERE tru.tr_id = tr.tr_id),
+                       'quantitative_ranges',
+                       CASE
+                           WHEN qt.t_id IS NOT NULL
+                               THEN JSONB_BUILD_OBJECT(
+                                   'unit',
+                                   COALESCE(qrw.unit, qrr.unit),
+                                   'warning_range', CASE
+                                                        WHEN qrw.qr_id IS NOT NULL
+                                                            THEN JSONB_BUILD_OBJECT(
+                                                                'min',
+                                                                qrw.minimum,
+                                                                'max',
+                                                                qrw.maximum) END,
+                                   'required_range', CASE
+                                                         WHEN qrr.qr_id IS NOT NULL
+                                                             THEN JSONB_BUILD_OBJECT(
+                                                                 'min',
+                                                                 qrr.minimum,
+                                                                 'max',
+                                                                 qrr.maximum) END
+                                    )
+                           END
+               ) AS task_record
+        FROM tasks t
+                 LEFT JOIN quantitative_tasks qt ON t.t_id = qt.t_id
+                 LEFT JOIN quantitative_ranges qrw
+                           ON qt.qr_id_warning = qrw.qr_id
+                 LEFT JOIN quantitative_ranges qrr
+                           ON qt.qr_id_required = qrr.qr_id
+        WHERE t.t_id = tr.t_id
+        ) AS task_data ON TRUE
+    WHERE rcs.rc_id = (record_data ->> 'rc_id')::integer;
 
     PERFORM realtime.send(
             payload => payload::jsonb,
