@@ -1634,7 +1634,7 @@ CREATE POLICY "TaskRecordsInsertAuth"
     AS PERMISSIVE
     FOR INSERT
     TO authenticated
-    WITH CHECK (date_time::date = CURRENT_DATE);
+    WITH CHECK (date_time::date < CURRENT_DATE + INTERVAL '1 day');
 
 -- Quantitative Task Records -----------------------------------------
 CREATE TABLE IF NOT EXISTS quantitative_task_records
@@ -1717,6 +1717,9 @@ BEGIN
         VALUES (tr_id_out, recorded_value);
     END IF;
 
+
+-- TODO this is way to slow when there are 7 years of records;
+--  need to refactor to send only the updated record
     SELECT JSONB_BUILD_OBJECT('rooms', JSONB_AGG(JSONB_BUILD_OBJECT(
             'r_id', r.r_id,
             'room_name', r.name,

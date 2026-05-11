@@ -557,7 +557,7 @@ class Database {
           'rc_id': taskRecord.rcid,
           'date_time': taskRecord.dateTime.toIso8601String(),
         },
-        // TODO List<USer>
+        // TODO List<User>
         'user_ids': [taskRecord.doneBy.uid],
         'recorded_value': value,
       },
