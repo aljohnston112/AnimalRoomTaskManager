@@ -86,6 +86,7 @@ class SchedulingScreenCards extends StatelessWidget {
     return SchedulingBuildingSelectorScreen(
       title: "Daily Scheduler",
       children: cards,
+      model: schedulingModel,
     );
   }
 
@@ -142,6 +143,7 @@ class SchedulingScreenCards extends StatelessWidget {
     return SchedulingBuildingSelectorScreen(
       title: "Weekly Scheduler",
       children: cards,
+      model: schedulingModel,
     );
   }
 
@@ -186,6 +188,7 @@ class SchedulingScreenCards extends StatelessWidget {
     return SchedulingBuildingSelectorScreen(
       title: "Monthly Scheduler",
       children: cards,
+      model: schedulingModel,
     );
   }
 
@@ -224,7 +227,6 @@ class SchedulingScreenCards extends StatelessWidget {
           children: [
             LayoutBuilder(
               builder: (context, constraints) {
-                schedulingModel.resetMaxWidth();
                 double tileWidth = constraints.maxWidth / numberOfColumns;
                 var tiles = _buildRoomAssignmentTiles(
                   context,
@@ -233,21 +235,17 @@ class SchedulingScreenCards extends StatelessWidget {
                   date,
                   tileWidth,
                 );
-                return ListenableBuilder(
-                  listenable: schedulingModel.maxHeight,
-                  builder: (context, _) {
-                    return Wrap(
-                      children: tiles
-                          .map(
-                            (tile) => SizedBox(
-                              width: tileWidth,
-                              height: schedulingModel.maxHeight.value,
-                              child: tile,
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
+                return Wrap(
+                  key: ValueKey(tileWidth),
+                  children: tiles
+                      .map(
+                        (tile) => SizedBox(
+                          width: tileWidth,
+                          height: schedulingModel.maxHeight,
+                          child: tile,
+                        ),
+                      )
+                      .toList(),
                 );
               },
             ),
@@ -269,13 +267,21 @@ class SchedulingScreenCards extends StatelessWidget {
     for (var key in keys) {
       final roomTaskList = taskLists[key]!;
       final frequency = roomTaskList.frequency;
-      cards.add(
-        ListenableBuilder(
+      final logInUseCase = context.read<LoginUseCase>();
+      final TaskListState(:tasksDone, :doneBy) = schedulingModel
+          .getTaskListState(roomTaskList, key.room, date);
+      String userAssignedString = _getAssignedUserString(
+        schedulingModel.getUserAssignedToRoom(
+          key.buildingName,
+          date,
+          key.room,
+          frequency,
+        ),
+      );
+      final card = Card(
+        child: ListenableBuilder(
           listenable: schedulingModel,
           builder: (context, _) {
-            final logInUseCase = context.read<LoginUseCase>();
-            final TaskListState(:tasksDone, :doneBy) = schedulingModel
-                .getTaskListState(roomTaskList, key.room, date);
             String userAssignedString = _getAssignedUserString(
               schedulingModel.getUserAssignedToRoom(
                 key.buildingName,
@@ -284,105 +290,115 @@ class SchedulingScreenCards extends StatelessWidget {
                 frequency,
               ),
             );
-            final card = Card(
-              child: Padding(
-                padding: insets8,
-                child: Column(
-                  children: [
-                    mediumTitleText(context, key.room.name),
-                    if (!tasksDone) ...[
-                      padding8,
-                      Center(child:
-                      mediumTitleText(context, userAssignedString, TextAlign.center),)
-                    ],
+            return Padding(
+              padding: insets8,
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                children: [
+                  mediumTitleText(context, key.room.name),
+                  if (!tasksDone) ...[
                     padding8,
-                    if (tasksDone && doneBy != null) ...[
-                      mediumTitleText(context, _getDoneByString(doneBy)),
-                    ] else ...[
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          FilledButton(
-                            onPressed: () {
+                    Center(
+                      child: mediumTitleText(
+                        context,
+                        userAssignedString,
+                        TextAlign.center,
+                      ),
+                    ),
+                  ],
+                  padding8,
+                  if (tasksDone && doneBy != null) ...[
+                    mediumTitleText(context, _getDoneByString(doneBy)),
+                  ] else ...[
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        FilledButton(
+                          onPressed: () {
+                            schedulingModel.assignUserToRoomCheck(
+                              key.buildingName,
+                              date,
+                              key.room,
+                              logInUseCase.loggedInUser!,
+                              _taskFrequency,
+                            );
+                          },
+                          child: const Text(
+                            "Assign to me",
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        padding8,
+                        FilledButton(
+                          onPressed: () async {
+                            final user = await navigate(
+                              PickUserPage(
+                                UnmodifiableSetView(
+                                  schedulingModel.users.value,
+                                ),
+                              ),
+                            );
+                            if (user != null) {
                               schedulingModel.assignUserToRoomCheck(
                                 key.buildingName,
                                 date,
                                 key.room,
-                                logInUseCase.loggedInUser!,
+                                user,
                                 _taskFrequency,
                               );
-                            },
-                            child: const Text("Assign to me", textAlign: TextAlign.center,),
+                            }
+                          },
+                          child: const Text(
+                            "Assign to another",
+                            textAlign: TextAlign.center,
                           ),
-                          padding8,
-                          FilledButton(
-                            onPressed: () async {
-                              final user = await navigate(
-                                PickUserPage(
-                                  UnmodifiableSetView(
-                                    schedulingModel.users.value,
-                                  ),
-                                ),
-                              );
-                              if (user != null) {
-                                schedulingModel.assignUserToRoomCheck(
-                                  key.buildingName,
-                                  date,
-                                  key.room,
-                                  user,
-                                  _taskFrequency,
-                                );
-                              }
-                            },
-                            child: const Text("Assign to another", textAlign: TextAlign.center,),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (isCurrentPeriod && !tasksDone) ...[
-                      padding8,
-                      FilledButton(
-                        onPressed: () async {
-                          await schedulingModel.refreshData();
-                          if (context.mounted) {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) {
-                                  return RoomCheckScreen(
-                                    roomCheckModel: RoomCheckModel(
-                                      buildingName: key.buildingName,
-                                      room: key.room,
-                                      taskList: roomTaskList,
-                                      recordRepository: context.read(),
-                                      roomCheckRepository: context.read(),
-                                      date: date,
-                                      loginUseCase: logInUseCase,
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          }
-                          // Reload after finishing, as there may be updates
-                          await schedulingModel.refreshData();
-                        },
-                        child: const Text("Start"),
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ],
-                ),
+                  if (isCurrentPeriod && !tasksDone) ...[
+                    padding8,
+                    FilledButton(
+                      onPressed: () async {
+                        await schedulingModel.refreshData();
+                        if (context.mounted) {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) {
+                                return RoomCheckScreen(
+                                  roomCheckModel: RoomCheckModel(
+                                    buildingName: key.buildingName,
+                                    room: key.room,
+                                    taskList: roomTaskList,
+                                    recordRepository: context.read(),
+                                    roomCheckRepository: context.read(),
+                                    date: date,
+                                    loginUseCase: logInUseCase,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }
+                        // Reload after finishing, as there may be updates
+                        await schedulingModel.refreshData();
+                      },
+                      child: const Text("Start"),
+                    ),
+                  ],
+                ],
               ),
             );
-            schedulingModel.updateMaxHeight(
-              widget: card,
-              width: width,
-              stringLength: userAssignedString.length,
-              isUnassigned: userAssignedString == "Unassigned",
-            );
-            return card;
           },
         ),
+      );
+      cards.add(card);
+      schedulingModel.updateMaxHeight(
+        widget: card,
+        width: width,
+        stringLength: userAssignedString.length,
+        isUnassigned: userAssignedString == "Unassigned",
       );
     }
     return cards;
@@ -403,11 +419,13 @@ class SchedulingScreenCards extends StatelessWidget {
 class SchedulingBuildingSelectorScreen extends StatelessWidget {
   final String title;
   final Map<String, List<Widget>> children;
+  final SchedulingModel model;
 
   const SchedulingBuildingSelectorScreen({
     super.key,
     required this.title,
     required this.children,
+    required this.model,
   });
 
   @override
@@ -435,6 +453,7 @@ class SchedulingBuildingSelectorScreen extends StatelessWidget {
                         MaterialPageRoute(
                           builder: (_) => SchedulerListView(
                             title: building,
+                            model: model,
                             children: children[building]!,
                           ),
                         ),
@@ -461,11 +480,13 @@ class SchedulingBuildingSelectorScreen extends StatelessWidget {
 class SchedulerListView extends StatelessWidget {
   final String title;
   final List<Widget> children;
+  final SchedulingModel model;
 
   const SchedulerListView({
     super.key,
     required this.title,
     required this.children,
+    required this.model,
   });
 
   @override
@@ -478,6 +499,7 @@ class SchedulerListView extends StatelessWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                model.resetMaxWidth();
                 return SingleChildScrollView(
                   padding: insets8,
                   child: Column(

@@ -7,7 +7,6 @@ import 'package:animal_room_task_manager/task_lists_management/task_list_reposit
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/src/material/card.dart';
 
 import '../user_management/user_repository.dart';
 
@@ -197,8 +196,8 @@ class SchedulingModel extends ChangeNotifier {
     );
   }
 
-  final ValueNotifier<double> _maxHeight = ValueNotifier(0);
-  late final ValueListenable<double> maxHeight = _maxHeight;
+  double _maxHeight = 0;
+  double get maxHeight => _maxHeight;
   var _measuredUnassigned = false;
   var _maxStringLength = 1;
   var _reset = true;
@@ -228,13 +227,13 @@ class SchedulingModel extends ChangeNotifier {
       ).height;
       _maxStringLength = stringLength;
     } else {
-      measuredHeight = _maxHeight.value;
+      measuredHeight = _maxHeight;
     }
 
     if (!_reset) {
-      _maxHeight.value = max(_maxHeight.value, measuredHeight);
+      _maxHeight = max(_maxHeight, measuredHeight);
     } else {
-      _maxHeight.value = measuredHeight;
+      _maxHeight = measuredHeight;
     }
     _reset = false;
   }
@@ -244,4 +243,5 @@ class SchedulingModel extends ChangeNotifier {
     _maxStringLength = 1;
     _reset = true;
   }
+
 }

@@ -167,12 +167,7 @@ class Database {
             callback(payload);
           },
         )
-        .subscribe((status, [error]) {
-      print('STATUS: $status');
-      if (error != null) {
-        print('ERROR: $error');
-      }
-    });
+        .subscribe();
   }
 
   void subscribeToTaskListsFull(void Function(dynamic) callback) {

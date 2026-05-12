@@ -152,7 +152,6 @@ class MeasureUtil {
       pipelineOwner.flushLayout();
       return rootView.size;
     } finally {
-      // Clean up.
       element.update(
         RenderObjectToWidgetAdapter<RenderBox>(container: rootView),
       );
