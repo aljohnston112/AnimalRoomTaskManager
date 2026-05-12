@@ -1617,6 +1617,8 @@ CREATE TABLE IF NOT EXISTS task_records
     rc_id     integer REFERENCES room_check_slots (rc_id) NOT NULL,
     date_time timestamptz DEFAULT NOW()                   NOT NULL
 );
+CREATE INDEX idx_task_records_brin
+    ON task_records USING BRIN (date_time);
 ALTER TABLE task_records
     ADD CONSTRAINT unique_task_per_check UNIQUE (t_id, rc_id);
 ALTER TABLE public.task_records
