@@ -208,6 +208,8 @@ class CensusScreen extends StatelessWidget {
           padding8,
           CensusRecordList(censusScreenModel: _model),
           padding8,
+          _buildAddCensusEntryButton(context),
+          padding8,
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -217,7 +219,6 @@ class CensusScreen extends StatelessWidget {
                   unNavigatePast("census");
                 },
               ),
-              _buildAddCensusEntryButton(context),
               _buildCensusRecordButton(context),
             ],
           ),
