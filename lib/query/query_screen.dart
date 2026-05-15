@@ -39,7 +39,8 @@ class QueryTable extends StatefulWidget {
 class _QueryTableState extends State<QueryTable>
     with TickerProviderStateMixin<QueryTable> {
   static const arrowHeight = 41;
-  final _headerHeight = arrowHeight + estimatedLineHeight + cellPadding.vertical;
+  final _headerHeight =
+      arrowHeight + estimatedLineHeight + cellPadding.vertical;
   final cellAlignment = Alignment.centerLeft;
 
   int? selectedRow;

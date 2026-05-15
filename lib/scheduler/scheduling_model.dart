@@ -244,4 +244,11 @@ class SchedulingModel extends ChangeNotifier {
     _reset = true;
   }
 
+  Future<void> loadRoomCheckRecords(
+    Room room,
+    RoomCheckDate date,
+    TaskFrequency frequency,
+  ) async {
+    _recordRepository.loadRecordsForRoom(room, date, frequency);
+  }
 }

@@ -1,6 +1,7 @@
 import 'dart:collection';
 
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
+import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/scheduler/pick_user_page.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
@@ -360,7 +361,11 @@ class SchedulingScreenCards extends StatelessWidget {
                     padding8,
                     FilledButton(
                       onPressed: () async {
-                        await schedulingModel.refreshData();
+                        await schedulingModel.loadRoomCheckRecords(
+                          key.room,
+                          DateTime.now().toRoomCheckDate(),
+                          key.frequency,
+                        );
                         if (context.mounted) {
                           await Navigator.push(
                             context,

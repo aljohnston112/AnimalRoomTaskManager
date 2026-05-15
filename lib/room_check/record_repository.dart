@@ -68,9 +68,9 @@ class RecordRepository {
       final frequency = (taskDB['frequency'] as String).toTaskFrequency;
       date = normalizeDate(date, frequency);
       RoomCheckDate roomCheckDate = (
-      year: date.year,
-      month: date.month,
-      day: date.day,
+        year: date.year,
+        month: date.month,
+        day: date.day,
       );
       final tid = data['t_id'];
       final task = parseTask(taskDB, tid);
@@ -124,6 +124,25 @@ class RecordRepository {
     );
   }
 
+  Future<void> loadRecordsForRoom(
+    Room room,
+    RoomCheckDate date,
+    TaskFrequency frequency,
+  ) async {
+    final data = await _database.getRecordsForRoom(room, date, frequency);
+    for (final d in data) {
+      final results = d['result'];
+      if (results != null) {
+        for (final result in results) {
+          _parseTasks(result);
+        }
+      }
+    }
+    roomToDateToFrequencyToTaskRecords.value = Map.from(
+      _roomToDateToFrequencyToTaskRecords,
+    );
+  }
+
   void _parseTasks(PostgrestMap result) {
     final rid = result['r_id'];
     final roomName = result['room_name'];
@@ -131,60 +150,60 @@ class RecordRepository {
     for (final records in result['records']) {
       DateTime date = DateTime.parse(records['date_time']);
       for (final record in records['records']) {
-          final trid = record['tr_id'];
-          final rcid = record['rc_id'];
-          final taskDB = record['task'];
-          final tid = record['t_id'];
-          double? value = record['recorded_value']?.toDouble();
-          final frequency = (taskDB['frequency'] as String).toTaskFrequency;
-          date = normalizeDate(date, frequency);
-          RoomCheckDate roomCheckDate = (
-            year: date.year,
-            month: date.month,
-            day: date.day,
-          );
+        final trid = record['tr_id'];
+        final rcid = record['rc_id'];
+        final taskDB = record['task'];
+        final tid = record['t_id'];
+        double? value = record['recorded_value']?.toDouble();
+        final frequency = (taskDB['frequency'] as String).toTaskFrequency;
+        date = normalizeDate(date, frequency);
+        RoomCheckDate roomCheckDate = (
+          year: date.year,
+          month: date.month,
+          day: date.day,
+        );
 
-          // TODO multiple users
-          var userDB = taskDB['assigned_users'][0];
-          final doneBy = User(
-            email: userDB['name'],
-            group: UserGroup.values[userDB['ug_id']],
-            uid: userDB['u_id'],
-          );
+        // TODO multiple users
+        var userDB = taskDB['assigned_users'][0];
+        final doneBy = User(
+          email: userDB['name'],
+          group: UserGroup.values[userDB['ug_id']],
+          uid: userDB['u_id'],
+        );
 
-          final task = parseTask(taskDB, tid);
-          if (!_roomToDateToFrequencyToTaskRecords.containsKey(room)) {
-            _roomToDateToFrequencyToTaskRecords[room] = {};
-          }
-          if (!_roomToDateToFrequencyToTaskRecords[room]!.containsKey(
-            roomCheckDate,
-          )) {
-            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate] = {};
-          }
-          if (!_roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]!
-              .containsKey(frequency)) {
-            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency] =
-                {};
-          }
-          if (task is QuantitativeTask) {
-            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
-                QuantitativeRecord(
-                  room: room,
-                  task: task,
-                  dateTime: date,
-                  doneBy: doneBy,
-                  rcid: rcid,
-                  recordedValue: value!,
-                );
-          } else {
-            _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
-                TaskRecord(
-                  room: room,
-                  task: task,
-                  dateTime: date,
-                  doneBy: doneBy,
-                  rcid: rcid,
-                );
+        final task = parseTask(taskDB, tid);
+        if (!_roomToDateToFrequencyToTaskRecords.containsKey(room)) {
+          _roomToDateToFrequencyToTaskRecords[room] = {};
+        }
+        if (!_roomToDateToFrequencyToTaskRecords[room]!.containsKey(
+          roomCheckDate,
+        )) {
+          _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate] = {};
+        }
+        if (!_roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]!
+            .containsKey(frequency)) {
+          _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency] =
+              {};
+        }
+        if (task is QuantitativeTask) {
+          _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
+              QuantitativeRecord(
+                room: room,
+                task: task,
+                dateTime: date,
+                doneBy: doneBy,
+                rcid: rcid,
+                recordedValue: value!,
+              );
+        } else {
+          _roomToDateToFrequencyToTaskRecords[room]![roomCheckDate]![frequency]![task] =
+              TaskRecord(
+                room: room,
+                task: task,
+                dateTime: date,
+                doneBy: doneBy,
+                rcid: rcid,
+              );
         }
       }
     }

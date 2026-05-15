@@ -4,6 +4,7 @@ import 'package:animal_room_task_manager/census/census_model.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
+import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -263,6 +264,22 @@ class Database {
     final List<PostgrestMap> data = await _supabase.rpc(
       'get_task_records',
       params: {'start_date': startOfToday},
+    );
+    return data;
+  }
+
+  Future<List<PostgrestMap>> getRecordsForRoom(
+    Room room,
+    RoomCheckDate date,
+    TaskFrequency frequency,
+  ) async {
+    final List<PostgrestMap> data = await _supabase.rpc(
+      'get_task_records_for_room',
+      params: {
+        'rid': room.rid,
+        'date': date.toSupabaseString(),
+        'task_frequency': frequency.toDbString,
+      },
     );
     return data;
   }
