@@ -1,13 +1,13 @@
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
-import 'animal_management_model.dart';
-import 'animal_repository.dart';
+import 'species_management_model.dart';
+import 'species_repository.dart';
 
-class AnimalManagementScreen extends StatelessWidget {
-  final AnimalManagementModel _model;
+class SpeciesManagementScreen extends StatelessWidget {
+  final SpeciesManagementModel _model;
 
-  const AnimalManagementScreen({super.key, model}) : _model = model;
+  const SpeciesManagementScreen({super.key, model}) : _model = model;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class AnimalManagementScreen extends StatelessWidget {
                     shrinkWrap: true,
                     children: [
                       Divider(),
-                      for (var animal in _model.getAnimals()) ...[
+                      for (var animal in _model.getSpecies()) ...[
                         ListTile(
                           title: mediumTitleText(context, animal.name),
                           trailing: _buildDeleteIconButton(context, animal),
@@ -53,7 +53,7 @@ class AnimalManagementScreen extends StatelessWidget {
               ),
               FilledButton(
                 onPressed: () async {
-                  await navigate(AddAnimalPage(model: _model));
+                  await navigate(AddSpeciesPage(model: _model));
                 },
                 child: Text("Add New Species"),
               ),
@@ -65,19 +65,19 @@ class AnimalManagementScreen extends StatelessWidget {
     );
   }
 
-  IconButton _buildDeleteIconButton(BuildContext context, Animal animal) {
+  IconButton _buildDeleteIconButton(BuildContext context, Species species) {
     return IconButton(
       icon: Icon(Icons.delete),
       onPressed: () async {
-        _model.deleteAnimal(animal);
+        _model.deleteSpecies(species);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             showCloseIcon: true,
-            content: Text('Animal deleted'),
+            content: Text('Species deleted'),
             action: SnackBarAction(
               label: 'Undo deletion',
               onPressed: () {
-                _model.undeleteAnimal(animal.name);
+                _model.undeleteSpecies(species.name);
               },
             ),
           ),
@@ -87,10 +87,10 @@ class AnimalManagementScreen extends StatelessWidget {
   }
 }
 
-class AddAnimalPage extends StatefulWidget {
-  final AnimalManagementModel _model;
+class AddSpeciesPage extends StatefulWidget {
+  final SpeciesManagementModel _model;
 
-  const AddAnimalPage({super.key, required AnimalManagementModel model})
+  const AddSpeciesPage({super.key, required SpeciesManagementModel model})
     : _model = model;
 
   @override
@@ -99,14 +99,14 @@ class AddAnimalPage extends StatefulWidget {
   }
 }
 
-class AddAnimalState extends State<AddAnimalPage> {
+class AddAnimalState extends State<AddSpeciesPage> {
   final _formKey = GlobalKey<FormState>();
-  final _animalController = TextEditingController();
+  final _speciesController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
     return buildScaffold(
-      title: "Add New Animal",
+      title: "Add New Species",
       child: Form(
         key: _formKey,
         child: Column(
@@ -119,12 +119,12 @@ class AddAnimalState extends State<AddAnimalPage> {
                 children: [
                   mediumTitleText(context, "Species"),
                   TextFormField(
-                    controller: _animalController,
+                    controller: _speciesController,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter a species';
                       }
-                      if (widget._model.animalExists(value)) {
+                      if (widget._model.speciesExists(value)) {
                         return 'There is already a species with that name';
                       }
                       return null;
@@ -144,7 +144,7 @@ class AddAnimalState extends State<AddAnimalPage> {
                   child: Text("Add Animal"),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                      await widget._model.addAnimal(_animalController.text);
+                      await widget._model.addSpecies(_speciesController.text);
                       if (context.mounted) {
                         Navigator.pop(context);
                       }

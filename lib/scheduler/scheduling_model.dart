@@ -67,7 +67,7 @@ class SchedulingModel extends ChangeNotifier {
        _taskListRepository = taskListRepository {
     _roomCheckRepository.loadRoomChecks();
     _taskListRepository.loadTaskLists();
-    users = userRepository.users;
+    users = userRepository.usersNotifier;
     userRepository.loadUsers();
     updateViews();
     // TODO only the changed/new rows should be updated

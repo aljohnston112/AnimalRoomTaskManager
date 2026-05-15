@@ -1,4 +1,3 @@
-import 'package:animal_room_task_manager/animal_management/animal_repository.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
 import 'package:animal_room_task_manager/census/census_model.dart';
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
@@ -9,6 +8,7 @@ import 'package:animal_room_task_manager/task_lists_management/task_list_reposit
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../facility_management/facility_repository.dart';
+import '../species_management/species_repository.dart';
 import '../user_management/user_repository.dart' as ur;
 
 class InsertAndGetKeyResult {
@@ -402,7 +402,7 @@ class Database {
     } else {
       try {
         return await doInsert(object);
-      } on PostgrestException catch (ex, e) {
+      } on PostgrestException catch (ex, _) {
         if (ex.message.contains("duplicate key")) {
           id = await doSelect(object);
           await doUpdate(object, id);
@@ -428,7 +428,7 @@ class Database {
           })
           .select('qr_id')
           .single())['qr_id'];
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // TODO this is fine,
         //      but ranges need to be implemented client side to avoid
@@ -469,7 +469,7 @@ class Database {
         'qr_id_warning': qridWarning,
         'qr_id_required': qridRequired,
       }));
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // TODO this is fine,
         //      but ranges need to be implemented client side to avoid
@@ -490,7 +490,7 @@ class Database {
           })
           .select('t_id')
           .single())['t_id'];
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // this is fine, and should be avoided client side
         // TODO undelete
@@ -598,7 +598,7 @@ class Database {
           .insert({'name': animalName, 'deleted': false})
           .select('a_id')
           .single())['a_id'];
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
@@ -616,7 +616,7 @@ class Database {
           .insert({'name': labName, 'color': color, 'deleted': false})
           .select('l_id')
           .single())['l_id'];
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
@@ -634,7 +634,7 @@ class Database {
           .insert({'name': buildingName, 'deleted': false})
           .select('b_id')
           .single())['b_id'];
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
@@ -653,7 +653,7 @@ class Database {
         'census_records': censusEntries
             .map(
               (e) => {
-                'a_id': e.animal.aid,
+                'a_id': e.species.aid,
                 'quantity': e.quantity,
                 'r_id': e.room.rid,
               },
@@ -670,7 +670,7 @@ class Database {
           .insert({'name': facilityName, 'deleted': false})
           .select('f_id')
           .single())['f_id'];
-    } on PostgrestException catch (ex, e) {
+    } on PostgrestException catch (ex, _) {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
@@ -758,7 +758,7 @@ class Database {
     );
   }
 
-  Future<void> deleteAnimal(Animal animal) async {
+  Future<void> deleteAnimal(Species animal) async {
     await _supabase
         .from('animals')
         .update({'deleted': true})

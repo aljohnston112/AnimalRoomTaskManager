@@ -5,9 +5,7 @@ import 'package:animal_room_task_manager/facility_management/facility_repository
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_management/room_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
-import 'package:flutter/cupertino.dart';
-
-import '../scheduler/scheduling_model.dart';
+import 'package:flutter/material.dart';
 
 class RoomManagementModel extends ChangeNotifier {
   final RoomRepository _roomRepository;

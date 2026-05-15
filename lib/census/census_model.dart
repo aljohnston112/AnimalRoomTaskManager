@@ -1,17 +1,17 @@
-import 'package:animal_room_task_manager/animal_management/animal_repository.dart';
 import 'package:animal_room_task_manager/census/census_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_management/room_repository.dart';
+import 'package:animal_room_task_manager/species_management/species_repository.dart';
 import 'package:flutter/foundation.dart';
 
 import '../scheduler/scheduling_model.dart';
 
 class Census {
   final Room room;
-  final Animal animal;
+  final Species species;
   final int quantity;
 
-  Census({required this.animal, required this.quantity, required this.room});
+  Census({required this.species, required this.quantity, required this.room});
 }
 
 class CensusScreenModel {
@@ -33,13 +33,14 @@ class CensusScreenModel {
 
   void addCensusEntry(Census census) {
     final existingIndex = _censusEntries.indexWhere(
-      (e) => e.animal.aid == census.animal.aid && e.room.rid == census.room.rid,
+      (e) =>
+          e.species.aid == census.species.aid && e.room.rid == census.room.rid,
     );
 
     if (existingIndex != -1) {
       final existingEntry = _censusEntries[existingIndex];
       _censusEntries[existingIndex] = Census(
-        animal: existingEntry.animal,
+        species: existingEntry.species,
         quantity: existingEntry.quantity + census.quantity,
         room: existingEntry.room,
       );
@@ -51,13 +52,13 @@ class CensusScreenModel {
   }
 
   void replaceCensusEntry(Census census) {
-    _censusEntries.removeWhere((e) => e.animal.aid == census.animal.aid);
+    _censusEntries.removeWhere((e) => e.species.aid == census.species.aid);
     addCensusEntry(census);
     censusEntries.value = List.from(_censusEntries);
   }
 
   void removeCensusEntry(Census census) {
-    _censusEntries.removeWhere((e) => e.animal.aid == census.animal.aid);
+    _censusEntries.removeWhere((e) => e.species.aid == census.species.aid);
     censusEntries.value = List.from(_censusEntries);
   }
 
@@ -70,16 +71,16 @@ class CensusScreenModel {
 }
 
 class CensusEntryModel extends ChangeNotifier {
-  ValueNotifier<Set<Animal>> animals = ValueNotifier({});
+  ValueNotifier<Set<Species>> allSpecies = ValueNotifier({});
   ValueNotifier<Set<RoomModel>> rooms = ValueNotifier({});
 
   CensusEntryModel({
-    required AnimalRepository animalRepository,
+    required SpeciesRepository animalRepository,
     required RoomRepository roomRepository,
     required Set<int> roomsWithCensuses,
   }) {
-    animals = animalRepository.animals;
-    animalRepository.loadAnimals();
+    allSpecies = animalRepository.allSpecies;
+    animalRepository.loadSpecies();
     roomRepository.rooms.addListener(() {
       var set = roomRepository.rooms.value
           .where((e) => !roomsWithCensuses.contains(e.rid))
@@ -89,7 +90,7 @@ class CensusEntryModel extends ChangeNotifier {
     roomRepository.loadRooms();
   }
 
-  Animal getAnimal(int aid) {
-    return animals.value.firstWhere((a) => a.aid == aid);
+  Species getSpecies(int aid) {
+    return allSpecies.value.firstWhere((a) => a.aid == aid);
   }
 }

@@ -100,6 +100,13 @@ ConstrainedBox constrainTextBoxWidth(Widget child) {
   );
 }
 
+Widget cancelButton() {
+  return FilledButton(
+    child: const Text("Cancel"),
+    onPressed: () => unNavigate(),
+  );
+}
+
 extension LoadingExtension on BuildContext {
   Future<T> showLoading<T>(Future<T> future) async {
     showDialog(

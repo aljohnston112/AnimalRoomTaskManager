@@ -38,7 +38,7 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
         ? widget._census!.quantity.toString()
         : "";
     _selectedRoom = widget._census?.room;
-    _selectedAid = widget._census?.animal.aid;
+    _selectedAid = widget._census?.species.aid;
   }
 
   @override
@@ -94,11 +94,11 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                 mediumTitleText(context, "Species"),
                 constrainTextBoxWidth(
                   ValueListenableBuilder(
-                    valueListenable: widget._model.animals,
+                    valueListenable: widget._model.allSpecies,
                     builder: (context, items, _) {
                       return DropdownButtonFormField(
                         initialValue: widget._census != null
-                            ? widget._census!.animal.aid
+                            ? widget._census!.species.aid
                             : _selectedAid,
                         items: items
                             .map(
@@ -154,14 +154,14 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                   child: Text("Add Census Entry"),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                      final animal = widget._model.getAnimal(_selectedAid!);
+                      final animal = widget._model.getSpecies(_selectedAid!);
                       final quantity = int.parse(_censusController.text);
                       if (widget._isFirstEntry) {
                         navigate(
                           CensusScreen(
                             censusScreenModel: CensusScreenModel(
                               census: Census(
-                                animal: animal,
+                                species: animal,
                                 quantity: quantity,
                                 room: _selectedRoom!,
                               ),
@@ -173,7 +173,7 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
                       } else {
                         unNavigate(
                           result: Census(
-                            animal: animal,
+                            species: animal,
                             quantity: quantity,
                             room: _selectedRoom!,
                           ),
@@ -247,7 +247,7 @@ class CensusScreen extends StatelessWidget {
         if (result != null) {
           _model.addCensusEntry(
             Census(
-              animal: result.animal,
+              species: result.species,
               quantity: result.quantity,
               room: result.room,
             ),
@@ -296,7 +296,7 @@ class CensusRecordList extends StatelessWidget {
     return ListTile(
       title: mediumTitleText(
         context,
-        "Room: ${census.room.name}\nSpecies: ${census.animal.name}\nQuantity: ${census.quantity}",
+        "Room: ${census.room.name}\nSpecies: ${census.species.name}\nQuantity: ${census.quantity}",
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

@@ -1,6 +1,3 @@
-import 'package:animal_room_task_manager/animal_management/animal_management_model.dart';
-import 'package:animal_room_task_manager/animal_management/animal_management_screen.dart';
-import 'package:animal_room_task_manager/animal_management/animal_repository.dart';
 import 'package:animal_room_task_manager/building_management/building_management_model.dart';
 import 'package:animal_room_task_manager/building_management/building_management_screen.dart';
 import 'package:animal_room_task_manager/building_management/building_repository.dart';
@@ -23,6 +20,9 @@ import 'package:animal_room_task_manager/room_management/room_management_screen.
 import 'package:animal_room_task_manager/room_management/room_repository.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_home_screen.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
+import 'package:animal_room_task_manager/species_management/species_management_model.dart';
+import 'package:animal_room_task_manager/species_management/species_management_screen.dart';
+import 'package:animal_room_task_manager/species_management/species_repository.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_management_model.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_management_screen.dart';
@@ -36,6 +36,78 @@ import 'package:provider/provider.dart';
 
 import 'facility_management/facility_repository.dart';
 
+// TODO
+// TASK_LIST.2.0.2
+// The admin shall be able to add a notification trigger comprised of
+// a minimum and maximum value for the quantitative variable
+
+// TASK_LIST.8
+// The admin shall be able to delete any task list not linked to any room
+
+// TASK_LIST.9
+// The admin shall be able to mark any task list assigned to a room as idle
+
+// TASK_LIST.9.1
+// Idle task lists shall stay assigned to the room they were assigned to
+// when marked idle
+
+// TASK_LIST.9.2
+// Idle task lists will only be idle for the rooms they are marked idle for
+
+// ROOM_CHECK.1
+// If a task contains the recording of a quantitative variable
+// with notification triggers, the system shall inform the user,
+// principal investigators, and the admin if any of those recorded values
+// are out of the specified range and submitted
+
+// ROOM_CHECK.6.0
+// If a comment is recorded in a walkthrough, the admin
+// and principal investigators shall be notified of the comment's content
+
+// ROOM_CHECK.6.0.1
+// The notification shall include the lab, room, and task
+// that the comment was recorded for
+
+// ROOM_CHECK.7
+// When all the room checks for a lab are done, the admin
+// and principal investigators shall get a notification
+
+// ROOM_CHECK.7.0
+// The notification shall include the lab whose room checks are done
+
+// CENSUS.1.2
+// A recorded census shall be retrievable for at least seven years
+// by the admin and principal investigators
+
+// LAB.1.0
+// The admin shall be able to change the color assigned to a lab
+
+// LAB.2
+// The lab shall keep a list of users who belong to the lab
+
+// LAB.2.0
+// A user may belong to multiple labs
+
+// SCHEDULE.2
+// The admin and principal investigators shall be able to assign any user
+// to any room check not in progress
+
+// SCHEDULE.2.0
+// If the room check has a user assigned, the new assignment will remove
+// that user before assigning the new one
+
+// SCHEDULE.3
+// Room check time slots shall have a color that indicates the lab association
+
+// SCHEDULE.4
+// The system shall make apparent if a room check is in progress
+
+// SCHEDULE.5
+// A user shall have the ability to assign,
+// users they have permission to assign to room checks to,
+// to a room on a specific set of weekdays over a time frame
+// consisting of an interval over two future dates
+
 // TODO clear snackbars when navigating; and switch to navigation functions in theme_data
 
 Future<void> main() async {
@@ -44,7 +116,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         Provider.value(value: database),
-        Provider.value(value: AnimalRepository(database: database)),
+        Provider.value(value: SpeciesRepository(database: database)),
         Provider.value(value: BuildingRepository(database: database)),
         Provider.value(value: CensusRepository(database: database)),
         Provider.value(value: LabRepository(database: database)),
@@ -123,8 +195,8 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
       FilledButton(
         onPressed: () async {
           await navigate(
-            AnimalManagementScreen(
-              model: AnimalManagementModel(animalRepository: context.read()),
+            SpeciesManagementScreen(
+              model: SpeciesManagementModel(speciesRepository: context.read()),
             ),
           );
         },
