@@ -49,12 +49,15 @@ class SchedulingScreenCards extends StatelessWidget {
     BuildContext context,
   ) {
     final taskLists = Map.fromEntries(
-      context.watch<TaskListRepository>().taskListMap.value.entries.where(
-        (e) => e.key.frequency == TaskFrequency.daily,
-      ),
+      context
+          .watch<TaskListRepository>()
+          .taskListMapListenable
+          .value
+          .entries
+          .where((e) => e.key.frequency == TaskFrequency.daily),
     );
     final List<String> uniqueBuildings = taskLists.keys
-        .map((key) => key.buildingName)
+        .map((key) => key.building.name)
         .toSet()
         .toList();
     uniqueBuildings.sort();
@@ -72,7 +75,7 @@ class SchedulingScreenCards extends StatelessWidget {
       for (final building in uniqueBuildings) {
         final taskSInBuilding = Map.fromEntries(
           taskLists.entries
-              .where((e) => e.key.buildingName == building)
+              .where((e) => e.key.building.name == building)
               .toList(),
         );
         cards[building]!.add(
@@ -96,12 +99,15 @@ class SchedulingScreenCards extends StatelessWidget {
     BuildContext context,
   ) {
     final taskLists = Map.fromEntries(
-      context.watch<TaskListRepository>().taskListMap.value.entries.where(
-        (e) => e.key.frequency == TaskFrequency.weekly,
-      ),
+      context
+          .watch<TaskListRepository>()
+          .taskListMapListenable
+          .value
+          .entries
+          .where((e) => e.key.frequency == TaskFrequency.weekly),
     );
     final List<String> uniqueBuildings = taskLists.keys
-        .map((key) => key.buildingName)
+        .map((key) => key.building.name)
         .toSet()
         .toList();
     uniqueBuildings.sort();
@@ -128,7 +134,7 @@ class SchedulingScreenCards extends StatelessWidget {
       for (final building in uniqueBuildings) {
         final tasksInBuilding = Map.fromEntries(
           taskLists.entries
-              .where((e) => e.key.buildingName == building)
+              .where((e) => e.key.building.name == building)
               .toList(),
         );
         cards[building]!.add(
@@ -153,12 +159,15 @@ class SchedulingScreenCards extends StatelessWidget {
     BuildContext context,
   ) {
     final taskLists = Map.fromEntries(
-      context.watch<TaskListRepository>().taskListMap.value.entries.where(
-        (e) => e.key.frequency == TaskFrequency.monthly,
-      ),
+      context
+          .watch<TaskListRepository>()
+          .taskListMapListenable
+          .value
+          .entries
+          .where((e) => e.key.frequency == TaskFrequency.monthly),
     );
     final List<String> uniqueBuildings = taskLists.keys
-        .map((key) => key.buildingName)
+        .map((key) => key.building.name)
         .toSet()
         .toList();
     uniqueBuildings.sort();
@@ -174,7 +183,9 @@ class SchedulingScreenCards extends StatelessWidget {
 
     for (final building in uniqueBuildings) {
       final tasksInBuilding = Map.fromEntries(
-        taskLists.entries.where((e) => e.key.buildingName == building).toList(),
+        taskLists.entries
+            .where((e) => e.key.building.name == building)
+            .toList(),
       );
       cards[building]!.add(
         _buildRoomAssignmentCards(
@@ -273,7 +284,7 @@ class SchedulingScreenCards extends StatelessWidget {
           .getTaskListState(roomTaskList, key.room, date);
       String userAssignedString = _getAssignedUserString(
         schedulingModel.getUserAssignedToRoom(
-          key.buildingName,
+          key.building.name,
           date,
           key.room,
           frequency,
@@ -285,7 +296,7 @@ class SchedulingScreenCards extends StatelessWidget {
           builder: (context, _) {
             String userAssignedString = _getAssignedUserString(
               schedulingModel.getUserAssignedToRoom(
-                key.buildingName,
+                key.building.name,
                 date,
                 key.room,
                 frequency,
@@ -317,7 +328,7 @@ class SchedulingScreenCards extends StatelessWidget {
                         FilledButton(
                           onPressed: () {
                             schedulingModel.assignUserToRoomCheck(
-                              key.buildingName,
+                              key.building.name,
                               date,
                               key.room,
                               logInUseCase.loggedInUser!,
@@ -341,7 +352,7 @@ class SchedulingScreenCards extends StatelessWidget {
                             );
                             if (user != null) {
                               schedulingModel.assignUserToRoomCheck(
-                                key.buildingName,
+                                key.building.name,
                                 date,
                                 key.room,
                                 user,
@@ -373,7 +384,7 @@ class SchedulingScreenCards extends StatelessWidget {
                               builder: (_) {
                                 return RoomCheckScreen(
                                   roomCheckModel: RoomCheckModel(
-                                    buildingName: key.buildingName,
+                                    buildingName: key.building.name,
                                     room: key.room,
                                     taskList: roomTaskList,
                                     recordRepository: context.read(),

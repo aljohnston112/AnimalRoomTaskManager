@@ -1,9 +1,11 @@
 import 'dart:collection';
 
+import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../building_management/building_repository.dart';
 import '../scheduler/scheduling_model.dart';
 
 enum TaskFrequency { daily, weekly, monthly }
@@ -58,14 +60,19 @@ class QuantitativeRange<T> {
   final T min;
   final T max;
   final String units;
-  final bool isRequired;
 
   QuantitativeRange({
     required this.min,
     required this.max,
     required this.units,
-    required this.isRequired,
   });
+
+  @override
+  String toString() {
+    return "$min to "
+        "$max "
+        "$units";
+  }
 }
 
 class QuantitativeTask<T> extends Task {
@@ -88,10 +95,11 @@ class QuantitativeTask<T> extends Task {
   int get hashCode => tid.hashCode;
 }
 
-Task parseTask(PostgrestMap taskDB, int tid) {
-  final taskName = taskDB['task_name'];
-  final isManagerTask = taskDB['manager_only'];
-  final quantitativeRangesDB = taskDB['quantitative_ranges'];
+Task parseTask(PostgrestMap taskMap, [int? tid]) {
+  tid ??= taskMap['t_id'];
+  final taskName = taskMap['task_name'];
+  final isManagerTask = taskMap['manager_only'];
+  final quantitativeRangesDB = taskMap['quantitative_ranges'];
   QuantitativeRange? warningRange;
   QuantitativeRange? requiredRange;
   if (quantitativeRangesDB != null) {
@@ -102,7 +110,6 @@ Task parseTask(PostgrestMap taskDB, int tid) {
         min: warningRangeDB['min'],
         max: warningRangeDB['max'],
         units: unit,
-        isRequired: false,
       );
     }
     final requiredRangeDB = quantitativeRangesDB['required_range'];
@@ -111,18 +118,17 @@ Task parseTask(PostgrestMap taskDB, int tid) {
         min: requiredRangeDB['min'],
         max: requiredRangeDB['max'],
         units: unit,
-        isRequired: true,
       );
     }
     return QuantitativeTask(
       description: taskName,
       managerOnly: isManagerTask,
-      tid: tid,
+      tid: tid!,
       warningRange: warningRange,
       requiredRange: requiredRange,
     );
   } else {
-    return Task(description: taskName, managerOnly: isManagerTask, tid: tid);
+    return Task(description: taskName, managerOnly: isManagerTask, tid: tid!);
   }
 }
 
@@ -130,7 +136,7 @@ class TaskList {
   final int tlid;
   final String name;
   final TaskFrequency frequency;
-  final UnmodifiableListView<Task> tasks;
+  final UnmodifiableMapView<int, Task> tasks;
 
   TaskList({
     required this.tlid,
@@ -147,12 +153,12 @@ class TaskList {
 }
 
 class TaskListKey {
-  final String buildingName;
+  final Building building;
   final Room room;
   final TaskFrequency frequency;
 
   TaskListKey({
-    required this.buildingName,
+    required this.building,
     required this.room,
     required this.frequency,
   });
@@ -160,32 +166,55 @@ class TaskListKey {
   @override
   bool operator ==(Object other) {
     return other is TaskListKey &&
-        other.buildingName == buildingName &&
+        other.building == building &&
         other.room == room &&
         other.frequency == frequency;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(buildingName.hashCode, room.hashCode, frequency.hashCode);
+  int get hashCode => Object.hash(building, room, frequency);
 }
 
 class TaskListRepository {
   final Database _database;
 
   final Set<Task> _tasks = {};
-  final ValueNotifier<UnmodifiableSetView<Task>> tasks = ValueNotifier(
-    UnmodifiableSetView({}),
-  );
+  late final RefreshableNotifier<UnmodifiableSetView<Task>> _tasksRefreshable =
+      RefreshableNotifier(UnmodifiableSetView(_tasks));
+  late final ValueListenable<UnmodifiableSetView<Task>> tasksListenable =
+      _tasksRefreshable;
+
+  UnmodifiableSetView<Task> get tasks => tasksListenable.value;
 
   final Map<TaskListKey, TaskList> _taskListMap = {};
-  final ValueNotifier<UnmodifiableMapView<TaskListKey, TaskList>> taskListMap =
-      ValueNotifier(UnmodifiableMapView({}));
+  late final RefreshableNotifier<UnmodifiableMapView<TaskListKey, TaskList>>
+  _taskListMapRefreshable = RefreshableNotifier(
+    UnmodifiableMapView(_taskListMap),
+  );
+  late final ValueListenable<UnmodifiableMapView<TaskListKey, TaskList>>
+  taskListMapListenable = _taskListMapRefreshable;
+
+  UnmodifiableMapView<TaskListKey, TaskList> get taskListMap =>
+      taskListMapListenable.value;
+
   final Map<TaskFrequency, Set<TaskList>> _taskLists = {};
-  final ValueNotifier<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
-  taskLists = ValueNotifier(UnmodifiableMapView({}));
+  late final RefreshableNotifier<
+    UnmodifiableMapView<TaskFrequency, Set<TaskList>>
+  >
+  _taskListsRefreshable = RefreshableNotifier(UnmodifiableMapView(_taskLists));
+  late final ValueListenable<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
+  taskListsListenable = _taskListsRefreshable;
+
+  UnmodifiableMapView<TaskFrequency, Set<TaskList>> get taskLists =>
+      taskListsListenable.value;
 
   TaskListRepository({required Database database}) : _database = database {
+    _database.subscribeToTasks((data) {
+      final payload = data['payload'];
+      _tasks.add(parseTask(payload));
+      _tasksRefreshable.refresh();
+    });
+
     _database.subscribeToTaskLists((data) {
       bool? deleted = data.newRecord['deleted'];
       if (deleted == true) {
@@ -196,20 +225,24 @@ class TaskListRepository {
       }
       _updateTaskLists();
     });
+
     _database.subscribeToTaskListsFull((data) {
       final payload = data['payload'];
       final tlid = payload['tl_id'];
       final taskListName = payload['task_list_name'];
       final frequency = (payload['frequency'] as String).toTaskFrequency;
-      final List<Task> tasks = [];
-      for (final task in payload['tasks']) {
-        tasks.add(parseTask(task, task['t_id']));
+      final Map<int, Task> tasks = {};
+      final tasksDB = payload['tasks'];
+      if (tasksDB != null) {
+        for (final task in tasksDB) {
+          tasks[task['index']] = (parseTask(task));
+        }
       }
       final taskList = TaskList(
         tlid: tlid,
         name: taskListName,
         frequency: frequency,
-        tasks: UnmodifiableListView(tasks),
+        tasks: UnmodifiableMapView(tasks),
       );
 
       _taskListMap.removeWhere(
@@ -223,7 +256,7 @@ class TaskListRepository {
           for (final roomDB in building['rooms']) {
             final room = Room(rid: roomDB['r_id'], name: roomDB['room_name']);
             TaskListKey key = TaskListKey(
-              buildingName: buildingName,
+              building: Building(bid: bid, name: buildingName),
               room: room,
               frequency: frequency,
             );
@@ -239,7 +272,6 @@ class TaskListRepository {
 
   Future<void> loadTaskLists() async {
     _taskListMap.clear();
-    taskLists.value = UnmodifiableMapView({});
     final map = await _database.getTaskLists();
     List<TaskList> unassignedTaskLists = [];
     for (final buildingMap in map) {
@@ -254,42 +286,40 @@ class TaskListRepository {
           for (final taskListDB in taskLists) {
             final tlid = taskListDB['tl_id'];
             final taskListName = taskListDB['task_list_name'];
-            final tasksDB = taskListDB['tasks'];
 
             // Tasks in the task list
-            List<Task> tasks = [];
+            Map<int, Task> tasks = {};
+            final tasksDB = taskListDB['tasks'];
             if (tasksDB != null) {
               for (final taskDB in tasksDB) {
-                final tid = taskDB['t_id'];
-                tasks.add(parseTask(taskDB, tid));
+                tasks[taskDB['index']] = (parseTask(taskDB));
               }
-              TaskList taskList = TaskList(
-                tlid: tlid,
-                name: taskListName,
-                frequency: frequency,
-                tasks: UnmodifiableListView(tasks),
-              );
+            }
+            TaskList taskList = TaskList(
+              tlid: tlid,
+              name: taskListName,
+              frequency: frequency,
+              tasks: UnmodifiableMapView(tasks),
+            );
 
-              final roomsDB = taskListDB['rooms'];
-              // Rooms with the task list
-              List<Room> rooms = [];
-              if (roomsDB != null) {
-                for (final roomDB in roomsDB) {
-                  rooms.add(
-                    Room(rid: roomDB['r_id'], name: roomDB['room_name']),
-                  );
-                }
-                for (final room in rooms) {
-                  TaskListKey taskListKey = TaskListKey(
-                    buildingName: buildingName,
-                    room: room,
-                    frequency: frequency,
-                  );
-                  _taskListMap[taskListKey] = taskList;
-                }
-              } else {
-                unassignedTaskLists.add(taskList);
+            // Rooms with the task list
+            List<Room> rooms = [];
+            final roomsDB = taskListDB['rooms'];
+            if (roomsDB != null) {
+              for (final roomDB in roomsDB) {
+                rooms.add(Room(rid: roomDB['r_id'], name: roomDB['room_name']));
               }
+              for (final room in rooms) {
+                TaskListKey taskListKey = TaskListKey(
+                  building: Building(bid: bid, name: buildingName),
+                  room: room,
+                  frequency: frequency,
+                );
+                _taskListMap.remove(taskListKey);
+                _taskListMap[taskListKey] = taskList;
+              }
+            } else {
+              unassignedTaskLists.add(taskList);
             }
           }
         }
@@ -299,30 +329,28 @@ class TaskListRepository {
   }
 
   void _updateTaskLists({List<TaskList>? unassignedTaskLists}) {
-    unassignedTaskLists ??= [];
-    taskListMap.value = UnmodifiableMapView(_taskListMap);
-    Map<TaskFrequency, Set<TaskList>> newTaskLists = Map.from(_taskLists);
-    newTaskLists.addAll(
-      _taskListMap.values.fold(newTaskLists, (previousValue, taskList) {
-        previousValue.putIfAbsent(taskList.frequency, () => {}).add(taskList);
-        return previousValue;
-      }),
-    );
-    for (final taskList in unassignedTaskLists) {
-      newTaskLists.putIfAbsent(taskList.frequency, () => {}).add(taskList);
+    _taskListMapRefreshable.refresh();
+
+    // Aggregate all the task lists
+    for (final taskList in _taskListMap.values) {
+      _taskLists.putIfAbsent(taskList.frequency, () => {}).add(taskList);
     }
-    _taskLists.addAll(newTaskLists);
-    taskLists.value = UnmodifiableMapView(_taskLists);
+    unassignedTaskLists ??= [];
+    for (final taskList in unassignedTaskLists) {
+      _taskLists.putIfAbsent(taskList.frequency, () => {});
+      _taskLists[taskList.frequency]!.remove(taskList);
+      _taskLists[taskList.frequency]!.add(taskList);
+    }
+    _taskListsRefreshable.refresh();
   }
 
   Future<void> loadTasks() async {
-    final map = await _database.getTasks();
-    for (final taskMap in map) {
+    final tasksMap = await _database.getTasks();
+    for (final taskMap in tasksMap) {
       final taskMapDB = taskMap['jsonb_build_object'];
-      final tid = taskMapDB['t_id'];
-      _tasks.add(parseTask(taskMapDB, tid));
+      _tasks.add(parseTask(taskMapDB));
     }
-    tasks.value = UnmodifiableSetView(_tasks);
+    _tasksRefreshable.refresh();
   }
 
   Future<void> addTaskList(
@@ -342,6 +370,28 @@ class TaskListRepository {
     await _database.editTaskList(tlid, taskListName, taskFrequency, tidToIndex);
   }
 
+  bool taskDescriptionExists(String value) {
+    return _tasks.any((t) => t.description == value);
+  }
+
+  Future<void> addTask(String description, bool isManagerOnly) async {
+    _database.addTask(description, isManagerOnly);
+  }
+
+  Future<void> addQuantitativeTask(
+    String description,
+    bool isManagerOnly,
+    QuantitativeRange<double>? warningRange,
+    QuantitativeRange<double>? requiredRange,
+  ) async {
+    _database.addQuantitativeTask(
+      description: description,
+      isManagerOnly: isManagerOnly,
+      warningRange: warningRange,
+      requiredRange: requiredRange,
+    );
+  }
+
   Future<void> reorderTasks(int tlid, Map<int, int> tidToIndex) async {
     await _database.reorderTasks(tlid, tidToIndex);
   }
@@ -352,27 +402,5 @@ class TaskListRepository {
 
   Future<void> undeleteTaskList(TaskList taskList) async {
     await _database.undeleteTaskList(taskList);
-  }
-
-  bool taskDescriptionExists(String value) {
-    return _tasks.any((t) => t.description == value);
-  }
-
-  Future<void> addQuantitativeTask(
-    String description,
-    bool isManagerOnly,
-    QuantitativeRange<double> warningRange,
-    QuantitativeRange<double> requiredRange,
-  ) async {
-    _database.addQuantitativeTask(
-      description,
-      isManagerOnly,
-      warningRange,
-      requiredRange,
-    );
-  }
-
-  Future<void> addTask(String description, bool isManagerOnly) async {
-    _database.addTask(description, isManagerOnly);
   }
 }

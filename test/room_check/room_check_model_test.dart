@@ -17,17 +17,12 @@ void testRoomCheckModel() {
   final taskB = QuantitativeTask(
     tid: 0,
     description: "B",
-    warningRange: QuantitativeRange(
-      min: 10,
-      max: 100,
-      units: "Bs",
-      isRequired: false,
-    ),
+    warningRange: QuantitativeRange(min: 10, max: 100, units: "Bs"),
     requiredRange: null,
     managerOnly: false,
   );
   final taskC = Task(tid: 0, description: "C", managerOnly: false);
-  final tasks = UnmodifiableListView([taskA, taskB, taskC]);
+  final tasks = UnmodifiableMapView({0: taskA, 1: taskB, 2: taskC});
   final taskList = TaskList(
     name: "D",
     frequency: TaskFrequency.weekly,

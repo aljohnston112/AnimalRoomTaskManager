@@ -3,32 +3,29 @@ import 'dart:collection';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
 import 'package:flutter/foundation.dart';
 
-class TaskListManagementModel extends ChangeNotifier {
+class TaskListManagementModel {
   final TaskListRepository _taskListRepository;
+
+  late final ValueListenable<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
+  taskListsListenable;
+
+  UnmodifiableMapView<TaskFrequency, Set<TaskList>> get taskLists =>
+      taskListsListenable.value;
+  late final ValueListenable<UnmodifiableSetView<Task>> tasksListenable;
+
+  UnmodifiableSetView<Task> get tasks => tasksListenable.value;
 
   TaskListManagementModel({required TaskListRepository taskListRepository})
     : _taskListRepository = taskListRepository {
-    _taskListRepository.taskLists.addListener(() {
-      notifyListeners();
-    });
-    _taskListRepository.tasks.addListener(() {
-      notifyListeners();
-    });
+    taskListsListenable = _taskListRepository.taskListsListenable;
+    tasksListenable = _taskListRepository.tasksListenable;
+
     _taskListRepository.loadTaskLists();
     _taskListRepository.loadTasks();
-    notifyListeners();
-  }
-
-  UnmodifiableMapView<TaskFrequency, Set<TaskList>> getTaskLists() {
-    return _taskListRepository.taskLists.value;
-  }
-
-  UnmodifiableSetView<Task> getAllTasks() {
-    return _taskListRepository.tasks.value;
   }
 
   bool taskListExists(String taskListName, TaskFrequency frequency) {
-    return getTaskLists().values.any((v) {
+    return taskLists.values.any((v) {
       return v.any((v) {
         return v.name == taskListName && v.frequency == frequency;
       });

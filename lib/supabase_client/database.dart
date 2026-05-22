@@ -186,6 +186,21 @@ class Database {
         .subscribe();
   }
 
+  void subscribeToTasks(void Function(dynamic) callback) {
+    final taskRecordChannel = _supabase.channel(
+      'task_channel',
+      opts: const RealtimeChannelConfig(private: true),
+    );
+    taskRecordChannel
+        .onBroadcast(
+          event: 'task_update',
+          callback: (payload) {
+            callback(payload);
+          },
+        )
+        .subscribe();
+  }
+
   void subscribeToTaskLists(void Function(PostgresChangePayload) callback) {
     _supabase
         .channel("task_lists")
@@ -415,7 +430,7 @@ class Database {
   }
 
   // TODO unique constraints on tasks and ranges
-
+  // Already on the database end
   Future<int> addRange(QuantitativeRange<double> range) async {
     try {
       return (await _supabase
@@ -446,64 +461,35 @@ class Database {
   }
 
   // TODO undelete tasks and ranges on duplicate
-  // TODO realtime update of tasks
-
-  Future<void> addQuantitativeTask(
-    String description,
-    bool isManagerOnly,
+  Future<void> addQuantitativeTask({
+    required String description,
+    required bool isManagerOnly,
     QuantitativeRange<double>? warningRange,
     QuantitativeRange<double>? requiredRange,
-  ) async {
-    int tid = await addTask(description, isManagerOnly);
-    int? qridWarning;
-    int? qridRequired;
-    if (warningRange != null) {
-      qridWarning = await addRange(warningRange);
-    }
-    if (requiredRange != null) {
-      qridRequired = await addRange(requiredRange);
-    }
-    try {
-      return (await _supabase.from('quantitative_tasks').insert({
-        't_id': tid,
-        'qr_id_warning': qridWarning,
-        'qr_id_required': qridRequired,
-      }));
-    } on PostgrestException catch (ex, _) {
-      if (ex.message.contains("duplicate key")) {
-        // TODO this is fine,
-        //      but ranges need to be implemented client side to avoid
-      } else {
-        rethrow;
+  }) async {
+    Map<String, dynamic>? rangeToJson(QuantitativeRange<double>? range) {
+      if (range == null) {
+        return null;
       }
+      return {'unit': range.units, 'minimum': range.min, 'maximum': range.max};
     }
+
+    return await _supabase.rpc(
+      'add_quantitative_task',
+      params: {
+        'task_name': description,
+        'is_manager_only': isManagerOnly,
+        'warning_range': rangeToJson(warningRange),
+        'required_range': rangeToJson(requiredRange),
+      },
+    );
   }
 
   Future<int> addTask(String description, bool isManagerOnly) async {
-    try {
-      return (await _supabase
-          .from('tasks')
-          .insert({
-            'name': description,
-            'manager_only': isManagerOnly,
-            'deleted': false,
-          })
-          .select('t_id')
-          .single())['t_id'];
-    } on PostgrestException catch (ex, _) {
-      if (ex.message.contains("duplicate key")) {
-        // this is fine, and should be avoided client side
-        // TODO undelete
-        return (await _supabase
-            .from('tasks')
-            .select('t_id')
-            .eq('name', description)
-            .eq('manager_only', isManagerOnly)
-            .single())['t_id'];
-      } else {
-        rethrow;
-      }
-    }
+    return await _supabase.rpc(
+      'add_task',
+      params: {'task_name': description, 'is_manager_only': isManagerOnly},
+    );
   }
 
   Future<int> insertRoomCheckAndGetRcid(RoomCheckSlot roomCheckSlot) async {
@@ -751,6 +737,7 @@ class Database {
     await _supabase.rpc(
       'reorder_tasks',
       params: {
+        'target_tl_id': tlid,
         'payload': tidToIndex.entries.map((e) {
           return {'tl_id': tlid, 't_id': e.key, 'new_index': e.value};
         }).toList(),
@@ -827,16 +814,13 @@ class Database {
   }
 
   Future<void> undeleteTaskList(TaskList taskList) async {
-    var tidToIndex = {
-      for (int i = 0; i < taskList.tasks.length; i++) taskList.tasks[i].tid: i,
-    };
     await _supabase.rpc(
       'insert_task_list',
       params: {
         'name_in': taskList.name,
         'frequency_in': taskList.frequency.toDbString,
-        'task_list_task_membership_rows': tidToIndex.entries.map((e) {
-          return {'t_id': e.key, 'index': e.value};
+        'task_list_task_membership_rows': taskList.tasks.entries.map((e) {
+          return {'t_id': e.value.tid, 'index': e.key};
         }).toList(),
       },
     );

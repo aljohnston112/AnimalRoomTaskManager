@@ -191,7 +191,7 @@ class SchedulingModel extends ChangeNotifier {
     }
 
     return TaskListState(
-      tasksDone: taskList.tasks.every((t) => recordMap.keys.contains(t)),
+      tasksDone: taskList.tasks.values.every((t) => recordMap.keys.contains(t)),
       doneBy: doneBy,
     );
   }

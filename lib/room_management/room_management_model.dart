@@ -5,7 +5,7 @@ import 'package:animal_room_task_manager/facility_management/facility_repository
 import 'package:animal_room_task_manager/lab_management/lab_repository.dart';
 import 'package:animal_room_task_manager/room_management/room_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class RoomManagementModel extends ChangeNotifier {
   final RoomRepository _roomRepository;
@@ -20,8 +20,8 @@ class RoomManagementModel extends ChangeNotifier {
 
   ValueNotifier<Set<Lab>> get labs => _labRepository.labs;
 
-  ValueNotifier<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
-  get taskLists => _taskListRepository.taskLists;
+  ValueListenable<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
+  get taskLists => _taskListRepository.taskListsListenable;
 
   RoomManagementModel({
     required RoomRepository roomRepository,

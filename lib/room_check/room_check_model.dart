@@ -86,7 +86,7 @@ class RoomCheckModel extends ChangeNotifier {
     roomCheckRepository.upsertRoomCheck(_roomCheckSlot);
 
     // Initialize input controllers
-    for (var task in taskList.tasks) {
+    for (var task in taskList.tasks.values) {
       if (task is QuantitativeTask) {
         _quantitativeValueControllers[task] = TextEditingController();
       }
@@ -121,7 +121,7 @@ class RoomCheckModel extends ChangeNotifier {
       date,
       taskList.frequency,
     );
-    return taskList.tasks.map((task) {
+    return taskList.tasks.values.map((task) {
       return TaskEntryModel(task: task, record: records[task], date: date);
     }).toList();
   }
@@ -190,7 +190,7 @@ class RoomCheckModel extends ChangeNotifier {
     // TODO these should be batched
     // Will need to handle lists and insert errors in the shema and
     // the realtime will need to be changed to handle multiple tasks
-    for (var task in taskList.tasks) {
+    for (var task in taskList.tasks.values) {
       String? valueText = _quantitativeValueControllers[task]?.text;
       User? loggedInUser = loginUseCase.loggedInUser;
       if (loggedInUser != null) {
