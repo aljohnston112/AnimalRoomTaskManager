@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:animal_room_task_manager/building_management/building_repository.dart';
+import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'
     show PostgrestMap, PostgresChangePayload;
 
@@ -69,13 +71,13 @@ extension RoomCheckStateParser on String {
 }
 
 class RoomCheckSlotKey {
-  final String buildingName;
+  final Building building;
   final Room room;
   final RoomCheckDate date;
   final TaskFrequency frequency;
 
   RoomCheckSlotKey({
-    required this.buildingName,
+    required this.building,
     required this.room,
     required this.date,
     required this.frequency,
@@ -84,7 +86,7 @@ class RoomCheckSlotKey {
   @override
   bool operator ==(Object other) {
     return other is RoomCheckSlotKey &&
-        other.buildingName == buildingName &&
+        other.building == building &&
         other.room == room &&
         other.date == date &&
         other.frequency == frequency;
@@ -92,7 +94,7 @@ class RoomCheckSlotKey {
 
   @override
   int get hashCode => Object.hash(
-    buildingName.hashCode,
+    building.hashCode,
     room.hashCode,
     date.hashCode,
     frequency.hashCode,
@@ -171,8 +173,8 @@ class RoomCheckRepository {
 
   final Map<RoomCheckSlotKey, RoomCheckSlot> _roomChecks = {};
 
-  final ValueNotifier<Map<RoomCheckSlotKey, RoomCheckSlot>> roomChecksNotifier =
-      ValueNotifier({});
+  late final _roomChecksNotifier = RefreshableNotifier(_roomChecks);
+  late final ValueListenable roomChecksNotifier = _roomChecksNotifier;
 
   RoomCheckRepository({required Database database}) : _database = database {
     database.subscribeToRoomChecks((PostgresChangePayload p) async {
@@ -205,13 +207,16 @@ class RoomCheckRepository {
         state: (updatedRow['state'] as String).toRoomCheckState,
       );
       RoomCheckSlotKey key = RoomCheckSlotKey(
-        buildingName: updatedRow['building_name'],
+        building: Building(
+          bid: updatedRow['b_id'],
+          name: updatedRow['building_name'],
+        ),
         room: roomCheck.room,
         date: roomCheckDate,
         frequency: roomCheck.frequency,
       );
       _roomChecks[key] = roomCheck;
-      roomChecksNotifier.value = Map.from(_roomChecks);
+      _roomChecksNotifier.refresh();
     });
   }
 
@@ -241,7 +246,7 @@ class RoomCheckRepository {
               frequency,
             );
             RoomCheckSlotKey key = RoomCheckSlotKey(
-              buildingName: buildingName,
+              building: Building(bid: bid, name: buildingName),
               room: roomCheck.room,
               date: roomCheckDate,
               frequency: roomCheck.frequency,
@@ -251,7 +256,7 @@ class RoomCheckRepository {
         }
       }
     }
-    roomChecksNotifier.value = Map.from(_roomChecks);
+    _roomChecksNotifier.refresh();
   }
 
   RoomCheckSlot _parseRoomCheck(
@@ -280,13 +285,13 @@ class RoomCheckRepository {
   }
 
   RoomCheckSlot? getRoomCheck(
-    String buildingName,
+    Building building,
     RoomCheckDate date,
     TaskFrequency frequency,
     Room room,
   ) {
     RoomCheckSlotKey key = RoomCheckSlotKey(
-      buildingName: buildingName,
+      building: building,
       room: room,
       date: date,
       frequency: frequency,
@@ -295,13 +300,13 @@ class RoomCheckRepository {
   }
 
   void saveComment(
-    String buildingName,
+    Building building,
     RoomCheckSlot roomCheckSlot,
     String comment,
   ) {
     // The room check in the map wil be more recent
     RoomCheckSlotKey key = RoomCheckSlotKey(
-      buildingName: buildingName,
+      building: building,
       room: roomCheckSlot.room,
       date: roomCheckSlot.date,
       frequency: roomCheckSlot.frequency,

@@ -45,6 +45,7 @@ class AddCensusEntryScreenState extends State<CensusEntryScreen> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Add Census Entry",
+      context: context,
       child: Form(
         key: _formKey,
         child: Column(
@@ -201,6 +202,7 @@ class CensusScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Census",
+      context: context,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [

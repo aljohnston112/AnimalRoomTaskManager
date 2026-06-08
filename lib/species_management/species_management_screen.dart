@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/species_management/add_species_screen.dart';
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
@@ -13,55 +14,55 @@ class SpeciesManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Species Editor",
+      makeScrollable: false,
+      context: context,
       child: Column(
         mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          ListenableBuilder(
-            listenable: _model,
-            builder: (context, _) {
-              return Center(
-                child: constrainToPhoneWidth(
-                  ListView(
-                    shrinkWrap: true,
-                    children: [
-                      Divider(),
-                      for (var animal in _model.getSpecies()) ...[
-                        ListTile(
-                          title: mediumTitleText(context, animal.name),
-                          trailing: _buildDeleteIconButton(context, animal),
-                        ),
-                        const Divider(),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+          _buildSpeciesList(context),
           padding8,
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              FilledButton(
-                onPressed: () async {
-                  unNavigate();
-                },
-                child: Text("Go Back"),
-              ),
-              FilledButton(
-                onPressed: () async {
-                  await navigate(AddSpeciesPage(model: _model));
-                },
-                child: Text("Add New Species"),
-              ),
-            ],
+            children: [cancelButton(), _buildAddSpeciesButton()],
           ),
           padding8,
         ],
       ),
+    );
+  }
+
+  Widget _buildSpeciesList(BuildContext context) {
+    return constrainToPhoneWidth(
+        ListenableBuilder(
+          listenable: _model,
+          builder: (context, _) {
+            return buildScrollable(
+              wrapList(
+                context,
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Column(
+                    children: [
+                      for (var species in _model.species) ...[
+                        Card(
+                          elevation: appCardElevation,
+                          shadowColor: Theme.of(context).primaryColor,
+                          child: ListTile(
+                            title: mediumTitleText(context, species.name),
+                            trailing: _buildDeleteIconButton(context, species),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+      )
     );
   }
 
@@ -85,77 +86,13 @@ class SpeciesManagementScreen extends StatelessWidget {
       },
     );
   }
-}
 
-class AddSpeciesPage extends StatefulWidget {
-  final SpeciesManagementModel _model;
-
-  const AddSpeciesPage({super.key, required SpeciesManagementModel model})
-    : _model = model;
-
-  @override
-  State<StatefulWidget> createState() {
-    return AddAnimalState();
-  }
-}
-
-class AddAnimalState extends State<AddSpeciesPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _speciesController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return buildScaffold(
-      title: "Add New Species",
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            constrainTextBoxWidth(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  mediumTitleText(context, "Species"),
-                  TextFormField(
-                    controller: _speciesController,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a species';
-                      }
-                      if (widget._model.speciesExists(value)) {
-                        return 'There is already a species with that name';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FilledButton(
-                  child: const Text("Cancel"),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                FilledButton(
-                  child: Text("Add Animal"),
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      await widget._model.addSpecies(_speciesController.text);
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+  FilledButton _buildAddSpeciesButton() {
+    return FilledButton(
+      onPressed: () async {
+        await navigate(AddSpeciesScreen(model: _model));
+      },
+      child: Text("Add Species"),
     );
   }
 }

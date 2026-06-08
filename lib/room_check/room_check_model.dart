@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/building_management/building_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
@@ -35,7 +36,7 @@ enum RoomCheckStatus { notStarted, started, done }
 
 class RoomCheckModel extends ChangeNotifier {
   late final RoomCheckSlot _roomCheckSlot;
-  final String buildingName;
+  final Building building;
   final TaskList taskList;
   final RecordRepository _recordRepository;
   final RoomCheckRepository _roomCheckRepository;
@@ -49,7 +50,7 @@ class RoomCheckModel extends ChangeNotifier {
   late bool _shouldHaveADisplayedCommentField;
 
   RoomCheckModel({
-    required this.buildingName,
+    required this.building,
     required this.taskList,
     required RecordRepository recordRepository,
     required RoomCheckRepository roomCheckRepository,
@@ -64,7 +65,7 @@ class RoomCheckModel extends ChangeNotifier {
     });
 
     final roomCheckSlot = _roomCheckRepository.getRoomCheck(
-      buildingName,
+      building,
       date,
       taskList.frequency,
       room,
@@ -171,14 +172,14 @@ class RoomCheckModel extends ChangeNotifier {
     bool allRecordsAdded = true;
     String? comment = _commentController.text;
     if (comment != _roomCheckSlot.comment) {
-      _roomCheckRepository.saveComment(buildingName, _roomCheckSlot, comment);
+      _roomCheckRepository.saveComment(building, _roomCheckSlot, comment);
     }
     // Need rc_id
     var rcid = _roomCheckSlot.rcid;
     // Check cache
     rcid ??= _roomCheckRepository
         .getRoomCheck(
-          buildingName,
+          building,
           _roomCheckSlot.date,
           _roomCheckSlot.frequency,
           _roomCheckSlot.room,

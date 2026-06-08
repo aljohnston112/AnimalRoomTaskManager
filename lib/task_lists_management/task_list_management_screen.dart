@@ -3,7 +3,7 @@ import 'package:animal_room_task_manager/task_lists_management/task_list_reposit
 import 'package:flutter/material.dart';
 
 import '../theme_data.dart';
-import 'add_task_list_screen.dart';
+import 'edit_task_list_screen.dart';
 
 /// A screen where the admin can add, edit, or delete task lists
 class TaskListManagementScreen extends StatelessWidget {
@@ -13,81 +13,100 @@ class TaskListManagementScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return buildScaffold(
-      makeScrollable: false,
-      title: "Task List Editor",
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildTaskListList(),
-          padding8,
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [cancelButton(), _buildAddTaskListButton()],
+    final taskListMap = _model.taskLists;
+    return DefaultTabController(
+      initialIndex: 0,
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Scheduler"),
+          automaticallyImplyLeading: false,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: "Daily"),
+              Tab(text: "Weekly"),
+              Tab(text: "Monthly"),
+            ],
           ),
-          padding8,
-        ],
+        ),
+        body: SafeArea(
+          child: pad8(
+            Column(
+              children: [
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: _model.taskListsListenable,
+                    builder: (context, _) {
+                      return TabBarView(
+                        children: [
+                          _buildTaskList(
+                            context,
+                            taskListMap[TaskFrequency.daily]!,
+                          ),
+                          _buildTaskList(
+                            context,
+                            taskListMap[TaskFrequency.weekly]!,
+                          ),
+                          _buildTaskList(
+                            context,
+                            taskListMap[TaskFrequency.monthly]!,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                pad8(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [cancelButton(), _buildAddTaskListButton()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  ListenableBuilder _buildTaskListList() {
-    return ListenableBuilder(
-      listenable: _model.taskListsListenable,
-      builder: (context, _) {
-        return Expanded(
-          child: Center(
-            child: constrainToPhoneWidth(
-              ListView(shrinkWrap: true, children: _buildTaskListTile(context)),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  List<ExpansionTile> _buildTaskListTile(BuildContext context) {
-    return [
-      for (final entry
-          in _model.taskLists.entries.toList()
-            ..sort((a, b) => a.key.index.compareTo(b.key.index))) ...[
-        ExpansionTile(
-          title: mediumTitleText(context, entry.key.toDbString),
-          children: [
-            for (final taskList in entry.value) ...[
-              ListTile(
+  Widget _buildTaskList(BuildContext context, Set<TaskList> taskLists) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          for (final taskList
+              in taskLists.toList()
+                ..sort((a, b) => a.name.compareTo(b.name))) ...[
+            Card(
+              elevation: appCardElevation,
+              shadowColor: Theme.of(context).primaryColor,
+              child: ListTile(
                 title: mediumTitleText(context, taskList.name),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _buildEditIconButton(context, taskList),
-                    padding8,
                     _buildDeleteIconButton(context, taskList),
                   ],
                 ),
               ),
-            ],
+            ),
           ],
-        ),
-      ],
-    ];
+        ],
+      ),
+    );
   }
 
   IconButton _buildEditIconButton(BuildContext context, TaskList taskList) {
     return IconButton(
-      icon: Icon(Icons.edit),
+      icon: Icon(Icons.edit, color: Theme.of(context).primaryColor),
       onPressed: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => EditTaskListPage(
-              model: _model,
-              title: "Edit Task List",
-              taskList: taskList,
-            ),
+        await navigate(
+          EditTaskListScreen(
+            model: _model,
+            title: "Edit Task List",
+            taskList: taskList,
           ),
         );
       },
@@ -96,7 +115,7 @@ class TaskListManagementScreen extends StatelessWidget {
 
   IconButton _buildDeleteIconButton(BuildContext context, TaskList taskList) {
     return IconButton(
-      icon: Icon(Icons.delete),
+      icon: Icon(Icons.delete, color: Theme.of(context).primaryColor),
       onPressed: () async {
         _model.deleteTaskList(taskList);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -119,7 +138,7 @@ class TaskListManagementScreen extends StatelessWidget {
     return FilledButton(
       onPressed: () async {
         await navigate(
-          EditTaskListPage(
+          EditTaskListScreen(
             model: _model,
             title: "Add New Task List",
             taskList: null,

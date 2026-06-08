@@ -14,6 +14,7 @@ class QueryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => buildScaffold(
     title: "Query",
+    context: context,
     child: Column(
       children: [
         Expanded(

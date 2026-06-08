@@ -1,11 +1,9 @@
 import 'dart:collection';
-import 'dart:math';
 
+import 'package:animal_room_task_manager/building_management/building_repository.dart';
 import 'package:animal_room_task_manager/room_check/record_repository.dart';
 import 'package:animal_room_task_manager/room_check/room_check_repository.dart';
 import 'package:animal_room_task_manager/task_lists_management/task_list_repository.dart';
-import 'package:animal_room_task_manager/theme_data.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 
 import '../user_management/user_repository.dart';
@@ -25,7 +23,7 @@ class Room {
 
 class TaskListState {
   final bool tasksDone;
-  final User? doneBy;
+  final List<User> doneBy;
 
   TaskListState({required this.tasksDone, required this.doneBy});
 }
@@ -35,25 +33,48 @@ class SchedulingModel extends ChangeNotifier {
   final RoomCheckRepository _roomCheckRepository;
   final TaskListRepository _taskListRepository;
 
-  late final ValueListenable<Set<User>> users;
+  late final ValueListenable<Set<User>> usersNotifier;
 
-  final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  Set<User> get users => usersNotifier.value;
+
+  final _currentBuildingNotifier = ValueNotifier<Building?>(null);
+  late final ValueListenable currentBuildingListenable =
+      _currentBuildingNotifier;
+
+  Building? get currentBuilding => currentBuildingListenable.value;
+
+  late ValueListenable taskListMapNotifier =
+      _taskListRepository.taskListMapListenable;
+
+  UnmodifiableMapView<TaskListKey, TaskList> get taskListMap =>
+      taskListMapNotifier.value;
+
+  final Map<Building, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   _dailyInternal = {};
-  final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  final Map<Building, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   _weeklyInternal = {};
-  final Map<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  final Map<Building, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   _monthlyInternal = {};
 
-  late UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  late UnmodifiableMapView<
+    Building,
+    Map<RoomCheckDate, Map<Room, RoomCheckSlot>>
+  >
   dailyRoomChecks;
-  late UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  late UnmodifiableMapView<
+    Building,
+    Map<RoomCheckDate, Map<Room, RoomCheckSlot>>
+  >
   monthlyRoomChecks;
-  late UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+  late UnmodifiableMapView<
+    Building,
+    Map<RoomCheckDate, Map<Room, RoomCheckSlot>>
+  >
   weeklyRoomChecks;
 
   late Map<
     TaskFrequency,
-    UnmodifiableMapView<String, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
+    UnmodifiableMapView<Building, Map<RoomCheckDate, Map<Room, RoomCheckSlot>>>
   >
   _frequencyToRoomChecks;
 
@@ -67,7 +88,7 @@ class SchedulingModel extends ChangeNotifier {
        _taskListRepository = taskListRepository {
     _roomCheckRepository.loadRoomChecks();
     _taskListRepository.loadTaskLists();
-    users = userRepository.usersNotifier;
+    usersNotifier = userRepository.usersNotifier;
     userRepository.loadUsers();
     updateViews();
     // TODO only the changed/new rows should be updated
@@ -76,7 +97,7 @@ class SchedulingModel extends ChangeNotifier {
       for (final entry in roomChecks.entries) {
         final key = entry.key;
         final roomCheck = entry.value;
-        var buildingName = key.buildingName;
+        var buildingName = key.building;
         var date = key.date;
         var room = key.room;
         switch (key.frequency) {
@@ -125,31 +146,31 @@ class SchedulingModel extends ChangeNotifier {
   }
 
   RoomCheckSlot? getRoomCheck(
-    String buildingName,
+    Building building,
     RoomCheckDate date,
     TaskFrequency frequency,
     Room room,
   ) {
-    return _frequencyToRoomChecks[frequency]?[buildingName]?[date]?[room];
+    return _frequencyToRoomChecks[frequency]?[building]?[date]?[room];
   }
 
   String? getUserAssignedToRoom(
-    String buildingName,
+    Building building,
     RoomCheckDate date,
     Room room,
     TaskFrequency frequency,
   ) {
-    return getRoomCheck(buildingName, date, frequency, room)?.user?.email;
+    return getRoomCheck(building, date, frequency, room)?.user?.email;
   }
 
   void assignUserToRoomCheck(
-    String buildingName,
+    Building building,
     RoomCheckDate date,
     Room room,
     User user,
     TaskFrequency frequency,
   ) {
-    var roomCheck = getRoomCheck(buildingName, date, frequency, room);
+    var roomCheck = getRoomCheck(building, date, frequency, room);
     if (roomCheck == null) {
       roomCheck = RoomCheckSlot(
         rcid: null,
@@ -184,10 +205,11 @@ class SchedulingModel extends ChangeNotifier {
       taskList.frequency,
     );
 
-    // TODO list<User>
-    User? doneBy;
+    List<User> doneBy;
     if (recordMap.isNotEmpty) {
-      doneBy = recordMap.values.first.doneBy;
+      doneBy = recordMap.values.map((record) => record.doneBy).toList();
+    } else {
+      doneBy = [];
     }
 
     return TaskListState(
@@ -196,59 +218,15 @@ class SchedulingModel extends ChangeNotifier {
     );
   }
 
-  double _maxHeight = 0;
-  double get maxHeight => _maxHeight;
-  var _measuredUnassigned = false;
-  var _maxStringLength = 1;
-  var _reset = true;
-
-  void updateMaxHeight({
-    required Widget widget,
-    required double width,
-    required bool isUnassigned,
-    required int stringLength,
-  }) {
-    late final double measuredHeight;
-    if (!_measuredUnassigned && isUnassigned) {
-      measuredHeight = MeasureUtil.measureWidget(
-        widget,
-        BoxConstraints(maxWidth: width),
-      ).height;
-      _measuredUnassigned = true;
-    } else if (!isUnassigned && stringLength > _maxStringLength) {
-      measuredHeight = MeasureUtil.measureWidget(
-        widget,
-        BoxConstraints(
-          minWidth: width,
-          maxWidth: width,
-          minHeight: 0.0,
-          maxHeight: double.infinity,
-        ),
-      ).height;
-      _maxStringLength = stringLength;
-    } else {
-      measuredHeight = _maxHeight;
-    }
-
-    if (!_reset) {
-      _maxHeight = max(_maxHeight, measuredHeight);
-    } else {
-      _maxHeight = measuredHeight;
-    }
-    _reset = false;
-  }
-
-  void resetMaxWidth() {
-    _measuredUnassigned = false;
-    _maxStringLength = 1;
-    _reset = true;
-  }
-
   Future<void> loadRoomCheckRecords(
     Room room,
     RoomCheckDate date,
     TaskFrequency frequency,
   ) async {
     _recordRepository.loadRecordsForRoom(room, date, frequency);
+  }
+
+  void buildingClicked(Building building) {
+    _currentBuildingNotifier.value = building;
   }
 }

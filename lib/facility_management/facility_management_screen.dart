@@ -1,6 +1,7 @@
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
 
+import 'add_facility_screen.dart';
 import 'facility_management_model.dart';
 import 'facility_repository.dart';
 
@@ -13,62 +14,82 @@ class FacilityManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Facility Editor",
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ListenableBuilder(
-            listenable: _model,
-            builder: (context, _) {
-              return ListView(
-                shrinkWrap: true,
-                children: [
-                  Divider(),
-                  for (var facility in _model.getFacilities()) ...[
-                    ListTile(
-                      title: mediumTitleText(context, facility.name),
-                      trailing: _buildDeleteIconButton(context, facility),
-                    ),
-                    const Divider(),
-                  ],
-                ],
-              );
-            },
-          ),
-          padding8,
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      context: context,
+      makeScrollable: false,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: constrainToPhoneWidth(
+          Column(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              FilledButton(
-                onPressed: () async {
-                  unNavigate();
-                },
-                child: Text("Go Back"),
-              ),
-              FilledButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddFacilityPage(model: _model),
+              ListenableBuilder(
+                listenable: _model,
+                builder: (context, _) {
+                  return buildScrollable(
+                    wrapList(
+                      context,
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            buildSectionHeader(context, "Facilities"),
+                            padding8,
+                            for (var facility in _model.getFacilities()) ...[
+                              Card(
+                                elevation: appCardElevation,
+                                shadowColor: Theme.of(context).primaryColor,
+                                child: ListTile(
+                                  title: mediumTitleText(
+                                    context,
+                                    facility.name,
+                                  ),
+                                  trailing: _buildDeleteIconButton(
+                                    context,
+                                    facility,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
                     ),
                   );
                 },
-                child: Text("Add New Facility"),
               ),
+              padding8,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  FilledButton(
+                    onPressed: () async {
+                      unNavigate();
+                    },
+                    child: Text("Go Back"),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      await navigate(AddFacilityScreen(model: _model));
+                    },
+                    child: Text("Add New Facility"),
+                  ),
+                ],
+              ),
+              padding8,
             ],
           ),
-          padding8,
-        ],
+        ),
       ),
     );
   }
 
   IconButton _buildDeleteIconButton(BuildContext context, Facility facility) {
     return IconButton(
-      icon: Icon(Icons.delete),
+      icon: Icon(Icons.delete, color: Theme.of(context).primaryColor),
       onPressed: () async {
         _model.deleteFacility(facility);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -84,80 +105,6 @@ class FacilityManagementScreen extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class AddFacilityPage extends StatefulWidget {
-  final FacilityManagementModel _model;
-
-  const AddFacilityPage({super.key, required FacilityManagementModel model})
-    : _model = model;
-
-  @override
-  State<StatefulWidget> createState() {
-    return AddFacilityState();
-  }
-}
-
-class AddFacilityState extends State<AddFacilityPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _facilityController = TextEditingController();
-
-  @override
-  Widget build(BuildContext context) {
-    return buildScaffold(
-      title: "Add New Facility Name",
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            constrainTextBoxWidth(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  mediumTitleText(context, "Facility Name"),
-                  TextFormField(
-                    controller: _facilityController,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a facility';
-                      }
-                      if (widget._model.facilityExists(value)) {
-                        return 'There is already a facility with that name';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FilledButton(
-                  child: const Text("Cancel"),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                FilledButton(
-                  child: Text("Add Facility"),
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      await widget._model.addFacility(_facilityController.text);
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

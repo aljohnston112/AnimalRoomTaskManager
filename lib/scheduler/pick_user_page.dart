@@ -21,6 +21,7 @@ class _PickUserPageState extends State<PickUserPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Assign Room Check To",
+      context: context,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [

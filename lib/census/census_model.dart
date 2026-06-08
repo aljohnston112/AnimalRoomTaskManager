@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:animal_room_task_manager/census/census_repository.dart';
 import 'package:animal_room_task_manager/login_screen/login_use_case.dart';
 import 'package:animal_room_task_manager/room_management/room_repository.dart';
@@ -71,7 +73,7 @@ class CensusScreenModel {
 }
 
 class CensusEntryModel extends ChangeNotifier {
-  ValueNotifier<Set<Species>> allSpecies = ValueNotifier({});
+  late ValueListenable<UnmodifiableSetView<Species>> allSpecies;
   ValueNotifier<Set<RoomModel>> rooms = ValueNotifier({});
 
   CensusEntryModel({
@@ -79,7 +81,7 @@ class CensusEntryModel extends ChangeNotifier {
     required RoomRepository roomRepository,
     required Set<int> roomsWithCensuses,
   }) {
-    allSpecies = animalRepository.allSpecies;
+    allSpecies = animalRepository.speciesListenable;
     animalRepository.loadSpecies();
     roomRepository.rooms.addListener(() {
       var set = roomRepository.rooms.value

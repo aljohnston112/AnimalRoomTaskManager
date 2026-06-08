@@ -17,6 +17,7 @@ class RoomCheckScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       makeScrollable: false,
+      context: context,
       title: roomCheckModel.taskList.name,
       child: Column(
         children: [

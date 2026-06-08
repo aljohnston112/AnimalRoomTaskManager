@@ -2,7 +2,7 @@ import 'package:animal_room_task_manager/supabase_client/database.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class Building {
+class Building implements Comparable<Building> {
   final int bid;
   final String name;
 
@@ -13,6 +13,11 @@ class Building {
 
   @override
   int get hashCode => bid.hashCode;
+
+  @override
+  int compareTo(Building other) {
+    return name.compareTo(other.name);
+  }
 }
 
 class BuildingRepository {

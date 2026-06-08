@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 final String appName = 'ACF Chex';
 
 const double widePhoneWidth = 450;
 const double maxTextFieldWidth = 320;
 
+const double appCardElevation = 6;
+
 const EdgeInsets insets8 = EdgeInsets.all(8);
+const Padding padding4 = Padding(padding: EdgeInsetsGeometry.all(4));
 const Padding padding8 = Padding(padding: EdgeInsetsGeometry.all(8));
 const Padding padding16 = Padding(padding: EdgeInsetsGeometry.all(16));
 const Padding padding32 = Padding(padding: EdgeInsetsGeometry.all(32));
+
+Padding pad8(Widget child) {
+  return Padding(padding: EdgeInsetsGeometry.all(8), child: child);
+}
 
 Text largeTitleText(BuildContext context, String text) =>
     Text(text, style: Theme.of(context).textTheme.titleLarge);
@@ -20,7 +26,10 @@ Text mediumTitleText(
   TextAlign textAlign = TextAlign.start,
 ]) => Text(
   text,
-  style: Theme.of(context).textTheme.titleMedium,
+  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+    fontWeight: FontWeight.bold,
+    color: Theme.of(context).colorScheme.primary,
+  ),
   textAlign: textAlign,
 );
 
@@ -28,16 +37,22 @@ Text smallTitleText(BuildContext context, String text) =>
     Text(text, style: Theme.of(context).textTheme.titleSmall);
 
 Scaffold buildScaffold({
+  required BuildContext context,
   required String title,
   required Widget child,
   bool makeScrollable = true,
 }) {
   return Scaffold(
     appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
-    body: SafeArea(
-      child: Padding(
-        padding: EdgeInsetsGeometry.all(8),
-        child: makeScrollable ? buildScrollable(child) : child,
+    body: PopScope( // For popping persistant snack bars
+      canPop: true, // on navigation from the page that displayed them
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+        }
+      },
+      child: SafeArea(
+        child: pad8(makeScrollable ? buildScrollable(child) : child),
       ),
     ),
   );
@@ -50,19 +65,23 @@ Scaffold oldBuildScaffold({required String title, required Widget child}) {
   );
 }
 
+Widget wrapList(BuildContext context, Widget child) {
+  return center(Container(padding: const EdgeInsets.all(16.0), child: child));
+}
+
+BoxDecoration buildBoxDecoration(BuildContext context) {
+  return BoxDecoration(
+    color: Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+    borderRadius: BorderRadius.circular(32),
+  );
+}
+
 Widget buildScrollable(Widget child) {
   return LayoutBuilder(
     builder: (context, constraints) {
-      return SingleChildScrollView(
-        padding: insets8,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: constraints.maxHeight,
-            minWidth: constraints.maxWidth,
-          ),
-          child: child,
-        ),
-      );
+      return SingleChildScrollView(child: child);
     },
   );
 }
@@ -87,7 +106,6 @@ void showSnackBar(BuildContext context, String message) {
 
 ConstrainedBox constrainToPhoneWidth(Widget child) {
   return ConstrainedBox(
-    // To prevent the list from taking up the full width of a wide screen
     constraints: const BoxConstraints(maxWidth: widePhoneWidth),
     child: child,
   );
@@ -97,6 +115,56 @@ ConstrainedBox constrainTextBoxWidth(Widget child) {
   return ConstrainedBox(
     constraints: const BoxConstraints(maxWidth: maxTextFieldWidth),
     child: child,
+  );
+}
+
+Center center(Widget child) {
+  return Center(child: child);
+}
+
+Widget buildSectionHeader(BuildContext context, String text) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.only(bottom: 8.0),
+    decoration: BoxDecoration(
+      border: Border(
+        bottom: BorderSide(
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+    ),
+    child: Text(
+      text,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+        fontWeight: FontWeight.bold,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+    ),
+  );
+}
+
+TextFormField buildTextFormField({
+  required BuildContext context,
+  TextEditingController? controller,
+  bool? autoFocus,
+  Icon? icon,
+  String? Function(String?)? validator,
+  bool enabled = true,
+}) {
+  return TextFormField(
+    enabled: enabled,
+    controller: controller,
+    autofocus: autoFocus ?? false,
+    decoration: InputDecoration(
+      prefixIcon: icon,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
+      ),
+      errorMaxLines: 8,
+    ),
+    validator: validator,
   );
 }
 
@@ -140,53 +208,4 @@ void unNavigate<T>({T? result}) {
 void unNavigatePast<T>(String tag, {T? result}) {
   navigatorKey.currentState?.popUntil(ModalRoute.withName(tag));
   unNavigate(result: result);
-}
-
-class MeasureUtil {
-  static Size measureWidget(
-    Widget widget, [
-    BoxConstraints constraints = const BoxConstraints(),
-  ]) {
-    final PipelineOwner pipelineOwner = PipelineOwner();
-    final _MeasurementView rootView = pipelineOwner.rootNode = _MeasurementView(
-      constraints,
-    );
-    final BuildOwner buildOwner = BuildOwner(focusManager: FocusManager());
-    final RenderObjectToWidgetElement<RenderBox> element =
-        RenderObjectToWidgetAdapter<RenderBox>(
-          container: rootView,
-          debugShortDescription: '[root]',
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: widget,
-          ),
-        ).attachToRenderTree(buildOwner);
-    try {
-      rootView.scheduleInitialLayout();
-      pipelineOwner.flushLayout();
-      return rootView.size;
-    } finally {
-      element.update(
-        RenderObjectToWidgetAdapter<RenderBox>(container: rootView),
-      );
-      buildOwner.finalizeTree();
-    }
-  }
-}
-
-class _MeasurementView extends RenderBox
-    with RenderObjectWithChildMixin<RenderBox> {
-  final BoxConstraints boxConstraints;
-
-  _MeasurementView(this.boxConstraints);
-
-  @override
-  void performLayout() {
-    assert(child != null);
-    child!.layout(boxConstraints, parentUsesSize: true);
-    size = child!.size;
-  }
-
-  @override
-  void debugAssertDoesMeetConstraints() => true;
 }

@@ -1,4 +1,7 @@
-import 'package:flutter/material.dart';
+import 'dart:collection';
+
+import 'package:animal_room_task_manager/query/query_model.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase_client/database.dart';
@@ -18,8 +21,15 @@ class Species {
 
 class SpeciesRepository {
   final Database _database;
+
   final Set<Species> _species = {};
-  final ValueNotifier<Set<Species>> allSpecies = ValueNotifier({});
+  late final _speciesNotifier = RefreshableNotifier(
+    UnmodifiableSetView(_species),
+  );
+  late final ValueListenable<UnmodifiableSetView<Species>> speciesListenable =
+      _speciesNotifier;
+
+  Set<Species> get species => _species;
 
   SpeciesRepository({required Database database}) : _database = database {
     _database.subscribeToAnimals((PostgresChangePayload p) {
@@ -30,7 +40,7 @@ class SpeciesRepository {
         if (!newRecord['deleted']) {
           _species.add(species);
         }
-        allSpecies.value = Set.from(_species);
+        _speciesNotifier.refresh();
       }
     });
   }
@@ -44,10 +54,10 @@ class SpeciesRepository {
     for (final speciesDB in result) {
       Species species = _parseSpecies(speciesDB);
       if (!speciesDB['deleted']) {
-        allSpecies.value.add(species);
+        _species.add(species);
       }
     }
-    allSpecies.value = Set.from(_species);
+    _speciesNotifier.refresh();
   }
 
   Future<void> addSpecies(String speciesName) {

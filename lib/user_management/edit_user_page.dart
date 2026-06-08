@@ -34,6 +34,7 @@ class _EditUserPageState extends State<EditUserPage> {
       key: _formKey,
       child: buildScaffold(
         title: widget.title,
+        context: context,
         child: constrainTextBoxWidth(
           Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,

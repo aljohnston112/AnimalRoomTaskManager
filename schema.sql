@@ -214,7 +214,8 @@ CREATE TABLE IF NOT EXISTS labs
     l_id    serial PRIMARY KEY,
     color   bigint  NOT NULL,
     name    text    NOT NULL,
-    deleted boolean NOT NULL
+    deleted boolean NOT NULL,
+    CONSTRAINT "unique_lab_name" UNIQUE (name)
 );
 INSERT INTO labs (l_id, color, name, deleted)
 VALUES (0, 4294901840, 'Merriman', FALSE),
@@ -257,7 +258,8 @@ CREATE TABLE buildings
 (
     b_id    serial PRIMARY KEY,
     name    text    NOT NULL,
-    deleted boolean NOT NULL
+    deleted boolean NOT NULL,
+    CONSTRAINT "unique_building_name" UNIQUE (name)
 );
 INSERT INTO buildings(b_id, name, deleted)
 VALUES (0, 'Halsey', FALSE),
@@ -500,7 +502,8 @@ CREATE TABLE IF NOT EXISTS animals
 (
     a_id    serial PRIMARY KEY,
     name    text    NOT NULL,
-    deleted boolean NOT NULL
+    deleted boolean NOT NULL,
+    CONSTRAINT unique_animal_name UNIQUE (name)
 );
 ALTER TABLE public.animals
     ENABLE ROW LEVEL SECURITY;

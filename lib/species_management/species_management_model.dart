@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import 'species_repository.dart';
 
 class SpeciesManagementModel extends ChangeNotifier {
@@ -6,19 +7,17 @@ class SpeciesManagementModel extends ChangeNotifier {
 
   SpeciesManagementModel({required SpeciesRepository speciesRepository})
     : _speciesRepository = speciesRepository {
-    _speciesRepository.allSpecies.addListener(() {
+    _speciesRepository.speciesListenable.addListener(() {
       notifyListeners();
     });
     _speciesRepository.loadSpecies();
   }
 
-  Set<Species> getSpecies() {
-    return _speciesRepository.allSpecies.value;
-  }
+  Set<Species> get species => _speciesRepository.species;
 
   bool speciesExists(String? speciesName) {
     return speciesName != null &&
-        getSpecies().map((f) => f.name).contains(speciesName);
+        species.map((f) => f.name).contains(speciesName);
   }
 
   Future<void> addSpecies(String speciesName) async {

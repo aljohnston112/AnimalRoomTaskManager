@@ -7,12 +7,12 @@ import 'package:provider/provider.dart';
 
 import '../theme_data.dart';
 
-class EditTaskListPage extends StatefulWidget {
+class EditTaskListScreen extends StatefulWidget {
   final TaskListManagementModel _model;
   final String title;
   final TaskList? taskList;
 
-  const EditTaskListPage({
+  const EditTaskListScreen({
     super.key,
     required TaskListManagementModel model,
     required this.title,
@@ -21,11 +21,11 @@ class EditTaskListPage extends StatefulWidget {
 
   @override
   State<StatefulWidget> createState() {
-    return EditTaskListPageState();
+    return EditTaskListScreenState();
   }
 }
 
-class EditTaskListPageState extends State<EditTaskListPage> {
+class EditTaskListScreenState extends State<EditTaskListScreen> {
   final _formKey = GlobalKey<FormState>();
   final _taskListController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
@@ -67,6 +67,7 @@ class EditTaskListPageState extends State<EditTaskListPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       makeScrollable: false,
+      context: context,
       title: widget.title,
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -80,7 +81,7 @@ class EditTaskListPageState extends State<EditTaskListPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Name and frequency
-                      Row(
+                      Column(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _buildTaskListNameField(),

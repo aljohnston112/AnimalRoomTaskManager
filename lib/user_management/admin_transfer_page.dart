@@ -21,6 +21,7 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Admin Transfer",
+      context: context,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [

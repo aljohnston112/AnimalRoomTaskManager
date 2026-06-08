@@ -22,6 +22,7 @@ class AddTaskScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Add Task",
+      context: context,
       child: Form(
         key: _formKey,
         child: ListenableBuilder(

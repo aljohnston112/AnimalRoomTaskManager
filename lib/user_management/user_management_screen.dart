@@ -16,6 +16,7 @@ class UserManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Manage Users",
+      context: context,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [

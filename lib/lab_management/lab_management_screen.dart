@@ -1,7 +1,7 @@
 import 'package:animal_room_task_manager/theme_data.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 
+import 'add_lab_screen.dart';
 import 'lab_management_model.dart';
 import 'lab_repository.dart';
 
@@ -14,68 +14,76 @@ class LabManagementScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return buildScaffold(
       title: "Lab Editor",
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          ListenableBuilder(
-            listenable: _model,
-            builder: (context, _) {
-              return Center(
-                child: constrainToPhoneWidth(
-                  ListView(
-                    shrinkWrap: true,
-                    children: [
-                      Divider(),
-                      for (var lab in _model.getLabs()) ...[
-                        ListTile(
-                          title: mediumTitleText(context, lab.name),
-                          // TODO edit color
-                          trailing: _buildDeleteIconButton(context, lab),
-                          leading: Icon(Icons.circle, color: lab.color),
-                        ),
-                        const Divider(),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-          padding8,
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      context: context,
+      makeScrollable: false,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: constrainToPhoneWidth(
+          Column(
             children: [
-              FilledButton(
-                onPressed: () async {
-                  unNavigate();
-                },
-                child: Text("Go Back"),
-              ),
-              FilledButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AddLabPage(model: _model),
+              ListenableBuilder(
+                listenable: _model,
+                builder: (context, _) {
+                  return Center(
+                    child: buildScrollable(
+                      wrapList(
+                        context,
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Column(
+                            children: [
+                              buildSectionHeader(context, "Labs"),
+                              padding8,
+                              for (var lab in _model.getLabs()) ...[
+                                Card(
+                                  elevation: appCardElevation,
+                                  shadowColor: Theme.of(context).primaryColor,
+                                  child: ListTile(
+                                    title: mediumTitleText(context, lab.name),
+                                    // TODO edit color
+                                    trailing: _buildDeleteIconButton(
+                                      context,
+                                      lab,
+                                    ),
+                                    leading: Icon(
+                                      Icons.circle,
+                                      color: lab.color,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
-                child: Text("Add New Lab"),
               ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  FilledButton(onPressed: unNavigate, child: Text("Go Back")),
+                  FilledButton(
+                    onPressed: () async {
+                      await navigate(AddLabScreen(model: _model));
+                    },
+                    child: Text("Add New Lab"),
+                  ),
+                ],
+              ),
+              padding8,
             ],
           ),
-          padding8,
-        ],
+        ),
       ),
     );
   }
 
   IconButton _buildDeleteIconButton(BuildContext context, Lab lab) {
     return IconButton(
-      icon: Icon(Icons.delete),
+      icon: Icon(Icons.delete, color: Theme.of(context).primaryColor),
       onPressed: () async {
         _model.deleteLab(lab);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -89,155 +97,6 @@ class LabManagementScreen extends StatelessWidget {
               },
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class AddLabPage extends StatefulWidget {
-  final LabManagementModel _model;
-
-  const AddLabPage({super.key, required LabManagementModel model})
-    : _model = model;
-
-  @override
-  State<StatefulWidget> createState() {
-    return AddLabState();
-  }
-}
-
-class AddLabState extends State<AddLabPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _labController = TextEditingController();
-  Color pickerColor = Colors.white;
-  Color? currentColor = Colors.white;
-
-  void changeColor(Color color) {
-    setState(() => pickerColor = color);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return buildScaffold(
-      title: "Add New Lab",
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            constrainTextBoxWidth(
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  mediumTitleText(context, "Lab Name"),
-                  TextFormField(
-                    controller: _labController,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a lab name';
-                      }
-                      if (widget._model.labExists(value)) {
-                        return 'There is already a lab with that name';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-            OutlinedButton.icon(
-              onPressed: () {
-                openColorPicker();
-              },
-              icon: CircleAvatar(backgroundColor: currentColor, radius: 10),
-              label: Text('Pick Lab Color'),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                FilledButton(
-                  child: const Text("Cancel"),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                FilledButton(
-                  child: Text("Add Lab"),
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      bool valid = true;
-                      if (currentColor == null) {
-                        showSnackBar(context, 'Please choose a color');
-                        valid = false;
-                      }
-                      if (widget._model.existingLabHasColor(currentColor)) {
-                        showSnackBar(
-                          context,
-                          'There is already a lab with that color',
-                        );
-                        valid = false;
-                      }
-                      if (valid) {
-                        await widget._model.addLab(
-                          _labController.text,
-                          currentColor!,
-                        );
-                        if (context.mounted) {
-                          Navigator.pop(context);
-                        }
-                      }
-                    }
-                  },
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void openColorPicker() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Pick a color'),
-          content: SingleChildScrollView(
-            child: ColorPicker(
-              pickerColor: pickerColor,
-              onColorChanged: changeColor,
-            ),
-            // TODO check these
-            // Use Material color picker:
-            //
-            // child: MaterialPicker(
-            //   pickerColor: pickerColor,
-            //   onColorChanged: changeColor,
-            //   showLabel: true, // only on portrait mode
-            // ),
-            //
-            // Use Block color picker:
-            //
-            // child: BlockPicker(
-            //   pickerColor: currentColor,
-            //   onColorChanged: changeColor,
-            // ),
-            //
-            // child: MultipleChoiceBlockPicker(
-            //   pickerColors: currentColors,
-            //   onColorsChanged: changeColors,
-            // ),
-          ),
-          actions: <Widget>[
-            ElevatedButton(
-              child: const Text('Choose Color'),
-              onPressed: () {
-                setState(() => currentColor = pickerColor);
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
         );
       },
     );

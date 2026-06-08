@@ -12,75 +12,56 @@ class SchedulingHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return buildScaffold(
-      title: "Scheduler",
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          _buildDailySchedulingButton(context),
-          _buildWeeklySchedulingButton(context),
-          _buildMonthlySchedulingButton(context),
-          FilledButton(
-            onPressed: () async {
-              unNavigate();
-            },
-            child: Text("Go Back"),
+    return DefaultTabController(
+      initialIndex: 0,
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Scheduler"),
+          automaticallyImplyLeading: false,
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: "Daily"),
+              Tab(text: "Weekly"),
+              Tab(text: "Monthly"),
+            ],
           ),
-        ],
+        ),
+        body: SafeArea(
+          child: pad8(
+            Column(
+              children: [
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      SchedulingScreenCards(
+                        taskFrequency: TaskFrequency.daily,
+                        schedulingModel: schedulingModel,
+                      ),
+                      SchedulingScreenCards(
+                        taskFrequency: TaskFrequency.weekly,
+                        schedulingModel: schedulingModel,
+                      ),
+                      SchedulingScreenCards(
+                        taskFrequency: TaskFrequency.monthly,
+                        schedulingModel: schedulingModel,
+                      ),
+                    ],
+                  ),
+                ),
+                pad8(
+                  FilledButton(
+                    onPressed: () async {
+                      unNavigate();
+                    },
+                    child: const Text("Go Back"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
-    );
-  }
-
-  Widget _buildDailySchedulingButton(BuildContext context) {
-    return FilledButton(
-      child: Text("Daily"),
-      onPressed: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SchedulingScreenCards(
-              taskFrequency: TaskFrequency.daily,
-              schedulingModel: schedulingModel,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildWeeklySchedulingButton(BuildContext context) {
-    return FilledButton(
-      child: Text("Weekly"),
-      onPressed: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SchedulingScreenCards(
-              taskFrequency: TaskFrequency.weekly,
-              schedulingModel: schedulingModel,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMonthlySchedulingButton(BuildContext context) {
-    return FilledButton(
-      child: Text("Monthly"),
-      onPressed: () async {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SchedulingScreenCards(
-              taskFrequency: TaskFrequency.monthly,
-              schedulingModel: schedulingModel,
-            ),
-          ),
-        );
-      },
     );
   }
 }

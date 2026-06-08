@@ -32,6 +32,7 @@ import 'package:animal_room_task_manager/user_management/user_list_model.dart';
 import 'package:animal_room_task_manager/user_management/user_management_screen.dart';
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'facility_management/facility_repository.dart';
@@ -145,19 +146,23 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loginUseCase = context.watch<LoginUseCase>();
+    var colorScheme = ColorScheme.fromSeed(
+      seedColor: Colors.green,
+      brightness: Brightness.light,
+    );
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: '$appName Demo',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.yellow,
-          brightness: Brightness.light,
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.yellow,
-          brightness: Brightness.dark,
+        useMaterial3: true,
+        colorScheme: colorScheme,
+        appBarTheme: AppBarTheme(
+          foregroundColor: colorScheme.primary,
+          titleTextStyle: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.primary,
+          ),
         ),
       ),
       themeMode: ThemeMode.light,
@@ -177,154 +182,145 @@ class AnimalCareFacilityCheckApp extends StatelessWidget {
   Scaffold _buildHomeScreen(BuildContext context, LoginUseCase loginUseCase) {
     return buildScaffold(
       title: appName,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (loginUseCase.loggedInUser?.group == UserGroup.admin)
-            ..._buildAdminButtons(context),
-          padding8,
-          ..._buildAllUserButtons(context),
-        ],
+      context: context,
+      child: wrapList(
+        context,
+        constrainToPhoneWidth(
+          Column(
+            children: [
+              if (loginUseCase.loggedInUser?.group == UserGroup.admin)
+                ..._buildAdminTiles(context),
+              padding8,
+              ..._buildAllUserButtons(context),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  List<Widget> _buildAdminButtons(BuildContext context) {
+  List<Widget> _buildAdminTiles(BuildContext context) {
     return [
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            SpeciesManagementScreen(
-              model: SpeciesManagementModel(speciesRepository: context.read()),
-            ),
-          );
-        },
-        child: Text("Species Editor"),
+      buildSectionHeader(context, "Administrator Tools"),
+      padding4,
+      _buildNavigationListTile(
+        context: context,
+        widget: BuildingManagementScreen(
+          model: BuildingManagementModel(buildingRepository: context.read()),
+        ),
+        title: "Building Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            BuildingManagementScreen(
-              model: BuildingManagementModel(
-                buildingRepository: context.read(),
-              ),
-            ),
-          );
-        },
-        child: Text("Building Editor"),
+      _buildNavigationListTile(
+        context: context,
+        widget: FacilityManagementScreen(
+          model: FacilityManagementModel(facilityRepository: context.read()),
+        ),
+        title: "Facility Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            FacilityManagementScreen(
-              model: FacilityManagementModel(
-                facilityRepository: context.read(),
-              ),
-            ),
-          );
-        },
-        child: Text("Facility Editor"),
+      _buildNavigationListTile(
+        context: context,
+        widget: LabManagementScreen(
+          model: LabManagementModel(labRepository: context.read()),
+        ),
+        title: "Lab Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            LabManagementScreen(
-              model: LabManagementModel(labRepository: context.read()),
-            ),
-          );
-        },
-        child: Text("Lab Editor"),
+      _buildNavigationListTile(
+        context: context,
+        widget: RoomManagementScreen(
+          model: RoomManagementModel(
+            roomRepository: context.read(),
+            buildingRepository: context.read(),
+            facilityRepository: context.read(),
+            labRepository: context.read(),
+            taskListRepository: context.read(),
+          ),
+        ),
+        title: "Room Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            RoomManagementScreen(
-              model: RoomManagementModel(
-                roomRepository: context.read(),
-                buildingRepository: context.read(),
-                facilityRepository: context.read(),
-                labRepository: context.read(),
-                taskListRepository: context.read(),
-              ),
-            ),
-          );
-        },
-        child: Text("Room Editor"),
+      _buildNavigationListTile(
+        context: context,
+        widget: SpeciesManagementScreen(
+          model: SpeciesManagementModel(speciesRepository: context.read()),
+        ),
+        title: "Species Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            TaskListManagementScreen(
-              model: TaskListManagementModel(
-                taskListRepository: context.read(),
-              ),
-            ),
-          );
-        },
-        child: Text("Task List Editor"),
+      _buildNavigationListTile(
+        context: context,
+        widget: TaskListManagementScreen(
+          model: TaskListManagementModel(taskListRepository: context.read()),
+        ),
+        title: "Task List Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            UserManagementScreen(
-              userListModel: UserListModel(userRepository: context.read()),
-            ),
-          );
-        },
-        child: Text("User Editor"),
+      _buildNavigationListTile(
+        context: context,
+        widget: UserManagementScreen(
+          userListModel: UserListModel(userRepository: context.read()),
+        ),
+        title: "User Editor",
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(QueryScreen());
-        },
-        child: Text("Query"),
+      _buildNavigationListTile(
+        context: context,
+        widget: QueryScreen(),
+        title: "Query",
       ),
     ];
   }
 
   List<Widget> _buildAllUserButtons(BuildContext context) {
     return [
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            CensusEntryScreen(
-              model: CensusEntryModel(
-                animalRepository: context.read(),
-                roomRepository: context.read(),
-                roomsWithCensuses: {},
-              ),
-              isFirstEntry: true,
-              censusToEdit: null,
-            ),
-            tag: 'census',
-          );
-        },
-        child: Text("Record a Census"),
+      buildSectionHeader(context, "Facility Operations"),
+      padding4,
+      _buildNavigationListTile(
+        context: context,
+        widget: CensusEntryScreen(
+          model: CensusEntryModel(
+            animalRepository: context.read(),
+            roomRepository: context.read(),
+            roomsWithCensuses: {},
+          ),
+          isFirstEntry: true,
+          censusToEdit: null,
+        ),
+        title: "Record a Census",
+        navigationTag: 'census',
       ),
-      padding8,
-      FilledButton(
-        onPressed: () async {
-          await navigate(
-            SchedulingHomeScreen(
-              schedulingModel: SchedulingModel(
-                recordRepository: context.read(),
-                roomCheckRepository: context.read(),
-                taskListRepository: context.read(),
-                userRepository: context.read(),
-              ),
-            ),
-          );
-        },
-        child: Text("Scheduler and Room Checks"),
+      _buildNavigationListTile(
+        context: context,
+        widget: SchedulingHomeScreen(
+          schedulingModel: SchedulingModel(
+            recordRepository: context.read(),
+            roomCheckRepository: context.read(),
+            taskListRepository: context.read(),
+            userRepository: context.read(),
+          ),
+        ),
+        title: "Scheduler and Room Checks",
       ),
     ];
+  }
+
+  Card _buildNavigationListTile({
+    required BuildContext context,
+    required Widget widget,
+    required String title,
+    String? navigationTag,
+  }) {
+    return Card(
+      elevation: appCardElevation,
+      shadowColor: Theme.of(context).primaryColor,
+      child: ListTile(
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          await navigate(widget, tag: navigationTag);
+        },
+        title: Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    );
   }
 }

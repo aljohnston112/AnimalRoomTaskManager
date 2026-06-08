@@ -21,6 +21,7 @@ class LoginScreen extends StatelessWidget {
       key: _formKey,
       child: buildScaffold(
         title: 'Login',
+        context: context,
         child: Center(
           child: constrainToPhoneWidth(
             Column(
