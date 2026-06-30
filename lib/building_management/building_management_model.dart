@@ -6,19 +6,18 @@ class BuildingManagementModel extends ChangeNotifier {
 
   BuildingManagementModel({required BuildingRepository buildingRepository})
     : _buildingRepository = buildingRepository {
-    _buildingRepository.buildings.addListener(() {
+    _buildingRepository.buildingsListenable.addListener(() {
       notifyListeners();
     });
     _buildingRepository.loadBuildings();
   }
 
-  Set<Building> getBuildings() {
-    return _buildingRepository.buildings.value;
-  }
+  Set<Building> get buildings => _buildingRepository.buildingsListenable.value;
+
 
   bool buildingExists(String? buildingName) {
     return buildingName != null &&
-        getBuildings().map((f) => f.name).contains(buildingName);
+        buildings.map((f) => f.name).contains(buildingName);
   }
 
   Future<void> addBuilding(String buildingName) async {

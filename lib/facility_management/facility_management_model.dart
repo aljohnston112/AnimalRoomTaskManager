@@ -6,19 +6,17 @@ class FacilityManagementModel extends ChangeNotifier {
 
   FacilityManagementModel({required FacilityRepository facilityRepository})
     : _facilityRepository = facilityRepository {
-    _facilityRepository.facilities.addListener(() {
+    _facilityRepository.facilitiesListenable.addListener(() {
       notifyListeners();
     });
     _facilityRepository.loadFacilities();
   }
 
-  Set<Facility> getFacilities() {
-    return _facilityRepository.facilities.value;
-  }
+  Set<Facility> get facilities => _facilityRepository.facilitiesListenable.value;
 
   bool facilityExists(String? facilityName) {
     return facilityName != null &&
-        getFacilities().map((f) => f.name).contains(facilityName);
+        facilities.map((f) => f.name).contains(facilityName);
   }
 
   Future<void> addFacility(String facilityName) async {

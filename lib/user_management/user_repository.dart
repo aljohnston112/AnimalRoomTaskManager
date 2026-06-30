@@ -50,6 +50,7 @@ class UserRepository {
       RefreshableNotifier(UnmodifiableSetView(_users));
   late final ValueListenable<UnmodifiableSetView<User>> usersNotifier =
       _usersNotifier;
+
   UnmodifiableSetView<User> get users => usersNotifier.value;
 
   UserRepository({required Database database}) : _database = database {
@@ -108,17 +109,14 @@ class UserRepository {
         case AuthChangeEvent.signedIn:
         case AuthChangeEvent.initialSession:
           var session = payload.session;
-          if (session != null) {
-            var authId = session.user.id;
-            var user = await _database.getUserWithAuthId(authId);
-            if (user != null && !_users.contains(user)) {
-              _users.add(user);
-              _usersNotifier.refresh();
-            }
-            onAuthChange(user);
-          } else {
+          if (session == null) {
             onAuthChange(null);
+            break;
           }
+          var authId = session.user.id;
+          var user = await _database.getUserWithAuthId(authId);
+          _addUserIfNew(user);
+          onAuthChange(user);
           break;
         case AuthChangeEvent.signedOut:
           onAuthChange(null);
@@ -131,6 +129,13 @@ class UserRepository {
         // mfaChallengeVerified
       }
     });
+  }
+
+  void _addUserIfNew(User? user) {
+    if (user != null && !_users.contains(user)) {
+      _users.add(user);
+      _usersNotifier.refresh();
+    }
   }
 
   Future<void> loadUsers() async {

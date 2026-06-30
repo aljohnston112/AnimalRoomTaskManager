@@ -1,8 +1,12 @@
+import 'dart:collection';
+
 import 'package:animal_room_task_manager/supabase_client/database.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class Facility {
+import '../query/query_model.dart';
+
+class Facility implements Comparable<Facility> {
   final int fid;
   final String name;
 
@@ -13,12 +17,22 @@ class Facility {
 
   @override
   int get hashCode => fid.hashCode;
+
+  @override
+  int compareTo(Facility other) {
+    return name.compareTo(other.name);
+  }
+
 }
 
 class FacilityRepository {
   final Database _database;
-  final Set<Facility> _facilities = {};
-  final ValueNotifier<Set<Facility>> facilities = ValueNotifier({});
+  final _facilities = SplayTreeSet<Facility>();
+  late final _facilitiesNotifier = RefreshableNotifier<Set<Facility>>(
+      _facilities
+  );
+  late final ValueListenable<
+      Set<Facility>> facilitiesListenable = _facilitiesNotifier;
 
   FacilityRepository({required Database database}) : _database = database {
     _database.subscribeToFacilities((PostgresChangePayload p) {
@@ -29,7 +43,7 @@ class FacilityRepository {
         if (!newRecord['deleted']) {
           _facilities.add(facility);
         }
-        facilities.value = Set.from(_facilities);
+        _facilitiesNotifier.refresh();
       }
     });
   }
@@ -40,13 +54,14 @@ class FacilityRepository {
 
   Future<void> loadFacilities() async {
     final result = await _database.getFacilities();
+    _facilities.clear();
     for (final facilityDB in result) {
       Facility facility = _parseFacility(facilityDB);
       if (!facilityDB['deleted']) {
         _facilities.add(facility);
       }
     }
-    facilities.value = Set.from(_facilities);
+    _facilitiesNotifier.refresh();
   }
 
   Future<void> addFacility(String facilityName) {

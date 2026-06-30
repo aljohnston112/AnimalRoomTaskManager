@@ -44,7 +44,8 @@ Scaffold buildScaffold({
 }) {
   return Scaffold(
     appBar: AppBar(title: Text(title), automaticallyImplyLeading: false),
-    body: PopScope( // For popping persistant snack bars
+    body: PopScope(
+      // For popping persistant snack bars
       canPop: true, // on navigation from the page that displayed them
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) {
@@ -151,12 +152,17 @@ TextFormField buildTextFormField({
   Icon? icon,
   String? Function(String?)? validator,
   bool enabled = true,
+  List<String> autofillHints = const [],
+  String? hintText,
+  bool obscureText = false,
 }) {
   return TextFormField(
+    autofillHints: autofillHints,
     enabled: enabled,
     controller: controller,
     autofocus: autoFocus ?? false,
     decoration: InputDecoration(
+      hintText: hintText,
       prefixIcon: icon,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
@@ -165,13 +171,32 @@ TextFormField buildTextFormField({
       errorMaxLines: 8,
     ),
     validator: validator,
+    autovalidateMode: AutovalidateMode.onUnfocus,
+    obscureText: obscureText,
   );
 }
 
-Widget cancelButton() {
+FilledButton buildGoBackButton() {
+  return FilledButton(
+    onPressed: () async {
+      unNavigate();
+    },
+    child: Text("Go Back"),
+  );
+}
+
+Widget buildCancelButton() {
   return FilledButton(
     child: const Text("Cancel"),
     onPressed: () => unNavigate(),
+  );
+}
+
+Card buildCard(BuildContext context, Widget child) {
+  return Card(
+    elevation: appCardElevation,
+    shadowColor: Theme.of(context).primaryColor,
+    child: child,
   );
 }
 

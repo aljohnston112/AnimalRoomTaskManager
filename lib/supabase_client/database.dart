@@ -33,6 +33,15 @@ class Database {
     return Database._(connection.client);
   }
 
+  Future<bool> login({required String email, required String password}) async {
+    try {
+      await _supabase.auth.signInWithPassword(email: email, password: password);
+      return true;
+    } on AuthApiException {
+      return false;
+    }
+  }
+
   Future<bool> signUp({required String email, required String password}) async {
     // if signUp succeeds,
     // then the users table has been populated with the signed in user
@@ -55,15 +64,6 @@ class Database {
 
   User? getSessionUser() {
     return _supabase.auth.currentUser;
-  }
-
-  Future<bool> login({required String email, required String password}) async {
-    try {
-      await _supabase.auth.signInWithPassword(email: email, password: password);
-      return true;
-    } on AuthApiException {
-      return false;
-    }
   }
 
   // Subscriptions
@@ -373,18 +373,6 @@ class Database {
     return data.toList();
   }
 
-  ur.UserGroup _getUserGroup(PostgrestMap postgresMap) {
-    switch (postgresMap['ug_id']) {
-      case 0:
-        return ur.UserGroup.admin;
-      case 1:
-        return ur.UserGroup.principalInvestigatorOrChiefOfStaff;
-      case 2:
-        return ur.UserGroup.roomChecker;
-    }
-    throw Exception("Invalid user group");
-  }
-
   Future<ur.User?> getUserWithAuthId(String authId) async {
     final userResponse = await _supabase
         .from('users')
@@ -399,6 +387,18 @@ class Database {
       );
     }
     return null;
+  }
+
+  ur.UserGroup _getUserGroup(PostgrestMap postgresMap) {
+    switch (postgresMap['ug_id']) {
+      case 0:
+        return ur.UserGroup.admin;
+      case 1:
+        return ur.UserGroup.principalInvestigatorOrChiefOfStaff;
+      case 2:
+        return ur.UserGroup.roomChecker;
+    }
+    throw Exception("Invalid user group");
   }
 
   // inserts/updates
@@ -606,7 +606,7 @@ class Database {
       if (ex.message.contains("duplicate key")) {
         // Front end does not have deleted rows
         // therefore toggling the deleted flag
-        await undeleteLab(labName);
+        await undeleteLab(labName, color);
       } else {
         rethrow;
       }
@@ -788,8 +788,11 @@ class Database {
         .eq('name', animalName);
   }
 
-  Future<void> undeleteLab(String labName) async {
-    await _supabase.from('labs').update({'deleted': false}).eq('name', labName);
+  Future<void> undeleteLab(String labName, int color) async {
+    await _supabase
+        .from('labs')
+        .update({'deleted': false, 'color': color})
+        .eq('name', labName);
   }
 
   Future<void> undeleteBuilding(String buildingName) async {

@@ -43,7 +43,7 @@ class _EditUserPageState extends State<EditUserPage> {
               _buildUserGroupDropdown(),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [cancelButton(), _buildAddUserButton()],
+                children: [buildCancelButton(), _buildAddUserButton()],
               ),
             ],
           ),

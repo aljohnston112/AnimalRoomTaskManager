@@ -6,7 +6,7 @@ import '../user_management/user_repository.dart';
 class LoginUseCase extends ChangeNotifier {
   final UserRepository _userRepository;
 
-  bool isInitializing = true;
+  bool _isInitializing = true;
   User? _loggedInUser;
 
   LoginUseCase({required UserRepository userRepository})
@@ -19,6 +19,8 @@ class LoginUseCase extends ChangeNotifier {
     });
   }
 
+  bool get isInitializing => _isInitializing;
+
   User? get loggedInUser => _loggedInUser;
 
   Future<void> checkForActiveSession() async {
@@ -27,7 +29,7 @@ class LoginUseCase extends ChangeNotifier {
       _loggedInUser = user;
       await _userRepository.loadUsers();
     }
-    isInitializing = false;
+    _isInitializing = false;
     notifyListeners();
   }
 

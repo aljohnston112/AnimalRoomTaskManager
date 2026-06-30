@@ -14,14 +14,16 @@ class RoomManagementModel extends ChangeNotifier {
   final LabRepository _labRepository;
   final TaskListRepository _taskListRepository;
 
-  ValueNotifier<Set<Building>> get buildings => _buildingRepository.buildings;
+  late ValueListenable<Set<Building>> buildingsListenable =
+      _buildingRepository.buildingsListenable;
 
-  ValueNotifier<Set<Facility>> get facilities => _facilityRepository.facilities;
+  late ValueListenable<Set<Facility>> facilitiesListenable =
+      _facilityRepository.facilitiesListenable;
 
-  ValueNotifier<Set<Lab>> get labs => _labRepository.labs;
+  late ValueListenable<Set<Lab>> labsListenable = _labRepository.labsListenable;
 
-  ValueListenable<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
-  get taskLists => _taskListRepository.taskListsListenable;
+  late ValueListenable<UnmodifiableMapView<TaskFrequency, Set<TaskList>>>
+  taskListsListenable = _taskListRepository.taskListsListenable;
 
   RoomManagementModel({
     required RoomRepository roomRepository,
@@ -34,7 +36,7 @@ class RoomManagementModel extends ChangeNotifier {
        _facilityRepository = facilityRepository,
        _labRepository = labRepository,
        _taskListRepository = taskListRepository {
-    _roomRepository.rooms.addListener(() {
+    _roomRepository.roomsListenable.addListener(() {
       notifyListeners();
     });
     // TODO could be a single database call to get all the information
@@ -46,13 +48,13 @@ class RoomManagementModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Set<RoomModel> getRooms() {
-    return _roomRepository.rooms.value;
-  }
+  Set<RoomModel> get rooms => _roomRepository.roomsListenable.value;
+
+  UnmodifiableMapView<TaskFrequency, Set<TaskList>> get taskLists =>
+      taskListsListenable.value;
 
   bool roomExists(String? roomName) {
-    return roomName != null &&
-        getRooms().map((f) => f.roomName).contains(roomName);
+    return roomName != null && rooms.map((f) => f.roomName).contains(roomName);
   }
 
   Future<void> addRoom({
@@ -81,7 +83,7 @@ class RoomManagementModel extends ChangeNotifier {
 
   int? getTaskList(List<int> tlids, TaskFrequency frequency) {
     for (final tlid in tlids) {
-      final taskList = taskLists.value[frequency]
+      final taskList = taskLists[frequency]
           ?.where((tl) => tl.tlid == tlid)
           .firstOrNull;
       if (taskList != null) {

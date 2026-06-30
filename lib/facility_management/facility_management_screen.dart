@@ -20,69 +20,52 @@ class FacilityManagementScreen extends StatelessWidget {
         alignment: Alignment.topCenter,
         child: constrainToPhoneWidth(
           Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ListenableBuilder(
-                listenable: _model,
-                builder: (context, _) {
-                  return buildScrollable(
-                    wrapList(
-                      context,
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            buildSectionHeader(context, "Facilities"),
-                            padding8,
-                            for (var facility in _model.getFacilities()) ...[
-                              Card(
-                                elevation: appCardElevation,
-                                shadowColor: Theme.of(context).primaryColor,
-                                child: ListTile(
-                                  title: mediumTitleText(
-                                    context,
-                                    facility.name,
-                                  ),
-                                  trailing: _buildDeleteIconButton(
-                                    context,
-                                    facility,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              _buildFacilityList(),
               padding8,
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  FilledButton(
-                    onPressed: () async {
-                      unNavigate();
-                    },
-                    child: Text("Go Back"),
-                  ),
-                  FilledButton(
-                    onPressed: () async {
-                      await navigate(AddFacilityScreen(model: _model));
-                    },
-                    child: Text("Add New Facility"),
-                  ),
-                ],
+                children: [buildGoBackButton(), _buildAddFacilityButton()],
               ),
               padding8,
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildFacilityList() {
+    return Flexible(
+      fit: FlexFit.loose,
+      child: ListenableBuilder(
+        listenable: _model,
+        builder: (context, _) {
+          return buildScrollable(
+            wrapList(
+              context,
+              Align(
+                alignment: Alignment.topCenter,
+                child: Column(
+                  children: [
+                    buildSectionHeader(context, "Facilities"),
+                    padding8,
+                    for (var facility in _model.facilities) ...[
+                      buildCard(
+                        context,
+                        ListTile(
+                          title: mediumTitleText(context, facility.name),
+                          trailing: _buildDeleteIconButton(context, facility),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -105,6 +88,15 @@ class FacilityManagementScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  FilledButton _buildAddFacilityButton() {
+    return FilledButton(
+      onPressed: () async {
+        await navigate(AddFacilityScreen(model: _model));
+      },
+      child: Text("Add New Facility"),
     );
   }
 }

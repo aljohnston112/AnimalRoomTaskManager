@@ -27,7 +27,7 @@ class UserManagementScreen extends StatelessWidget {
           padding8,
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [cancelButton(), _buildAddNewUserButton(context)],
+            children: [buildCancelButton(), _buildAddNewUserButton(context)],
           ),
           padding8,
         ],

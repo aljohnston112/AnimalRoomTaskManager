@@ -20,90 +20,59 @@ class RoomManagementScreen extends StatelessWidget {
         alignment: Alignment.topCenter,
         child: constrainToPhoneWidth(
           Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(
-                child: ListenableBuilder(
-                  listenable: _model,
-                  builder: (context, _) {
-                    var rooms = _model.getRooms().toList();
-                    rooms.sort(
-                      (a, b) =>
-                          compareAlphanumericRooms(a.roomName, b.roomName),
-                    );
-                    return Center(
-                      child: buildScrollable(
-                        wrapList(
-                          context,
-                          Align(
-                            alignment: Alignment.topCenter,
-                            child: Column(
-                              children: [
-                                for (var room in rooms) ...[
-                                  Card(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: BorderSide(
-                                        color: Theme.of(context).primaryColor,
-                                        width: 1
-                                      ),
-                                    ),
-                                    elevation: appCardElevation,
-                                    shadowColor: Theme.of(context).primaryColor,
-                                    child: ListTile(
-                                      title: mediumTitleText(
-                                        context,
-                                        room.roomName,
-                                      ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          _buildEditIconButton(context, room),
-                                          _buildDeleteIconButton(context, room),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              padding8,
+              _buildRoomList(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  FilledButton(
-                    onPressed: () async {
-                      unNavigate();
-                    },
-                    child: Text("Go Back"),
-                  ),
-                  FilledButton(
-                    onPressed: () async {
-                      await navigate(
-                        RoomEditorScreen(
-                          model: _model,
-                          title: "Add New Room",
-                          roomModel: null,
-                        ),
-                      );
-                    },
-                    child: Text("Add New Room"),
-                  ),
-                ],
+                children: [buildGoBackButton(), buildAddRoomButton()],
               ),
               padding8,
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Flexible _buildRoomList() {
+    return Flexible(
+      fit: .loose,
+      child: ListenableBuilder(
+        listenable: _model,
+        builder: (context, _) {
+          var rooms = _model.rooms.toList();
+          rooms.sort(
+            (a, b) => compareAlphanumericRooms(a.roomName, b.roomName),
+          );
+          return buildScrollable(
+            wrapList(
+              context,
+              Align(
+                alignment: Alignment.topCenter,
+                child: Column(
+                  children: [
+                    for (final room in rooms) ...[
+                      buildCard(
+                        context,
+                        ListTile(
+                          title: mediumTitleText(context, room.roomName),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildEditIconButton(context, room),
+                              _buildDeleteIconButton(context, room),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -157,6 +126,21 @@ class RoomManagementScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  FilledButton buildAddRoomButton() {
+    return FilledButton(
+      onPressed: () async {
+        await navigate(
+          RoomEditorScreen(
+            model: _model,
+            title: "Add New Room",
+            roomModel: null,
+          ),
+        );
+      },
+      child: Text("Add New Room"),
     );
   }
 }

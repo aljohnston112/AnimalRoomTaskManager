@@ -26,7 +26,7 @@ class SpeciesManagementScreen extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [cancelButton(), _buildAddSpeciesButton()],
+            children: [buildCancelButton(), _buildAddSpeciesButton()],
           ),
           padding8,
         ],

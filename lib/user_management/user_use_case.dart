@@ -8,14 +8,17 @@ String? validateEmail(String? value) {
   return null;
 }
 
-Widget buildEmailTextFormField(TextEditingController? controller) {
+Widget buildEmailTextFormField(
+  BuildContext context,
+  TextEditingController? controller,
+) {
   return constrainToPhoneWidth(
-    TextFormField(
+    buildTextFormField(
       controller: controller,
       autofillHints: const [AutofillHints.username],
-      decoration: const InputDecoration(hintText: "Email"),
-      autovalidateMode: AutovalidateMode.onUnfocus,
+      hintText: "Email",
       validator: validateEmail,
+      context: context,
     ),
   );
 }

@@ -32,57 +32,12 @@ class AddBuildingState extends State<AddBuildingPage> {
           child: constrainToPhoneWidth(
             Column(
               children: [
-                buildScrollable(
-                  constrainTextBoxWidth(
-                    wrapList(
-                      context,
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          mediumTitleText(context, "Building Name"),
-                          buildTextFormField(
-                            context: context,
-                            controller: _buildingController,
-                            autoFocus: true,
-                            icon: Icon(
-                              Icons.corporate_fare,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter a building';
-                              }
-                              if (widget._model.buildingExists(value)) {
-                                return 'There is already a building with that name';
-                              }
-                              return null;
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                _buildBuildingNameEntry(context),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    FilledButton(
-                      child: const Text("Cancel"),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    FilledButton(
-                      child: Text("Add Building"),
-                      onPressed: () async {
-                        if (_formKey.currentState!.validate()) {
-                          await widget._model.addBuilding(
-                            _buildingController.text,
-                          );
-                          if (context.mounted) {
-                            Navigator.pop(context);
-                          }
-                        }
-                      },
-                    ),
+                    buildCancelButton(),
+                    _buildAddBuildingButton(context),
                   ],
                 ),
               ],
@@ -90,6 +45,54 @@ class AddBuildingState extends State<AddBuildingPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBuildingNameEntry(BuildContext context) {
+    return buildScrollable(
+      constrainTextBoxWidth(
+        wrapList(
+          context,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              mediumTitleText(context, "Building Name"),
+              buildTextFormField(
+                context: context,
+                controller: _buildingController,
+                autoFocus: true,
+                icon: Icon(
+                  Icons.corporate_fare,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a building';
+                  }
+                  if (widget._model.buildingExists(value)) {
+                    return 'There is already a building with that name';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  FilledButton _buildAddBuildingButton(BuildContext context) {
+    return FilledButton(
+      child: Text("Add Building"),
+      onPressed: () async {
+        if (_formKey.currentState?.validate() == true) {
+          await widget._model.addBuilding(_buildingController.text);
+          if (context.mounted) {
+            unNavigate();
+          }
+        }
+      },
     );
   }
 }

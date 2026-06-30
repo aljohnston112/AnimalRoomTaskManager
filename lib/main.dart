@@ -33,6 +33,7 @@ import 'package:animal_room_task_manager/user_management/user_management_screen.
 import 'package:animal_room_task_manager/user_management/user_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nested/nested.dart';
 import 'package:provider/provider.dart';
 
 import 'facility_management/facility_repository.dart';
@@ -109,72 +110,81 @@ import 'facility_management/facility_repository.dart';
 // to a room on a specific set of weekdays over a time frame
 // consisting of an interval over two future dates
 
-// TODO clear snackbars when navigating; and switch to navigation functions in theme_data
+// TODO switch to navigation functions in theme_data
 
 Future<void> main() async {
   Database database = await Database.create();
   runApp(
     MultiProvider(
-      providers: [
-        Provider.value(value: database),
-        Provider.value(value: SpeciesRepository(database: database)),
-        Provider.value(value: BuildingRepository(database: database)),
-        Provider.value(value: CensusRepository(database: database)),
-        Provider.value(value: LabRepository(database: database)),
-        Provider.value(value: FacilityRepository(database: database)),
-        Provider.value(value: QueryRepository(database: database)),
-        Provider.value(value: RecordRepository(database: database)),
-        Provider.value(value: RoomRepository(database: database)),
-        Provider.value(value: RoomCheckRepository(database: database)),
-        Provider.value(value: TaskListRepository(database: database)),
-        Provider.value(value: UserRepository(database: database)),
-        ChangeNotifierProvider(
-          create: (context) {
-            var userRepository = context.read<UserRepository>();
-            return LoginUseCase(userRepository: userRepository);
-          },
-        ),
-      ],
-      child: AnimalCareFacilityCheckApp(),
+      providers: buildProviders(database),
+      child: AnimalCareFacilityManagementApp(),
     ),
   );
 }
 
-class AnimalCareFacilityCheckApp extends StatelessWidget {
-  const AnimalCareFacilityCheckApp({super.key});
+List<SingleChildWidget> buildProviders(Database database) {
+  return [
+    Provider.value(value: database),
+    Provider.value(value: BuildingRepository(database: database)),
+    Provider.value(value: CensusRepository(database: database)),
+    Provider.value(value: LabRepository(database: database)),
+    Provider.value(value: FacilityRepository(database: database)),
+    Provider.value(value: QueryRepository(database: database)),
+    Provider.value(value: RecordRepository(database: database)),
+    Provider.value(value: RoomRepository(database: database)),
+    Provider.value(value: RoomCheckRepository(database: database)),
+    Provider.value(value: SpeciesRepository(database: database)),
+    Provider.value(value: TaskListRepository(database: database)),
+    Provider.value(value: UserRepository(database: database)),
+    ChangeNotifierProvider(
+      create: (context) {
+        var userRepository = context.read<UserRepository>();
+        return LoginUseCase(userRepository: userRepository);
+      },
+    ),
+  ];
+}
+
+class AnimalCareFacilityManagementApp extends StatelessWidget {
+  const AnimalCareFacilityManagementApp({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      title: '$appName Demo',
+      theme: buildThemeData(),
+      themeMode: ThemeMode.light,
+      // Builder context needed to get Material related objects
+      home: Builder(builder: _buildApp),
+    );
+  }
+
+  Widget _buildApp(BuildContext context) {
     final loginUseCase = context.watch<LoginUseCase>();
+    if (loginUseCase.isInitializing) {
+      return center(CircularProgressIndicator());
+    }
+    return loginUseCase.loggedInUser == null
+        ? LoginScreen(loginUseCase: loginUseCase)
+        : _buildHomeScreen(context, loginUseCase);
+  }
+
+  ThemeData buildThemeData() {
     var colorScheme = ColorScheme.fromSeed(
       seedColor: Colors.green,
       brightness: Brightness.light,
     );
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: '$appName Demo',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: colorScheme,
-        appBarTheme: AppBarTheme(
-          foregroundColor: colorScheme.primary,
-          titleTextStyle: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: colorScheme.primary,
-          ),
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      appBarTheme: AppBarTheme(
+        foregroundColor: colorScheme.primary,
+        titleTextStyle: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+          color: colorScheme.primary,
         ),
-      ),
-      themeMode: ThemeMode.light,
-      home: Builder(
-        builder: (context) {
-          if (loginUseCase.isInitializing) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          return loginUseCase.loggedInUser == null
-              ? LoginScreen(loginUseCase: loginUseCase)
-              : _buildHomeScreen(context, loginUseCase);
-        },
       ),
     );
   }

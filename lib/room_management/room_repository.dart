@@ -1,3 +1,4 @@
+import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:animal_room_task_manager/scheduler/scheduling_model.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -40,7 +41,8 @@ class RoomModel {
 class RoomRepository {
   final Database _database;
   final Set<RoomModel> _rooms = {};
-  final ValueNotifier<Set<RoomModel>> rooms = ValueNotifier({});
+  late final _roomsNotifier = RefreshableNotifier<Set<RoomModel>>(_rooms);
+  late final ValueListenable<Set<RoomModel>> roomsListenable = _roomsNotifier;
 
   RoomRepository({required Database database}) : _database = database {
     _database.subscribeToFullRooms((data) {
@@ -50,7 +52,7 @@ class RoomRepository {
       if (!payload['room']['deleted']) {
         _rooms.add(room);
       }
-      rooms.value = Set.from(_rooms);
+      _roomsNotifier.refresh();
     });
     _database.subscribeToRoomsUpdates((data) {
       bool? deleted = data.newRecord['deleted'];
@@ -60,7 +62,7 @@ class RoomRepository {
         // TODO can do a call to get just the one
         loadRooms();
       }
-      rooms.value = Set.from(_rooms);
+      _roomsNotifier.refresh();
     });
   }
 
@@ -79,13 +81,14 @@ class RoomRepository {
 
   Future<void> loadRooms() async {
     final result = await _database.getRooms();
+    _rooms.clear();
     for (final roomDB in result) {
       RoomModel room = _parseRoom(roomDB);
       if (!roomDB['room']['deleted']) {
         _rooms.add(room);
       }
     }
-    rooms.value = Set.from(_rooms);
+    _roomsNotifier.refresh();
   }
 
   Future<void> addRoom({

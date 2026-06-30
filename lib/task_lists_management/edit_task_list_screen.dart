@@ -105,7 +105,7 @@ class EditTaskListScreenState extends State<EditTaskListScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          cancelButton(),
+                          buildCancelButton(),
                           _buildAddNewTaskButton(context),
                           _buildSubmitButton(context),
                         ],

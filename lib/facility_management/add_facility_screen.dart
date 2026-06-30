@@ -26,64 +26,66 @@ class AddFacilityState extends State<AddFacilityScreen> {
       context: context,
       child: Form(
         key: _formKey,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Align(
-              alignment: .topCenter,
-              child: constrainTextBoxWidth(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    mediumTitleText(context, "Facility Name"),
-                    buildTextFormField(
-                      context: context,
-                      autoFocus: true,
-                      controller: _facilityController,
-                      icon: Icon(
-                        Icons.domain_add,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please enter a facility';
-                        }
-                        if (widget._model.facilityExists(value)) {
-                          return 'There is already a facility with that name';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            padding8,
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        child: Align(
+          alignment: .topCenter,
+          child: constrainToPhoneWidth(
+            Column(
               children: [
-                FilledButton(
-                  child: const Text("Cancel"),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                FilledButton(
-                  child: Text("Add Facility"),
-                  onPressed: () async {
-                    if (_formKey.currentState!.validate()) {
-                      await widget._model.addFacility(_facilityController.text);
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                      }
-                    }
-                  },
+                _buildFacilityNameEntry(context),
+                padding8,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    buildCancelButton(),
+                    _buildAddFacilityButton(context),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  ConstrainedBox _buildFacilityNameEntry(BuildContext context) {
+    return constrainTextBoxWidth(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          mediumTitleText(context, "Facility Name"),
+          buildTextFormField(
+            context: context,
+            autoFocus: true,
+            controller: _facilityController,
+            icon: Icon(Icons.domain_add, color: Theme.of(context).primaryColor),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter a facility';
+              }
+              if (widget._model.facilityExists(value)) {
+                return 'There is already a facility with that name';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  FilledButton _buildAddFacilityButton(BuildContext context) {
+    return FilledButton(
+      child: Text("Add Facility"),
+      onPressed: () async {
+        if (_formKey.currentState!.validate()) {
+          await widget._model.addFacility(_facilityController.text);
+          if (context.mounted) {
+            unNavigate();
+          }
+        }
+      },
     );
   }
 }

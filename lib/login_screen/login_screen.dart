@@ -22,18 +22,17 @@ class LoginScreen extends StatelessWidget {
       child: buildScaffold(
         title: 'Login',
         context: context,
-        child: Center(
-          child: constrainToPhoneWidth(
+        child: center(
+          constrainToPhoneWidth(
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
+                constrainTextBoxWidth(
+                  Column(
                     children: [
-                      buildEmailTextFormField(_emailController),
+                      buildEmailTextFormField(context, _emailController),
                       padding8,
-                      _buildPasswordFormField(_passwordController),
+                      _buildPasswordFormField(context, _passwordController),
                     ],
                   ),
                 ),
@@ -52,6 +51,42 @@ class LoginScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildPasswordFormField(
+    BuildContext context,
+    TextEditingController passwordController,
+  ) {
+    return constrainToPhoneWidth(
+      buildTextFormField(
+        controller: passwordController,
+        autofillHints: const [AutofillHints.password],
+        hintText: "Password",
+        obscureText: true,
+        validator: validatePassword,
+        context: context,
+      ),
+    );
+  }
+
+  String? validatePassword(String? value) {
+    if (value == null) {
+      return "Please enter a password";
+    }
+
+    // (?=.*[a-zA-Z]) looks for the first letter
+    // (?=.*\d) looks for the first digit
+    // (?=.*[\W_]) looks for the first symbol (not a letter or number)
+    // The triple lookahead consume no tokens
+    // .{14,} consumes 14 characters
+    final passwordPattern = RegExp(
+      r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{14,}$',
+    );
+    if (!passwordPattern.hasMatch(value)) {
+      return "Password must be at least 14 characters long, "
+          "and contain a letter, number, and special character";
+    }
+    return null;
   }
 
   Widget _buildLoginButton(BuildContext context) {
@@ -94,38 +129,5 @@ class LoginScreen extends StatelessWidget {
       },
       child: Text("Sign Up"),
     );
-  }
-
-  Widget _buildPasswordFormField(TextEditingController passwordController) {
-    return constrainToPhoneWidth(
-      TextFormField(
-        controller: passwordController,
-        autofillHints: const [AutofillHints.password],
-        decoration: const InputDecoration(hintText: "Password"),
-        autovalidateMode: AutovalidateMode.onUnfocus,
-        obscureText: true,
-        validator: validatePassword,
-      ),
-    );
-  }
-
-  String? validatePassword(String? value) {
-    if (value == null) {
-      return "Please enter a password";
-    }
-
-    // (?=.*[a-zA-Z]) looks for the first letter
-    // (?=.*\d) looks for the first digit
-    // (?=.*[\W_]) looks for the first symbol (not a letter or number)
-    // The triple lookahead consume no tokens
-    // .{14,} consumes 14 characters
-    final passwordPattern = RegExp(
-      r'^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{14,}$',
-    );
-    if (!passwordPattern.hasMatch(value)) {
-      return "Password must be at least 14 characters long, "
-          "and contain a letter, number, and special character";
-    }
-    return null;
   }
 }

@@ -30,7 +30,7 @@ class _AdminTransferPageState extends State<AdminTransferPage> {
           constrainToPhoneWidth(
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [cancelButton(), _buildSubmitButton()],
+              children: [buildCancelButton(), _buildSubmitButton()],
             ),
           ),
         ],

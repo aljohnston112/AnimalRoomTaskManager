@@ -5,6 +5,8 @@ import 'add_building_page.dart';
 import 'building_management_model.dart';
 import 'building_repository.dart';
 
+/// Displays all rooms
+/// and let the user add or delete rooms
 class BuildingManagementScreen extends StatelessWidget {
   final BuildingManagementModel _model;
 
@@ -21,63 +23,49 @@ class BuildingManagementScreen extends StatelessWidget {
         child: constrainToPhoneWidth(
           Column(
             children: [
-              ListenableBuilder(
-                listenable: _model,
-                builder: (context, _) {
-                  return buildScrollable(
-                    wrapList(
-                      context,
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            buildSectionHeader(context, "Buildings"),
-                            padding8,
-                            for (var building in _model.getBuildings()) ...[
-                              Card(
-                                elevation: appCardElevation,
-                                shadowColor: Theme.of(context).primaryColor,
-                                child: ListTile(
-                                  title: mediumTitleText(
-                                    context,
-                                    building.name,
-                                  ),
-                                  trailing: _buildDeleteIconButton(
-                                    context,
-                                    building,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              _buildBuildingList(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  FilledButton(
-                    onPressed: () async {
-                      unNavigate();
-                    },
-                    child: Text("Go Back"),
-                  ),
-                  FilledButton(
-                    onPressed: () async {
-                      await navigate(AddBuildingPage(model: _model));
-                    },
-                    child: Text("Add New Building"),
-                  ),
-                ],
+                children: [buildGoBackButton(), _buildAddBuildingButton()],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBuildingList() {
+    return Flexible(
+      fit: FlexFit.loose,
+      child: ListenableBuilder(
+        listenable: _model,
+        builder: (context, _) {
+          return buildScrollable(
+            wrapList(
+              context,
+              Align(
+                alignment: Alignment.topCenter,
+                child: Column(
+                  children: [
+                    buildSectionHeader(context, "Buildings"),
+                    padding8,
+                    for (var building in _model.buildings) ...[
+                      buildCard(
+                        context,
+                        ListTile(
+                          title: mediumTitleText(context, building.name),
+                          trailing: _buildDeleteIconButton(context, building),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -100,6 +88,15 @@ class BuildingManagementScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  FilledButton _buildAddBuildingButton() {
+    return FilledButton(
+      onPressed: () async {
+        await navigate(AddBuildingPage(model: _model));
+      },
+      child: Text("Add New Building"),
     );
   }
 }

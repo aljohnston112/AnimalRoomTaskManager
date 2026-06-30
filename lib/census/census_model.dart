@@ -83,8 +83,8 @@ class CensusEntryModel extends ChangeNotifier {
   }) {
     allSpecies = animalRepository.speciesListenable;
     animalRepository.loadSpecies();
-    roomRepository.rooms.addListener(() {
-      var set = roomRepository.rooms.value
+    roomRepository.roomsListenable.addListener(() {
+      var set = roomRepository.roomsListenable.value
           .where((e) => !roomsWithCensuses.contains(e.rid))
           .toSet();
       rooms.value = set;

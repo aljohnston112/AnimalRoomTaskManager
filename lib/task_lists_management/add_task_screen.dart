@@ -38,7 +38,7 @@ class AddTaskScreen extends StatelessWidget {
                 if (_model.isQuantitative) ...{..._buildRangeFields(context)},
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [cancelButton(), _buildAddTaskButton(context)],
+                  children: [buildCancelButton(), _buildAddTaskButton(context)],
                 ),
               ],
             );

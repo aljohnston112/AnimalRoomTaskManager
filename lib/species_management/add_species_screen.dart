@@ -33,7 +33,7 @@ class AddAnimalState extends State<AddSpeciesScreen> {
             Center(child: _buildSpeciesField(context)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [cancelButton(), _buildAddSpeciesButton(context)],
+              children: [buildCancelButton(), _buildAddSpeciesButton(context)],
             ),
           ],
         ),

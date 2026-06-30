@@ -1,5 +1,8 @@
+import 'dart:collection';
+
+import 'package:animal_room_task_manager/query/query_model.dart';
 import 'package:animal_room_task_manager/supabase_client/database.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Building implements Comparable<Building> {
@@ -22,8 +25,12 @@ class Building implements Comparable<Building> {
 
 class BuildingRepository {
   final Database _database;
-  final Set<Building> _buildings = {};
-  final ValueNotifier<Set<Building>> buildings = ValueNotifier({});
+  final _buildings = SplayTreeSet<Building>();
+  late final _buildingsNotifier = RefreshableNotifier<Set<Building>>(
+    _buildings,
+  );
+  late final ValueListenable<Set<Building>> buildingsListenable =
+      _buildingsNotifier;
 
   BuildingRepository({required Database database}) : _database = database {
     _database.subscribeToBuildings((PostgresChangePayload p) {
@@ -34,7 +41,7 @@ class BuildingRepository {
         if (!newRecord['deleted']) {
           _buildings.add(building);
         }
-        buildings.value = Set.from(_buildings);
+        _buildingsNotifier.refresh();
       }
     });
   }
@@ -44,6 +51,7 @@ class BuildingRepository {
   }
 
   Future<void> loadBuildings() async {
+    _buildings.clear();
     final result = await _database.getBuildings();
     for (final buildingDB in result) {
       Building building = _parseBuilding(buildingDB);
@@ -51,7 +59,7 @@ class BuildingRepository {
         _buildings.add(building);
       }
     }
-    buildings.value = Set.from(_buildings);
+    _buildingsNotifier.refresh();
   }
 
   Future<void> addBuilding(String buildingName) {

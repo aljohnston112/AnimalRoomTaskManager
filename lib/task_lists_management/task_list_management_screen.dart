@@ -60,7 +60,7 @@ class TaskListManagementScreen extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [cancelButton(), _buildAddTaskListButton()],
+                    children: [buildCancelButton(), _buildAddTaskListButton()],
                   ),
                 ),
               ],
